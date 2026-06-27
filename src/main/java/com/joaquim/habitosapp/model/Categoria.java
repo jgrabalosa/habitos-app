@@ -8,42 +8,53 @@ public class Categoria {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "categoria_id")
     private int categoriaId;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(length = 50)
+    @Column(name = "descripcion", length = 200)
+    private String descripcion;
+
+    @Column(name = "color", length = 50)
     private String color;
 
-    @Column(length = 50)
+    @Column(name = "icono", length = 50)
     private String icono;
 
-    @Column(nullable = false)
+    @Column(name = "es_global", nullable = false)
     private boolean esGlobal;
 
+    @Column(name = "orden")
+    private int orden;
+
     @ManyToOne
-    @JoinColumn(name = "creador_id")
+    @JoinColumn(name = "creador_id", foreignKey = @ForeignKey(name = "FK_categoria_usuario"))
     private Usuario creador;
 
     // Constructor vacío — obligatorio para JPA
     public Categoria() {}
 
     // Constructor con parámetros
-    public Categoria(String nombre, String color, String icono, boolean esGlobal, Usuario creador) {
+    public Categoria(String nombre, String descripcion, String color, String icono, boolean esGlobal, int orden, Usuario creador) {
         this.nombre = nombre;
+        this.descripcion = descripcion;
         this.color = color;
         this.icono = icono;
         this.esGlobal = esGlobal;
+        this.orden = orden;
         this.creador = creador;
     }
 
-    // Getters y Setters
     public int getCategoriaId() { return categoriaId; }
     public void setCategoriaId(int categoriaId) { this.categoriaId = categoriaId; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getDescripcion() { return descripcion; }
+    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
 
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
@@ -53,6 +64,9 @@ public class Categoria {
 
     public boolean isEsGlobal() { return esGlobal; }
     public void setEsGlobal(boolean esGlobal) { this.esGlobal = esGlobal; }
+
+    public int getOrden() { return orden; }
+    public void setOrden(int orden) { this.orden = orden; }
 
     public Usuario getCreador() { return creador; }
     public void setCreador(Usuario creador) { this.creador = creador; }

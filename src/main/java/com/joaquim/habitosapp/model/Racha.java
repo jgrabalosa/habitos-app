@@ -9,19 +9,20 @@ public class Racha {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "racha_id")
     private int rachaId;
 
-    @Column(nullable = false)
+    @Column(name = "racha_actual", nullable = false)
     private int rachaActual;
 
-    @Column(nullable = false)
+    @Column(name = "racha_maxima", nullable = false)
     private int rachaMaxima;
 
-    @Column(nullable = false)
+    @Column(name = "ultima_fecha", nullable = false)
     private LocalDate ultimaFecha;
 
     @OneToOne
-    @JoinColumn(name = "habito_ref", nullable = false)
+    @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_racha_habito"))
     private Habito habito;
 
     // Constructor vacío — obligatorio para JPA
@@ -35,7 +36,6 @@ public class Racha {
         this.ultimaFecha = LocalDate.now();
     }
 
-    // Getters y Setters
     public int getRachaId() { return rachaId; }
     public void setRachaId(int rachaId) { this.rachaId = rachaId; }
 

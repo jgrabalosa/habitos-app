@@ -9,26 +9,31 @@ public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "usuario_id")
     private int usuarioId;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(name = "username", nullable = false, unique = true, length = 50)
+    private String username;
+
+    @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
-    @Column(nullable = false)
+    @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
 
     // Constructor vacío — obligatorio para JPA
     public Usuario() {}
 
     // Constructor con parámetros
-    public Usuario(String nombre, String email, String contrasena) {
+    public Usuario(String nombre, String username, String email, String contrasena) {
         this.nombre = nombre;
+        this.username = username;
         this.email = email;
         this.contrasena = contrasena;
         this.fechaRegistro = LocalDateTime.now();
@@ -39,6 +44,9 @@ public class Usuario {
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -51,7 +59,7 @@ public class Usuario {
 
     @Override
     public String toString() {
-        return "Usuario{usuarioId=" + usuarioId + ", nombre='" + nombre + "', email='" + email + "'}";
+        return "Usuario{usuarioId=" + usuarioId + ", username='" + username + "', email='" + email + "'}";
     }
 
     @Override

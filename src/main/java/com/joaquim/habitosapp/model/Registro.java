@@ -9,19 +9,20 @@ public class Registro {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "registro_id")
     private int registroId;
 
-    @Column(nullable = false)
+    @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
 
-    @Column(nullable = false)
+    @Column(name = "completado", nullable = false)
     private boolean completado;
 
-    @Column(length = 500)
+    @Column(name = "nota", length = 500)
     private String nota;
 
     @ManyToOne
-    @JoinColumn(name = "habito_ref", nullable = false)
+    @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_registro_habito"))
     private Habito habito;
 
     // Constructor vacío — obligatorio para JPA
@@ -35,7 +36,6 @@ public class Registro {
         this.fecha = LocalDate.now();
     }
 
-    // Getters y Setters
     public int getRegistroId() { return registroId; }
     public void setRegistroId(int registroId) { this.registroId = registroId; }
 
