@@ -35,6 +35,20 @@ public class Habito {
     @JoinColumn(name = "tipo_id")
     private Categoria tipo;
 
+    // Constructor vacío — obligatorio para JPA
+    public Habito() {}
+
+    // Constructor con parámetros
+    public Habito(String nombre, String descripcion, Frecuencia frecuencia, Usuario propietario, Categoria tipo) {
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.frecuencia = frecuencia;
+        this.propietario = propietario;
+        this.tipo = tipo;
+        this.fechaInicio = LocalDate.now();
+        this.activo = true;
+    }
+
     // Getters y Setters
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }

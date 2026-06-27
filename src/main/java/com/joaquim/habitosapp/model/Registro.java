@@ -24,6 +24,17 @@ public class Registro {
     @JoinColumn(name = "habito_ref", nullable = false)
     private Habito habito;
 
+    // Constructor vacío — obligatorio para JPA
+    public Registro() {}
+
+    // Constructor con parámetros
+    public Registro(Habito habito, boolean completado, String nota) {
+        this.habito = habito;
+        this.completado = completado;
+        this.nota = nota;
+        this.fecha = LocalDate.now();
+    }
+
     // Getters y Setters
     public int getRegistroId() { return registroId; }
     public void setRegistroId(int registroId) { this.registroId = registroId; }

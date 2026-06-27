@@ -26,6 +26,18 @@ public class Categoria {
     @JoinColumn(name = "creador_id")
     private Usuario creador;
 
+    // Constructor vacío — obligatorio para JPA
+    public Categoria() {}
+
+    // Constructor con parámetros
+    public Categoria(String nombre, String color, String icono, boolean esGlobal, Usuario creador) {
+        this.nombre = nombre;
+        this.color = color;
+        this.icono = icono;
+        this.esGlobal = esGlobal;
+        this.creador = creador;
+    }
+
     // Getters y Setters
     public int getCategoriaId() { return categoriaId; }
     public void setCategoriaId(int categoriaId) { this.categoriaId = categoriaId; }

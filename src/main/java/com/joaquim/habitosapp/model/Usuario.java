@@ -23,6 +23,17 @@ public class Usuario {
     @Column(nullable = false)
     private LocalDateTime fechaRegistro;
 
+    // Constructor vacío — obligatorio para JPA
+    public Usuario() {}
+
+    // Constructor con parámetros
+    public Usuario(String nombre, String email, String contrasena) {
+        this.nombre = nombre;
+        this.email = email;
+        this.contrasena = contrasena;
+        this.fechaRegistro = LocalDateTime.now();
+    }
+
     public int getUsuarioId() { return usuarioId; }
     public void setUsuarioId(int usuarioId) { this.usuarioId = usuarioId; }
 

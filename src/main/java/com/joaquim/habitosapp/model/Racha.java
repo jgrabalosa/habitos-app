@@ -24,6 +24,17 @@ public class Racha {
     @JoinColumn(name = "habito_ref", nullable = false)
     private Habito habito;
 
+    // Constructor vacío — obligatorio para JPA
+    public Racha() {}
+
+    // Constructor con parámetros
+    public Racha(Habito habito) {
+        this.habito = habito;
+        this.rachaActual = 0;
+        this.rachaMaxima = 0;
+        this.ultimaFecha = LocalDate.now();
+    }
+
     // Getters y Setters
     public int getRachaId() { return rachaId; }
     public void setRachaId(int rachaId) { this.rachaId = rachaId; }
