@@ -8,6 +8,7 @@ import com.joaquim.habitosapp.repository.IRachaDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.time.LocalDate;
 
 @Service
 public class HabitoService {
@@ -19,6 +20,8 @@ public class HabitoService {
     private IRachaDAO rachaDAO;
 
     public void crearHabito(Habito habito) {
+        habito.setFechaInicio(LocalDate.now());
+        habito.setActivo(true);
         habitoDAO.save(habito);
         Racha racha = new Racha(habito);
         rachaDAO.save(racha);

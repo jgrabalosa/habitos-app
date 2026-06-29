@@ -4,6 +4,7 @@ import com.joaquim.habitosapp.model.Usuario;
 import com.joaquim.habitosapp.repository.IUsuarioDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 
 @Service
 public class UsuarioService {
@@ -20,6 +21,7 @@ public class UsuarioService {
         if (existenteUsername != null) {
             throw new RuntimeException("Ya existe un usuario con ese username");
         }
+        usuario.setFechaRegistro(LocalDateTime.now());
         usuarioDAO.save(usuario);
     }
 
