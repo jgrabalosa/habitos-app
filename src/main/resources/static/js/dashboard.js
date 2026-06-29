@@ -1,4 +1,4 @@
-const API = 'http://localhost:8080/api';
+const API = '/api';
 
 // ── Verificar sesión ──────────────────────────────────
 const token = localStorage.getItem('token');
