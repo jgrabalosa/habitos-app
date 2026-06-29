@@ -15,6 +15,12 @@ document.getElementById('registroTab').addEventListener('click', () => {
     document.getElementById('loginTab').classList.remove('active');
 });
 
+// ── Comprobar si ya hay sesión activa ─────────────────
+const token = localStorage.getItem('token');
+if (token) {
+    window.location.href = '/index.html';
+}
+
 // ── Login ─────────────────────────────────────────────
 async function login() {
     const email = document.getElementById('loginEmail').value;
@@ -34,8 +40,14 @@ async function login() {
         });
 
         if (response.ok) {
-            const usuario = await response.json();
-            sessionStorage.setItem('usuario', JSON.stringify(usuario));
+            const data = await response.json();
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('usuario', JSON.stringify({
+                usuarioId: data.usuarioId,
+                nombre: data.nombre,
+                username: data.username,
+                email: data.email
+            }));
             window.location.href = '/index.html';
         } else {
             const mensaje = await response.text();

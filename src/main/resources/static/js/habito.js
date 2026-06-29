@@ -1,18 +1,30 @@
 const API = 'http://localhost:8080/api';
 
 // ── Verificar sesión ──────────────────────────────────
-const usuarioJSON = sessionStorage.getItem('usuario');
-if (!usuarioJSON) {
+const token = localStorage.getItem('token');
+const usuarioJSON = localStorage.getItem('usuario');
+if (!token || !usuarioJSON) {
     window.location.href = '/login.html';
 }
 const usuario = JSON.parse(usuarioJSON);
 
+// ── Headers con token ─────────────────────────────────
+const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+};
+
 // ── Cargar categorías ─────────────────────────────────
 async function cargarCategorias() {
     try {
-        const response = await fetch(`${API}/categorias/usuario/${usuario.usuarioId}`);
-        const categorias = await response.json();
+        const response = await fetch(`${API}/categorias/usuario/${usuario.usuarioId}`, { headers });
 
+        if (response.status === 401 || response.status === 403) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        const categorias = await response.json();
         const select = document.getElementById('categoria');
         select.innerHTML = '<option value="">Sin categoría</option>';
 
@@ -58,7 +70,7 @@ async function crearHabito() {
     try {
         const response = await fetch(`${API}/habitos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(habito)
         });
 

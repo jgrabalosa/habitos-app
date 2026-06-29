@@ -3,6 +3,7 @@ package com.joaquim.habitosapp.service;
 import com.joaquim.habitosapp.model.Usuario;
 import com.joaquim.habitosapp.repository.IUsuarioDAO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
@@ -12,16 +13,18 @@ public class UsuarioService {
     @Autowired
     private IUsuarioDAO usuarioDAO;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     public void registrar(Usuario usuario) {
-        Usuario existente = usuarioDAO.findByEmail(usuario.getEmail());
-        if (existente != null) {
+        if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese email");
         }
-        Usuario existenteUsername = usuarioDAO.findByUsername(usuario.getUsername());
-        if (existenteUsername != null) {
+        if (usuarioDAO.findByUsername(usuario.getUsername()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese username");
         }
         usuario.setFechaRegistro(LocalDateTime.now());
+        usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
         usuarioDAO.save(usuario);
     }
 
@@ -30,7 +33,7 @@ public class UsuarioService {
         if (usuario == null) {
             throw new RuntimeException("Email no encontrado");
         }
-        if (!usuario.getContrasena().equals(contrasena)) {
+        if (!passwordEncoder.matches(contrasena, usuario.getContrasena())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
         return usuario;

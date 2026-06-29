@@ -1,6 +1,7 @@
 package com.joaquim.habitosapp.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,20 +13,32 @@ public class Usuario {
     @Column(name = "usuario_id")
     private int usuarioId;
 
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
+    @NotBlank(message = "El username es obligatorio")
+    @Size(min = 3, max = 50, message = "El username debe tener entre 3 y 50 caracteres")
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email no tiene un formato válido")
     @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
+    @NotBlank(message = "La contraseña es obligatoria")
+    @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
+
+    // Constructores, getters, setters, toString, equals, hashCode
+    // (mantén el resto igual)
+
 
     // Constructor vacío — obligatorio para JPA
     public Usuario() {}

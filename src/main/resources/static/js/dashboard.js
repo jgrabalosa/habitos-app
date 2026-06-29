@@ -1,11 +1,18 @@
 const API = 'http://localhost:8080/api';
 
 // ── Verificar sesión ──────────────────────────────────
-const usuarioJSON = sessionStorage.getItem('usuario');
-if (!usuarioJSON) {
+const token = localStorage.getItem('token');
+const usuarioJSON = localStorage.getItem('usuario');
+if (!token || !usuarioJSON) {
     window.location.href = '/login.html';
 }
 const usuario = JSON.parse(usuarioJSON);
+
+// ── Headers con token ─────────────────────────────────
+const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+};
 
 // ── Inicializar ───────────────────────────────────────
 document.getElementById('nombreUsuario').textContent = `Hola, ${usuario.nombre}`;
@@ -18,9 +25,14 @@ cargarHabitos();
 // ── Cargar hábitos ────────────────────────────────────
 async function cargarHabitos() {
     try {
-        const response = await fetch(`${API}/habitos/usuario/${usuario.usuarioId}/activos`);
-        habitos = await response.json();
+        const response = await fetch(`${API}/habitos/usuario/${usuario.usuarioId}/activos`, { headers });
 
+        if (response.status === 401 || response.status === 403) {
+            cerrarSesion();
+            return;
+        }
+
+        habitos = await response.json();
         await verificarCompletados();
         renderHabitos();
         actualizarEstadisticas();
@@ -32,7 +44,7 @@ async function cargarHabitos() {
 // ── Verificar completados hoy ─────────────────────────
 async function verificarCompletados() {
     for (const habito of habitos) {
-        const response = await fetch(`${API}/registros/habito/${habito.habitoId}/hoy`);
+        const response = await fetch(`${API}/registros/habito/${habito.habitoId}/hoy`, { headers });
         const data = await response.json();
         if (data.completadoHoy) {
             completadosHoy.add(habito.habitoId);
@@ -93,7 +105,7 @@ async function completar(habitoId) {
     try {
         const response = await fetch(`${API}/registros/completar/${habitoId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ nota: '' })
         });
 
@@ -120,6 +132,7 @@ function actualizarEstadisticas() {
 
 // ── Cerrar sesión ─────────────────────────────────────
 function cerrarSesion() {
-    sessionStorage.removeItem('usuario');
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
     window.location.href = '/login.html';
 }

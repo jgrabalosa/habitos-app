@@ -1,11 +1,15 @@
 package com.joaquim.habitosapp.controller;
 
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.security.JwtUtil;
 import com.joaquim.habitosapp.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -14,8 +18,18 @@ public class UsuarioController {
     @Autowired
     private UsuarioService usuarioService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @PostMapping("/registro")
-    public ResponseEntity<?> registrar(@RequestBody Usuario usuario) {
+    public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
+                                       BindingResult result) {
+        if (result.hasErrors()) {
+            String errores = result.getFieldErrors().stream()
+                    .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                    .collect(java.util.stream.Collectors.joining(", "));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errores);
+        }
         try {
             usuarioService.registrar(usuario);
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -31,7 +45,14 @@ public class UsuarioController {
         try {
             Usuario encontrado = usuarioService.login(
                     usuario.getEmail(), usuario.getContrasena());
-            return ResponseEntity.ok(encontrado);
+            String token = jwtUtil.generateToken(encontrado.getEmail());
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "usuarioId", encontrado.getUsuarioId(),
+                    "nombre", encontrado.getNombre(),
+                    "username", encontrado.getUsername(),
+                    "email", encontrado.getEmail()
+            ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(e.getMessage());
@@ -45,7 +66,12 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
         }
-        return ResponseEntity.ok(usuario);
+        return ResponseEntity.ok(Map.of(
+                "usuarioId", usuario.getUsuarioId(),
+                "nombre", usuario.getNombre(),
+                "username", usuario.getUsername(),
+                "email", usuario.getEmail()
+        ));
     }
 
     @PutMapping("/{id}")

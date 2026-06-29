@@ -4,3 +4,5 @@ spring.datasource.password=TU_CONTRASEÑA
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+jwt.secret=TU_CLAVE_SECRETA_AQUI
+jwt.expiration=2592000000
