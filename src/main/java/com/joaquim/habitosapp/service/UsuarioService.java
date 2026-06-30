@@ -16,6 +16,9 @@ public class UsuarioService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private EmailService emailService;
+
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese email");
@@ -26,6 +29,12 @@ public class UsuarioService {
         usuario.setFechaRegistro(LocalDateTime.now());
         usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
         usuarioDAO.save(usuario);
+
+        try {
+            emailService.enviarEmailBienvenida(usuario.getEmail(), usuario.getNombre());
+        } catch (Exception e) {
+            System.out.println("Error al enviar email de bienvenida: " + e.getMessage());
+        }
     }
 
     public Usuario login(String email, String contrasena) {

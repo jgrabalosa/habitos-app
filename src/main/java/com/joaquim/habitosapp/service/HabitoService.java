@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.time.LocalDate;
+import com.joaquim.habitosapp.repository.IRegistroDAO;
 
 @Service
 public class HabitoService {
@@ -18,6 +19,9 @@ public class HabitoService {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private IRegistroDAO registroDAO;
 
     public void crearHabito(Habito habito) {
         habito.setFechaInicio(LocalDate.now());
@@ -44,6 +48,12 @@ public class HabitoService {
     }
 
     public void actualizar(Habito habito) {
+        Habito existente = habitoDAO.findById(habito.getHabitoId());
+        if (existente == null) {
+            throw new RuntimeException("Hábito no encontrado");
+        }
+        habito.setFechaInicio(existente.getFechaInicio());
+        habito.setActivo(existente.isActivo());
         habitoDAO.update(habito);
     }
 
@@ -64,6 +74,8 @@ public class HabitoService {
     }
 
     public void eliminar(int id) {
+        registroDAO.deleteByHabito(id);
+        rachaDAO.deleteByHabito(id);
         habitoDAO.delete(id);
     }
 }

@@ -66,4 +66,10 @@ public class RegistroDAO implements IRegistroDAO {
             em.remove(registro);
         }
     }
+    @Override
+    public void deleteByHabito(int habitoId) {
+        em.createQuery("DELETE FROM Registro r WHERE r.habito.habitoId = :habitoId")
+                .setParameter("habitoId", habitoId)
+                .executeUpdate();
+    }
 }

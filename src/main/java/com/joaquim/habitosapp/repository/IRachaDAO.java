@@ -8,4 +8,5 @@ public interface IRachaDAO {
     void save(Racha racha);
     Racha findByHabito(Habito habito);
     void update(Racha racha);
+    void deleteByHabito(int habitoId);
 }

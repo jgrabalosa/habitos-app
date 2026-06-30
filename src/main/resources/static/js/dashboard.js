@@ -85,15 +85,18 @@ function renderHabitos() {
                     </span>
                 </div>
                 ${habito.descripcion ? `<p class="text-muted small mb-2">${habito.descripcion}</p>` : ''}
-                <div class="d-flex gap-2 mt-2">
+              <div class="d-flex gap-2 mt-2">
                     ${completado
-            ? `<button class="btn btn-success btn-sm w-100" disabled>
+            ? `<button class="btn btn-success btn-sm flex-grow-1" disabled>
                             <i class="fas fa-check me-1"></i>Completado hoy
                            </button>`
-            : `<button class="btn btn-primary btn-sm w-100" onclick="completar(${habito.habitoId})">
+            : `<button class="btn btn-primary btn-sm flex-grow-1" onclick="completar(${habito.habitoId})">
                             <i class="fas fa-check me-1"></i>Completar
                            </button>`
         }
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.location.href='/habito.html?id=${habito.habitoId}'">
+                        <i class="fas fa-edit"></i>
+                    </button>
                 </div>
             </div>
         </div>`;

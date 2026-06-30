@@ -34,4 +34,11 @@ public class RachaDAO implements IRachaDAO {
     public void update(Racha racha) {
         em.merge(racha);
     }
+
+    @Override
+    public void deleteByHabito(int habitoId) {
+        em.createQuery("DELETE FROM Racha r WHERE r.habito.habitoId = :habitoId")
+                .setParameter("habitoId", habitoId)
+                .executeUpdate();
+    }
 }
