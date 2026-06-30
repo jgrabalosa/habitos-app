@@ -112,13 +112,39 @@ function renderRegistros(registros) {
                 <strong>${r.fecha}</strong>
                 ${r.nota ? `<br><small class="text-muted">${r.nota}</small>` : ''}
             </div>
-            <span class="badge ${r.completado ? 'bg-success' : 'bg-secondary'}">
-                ${r.completado ? '✅ Completado' : 'No completado'}
-            </span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge ${r.completado ? 'bg-success' : 'bg-secondary'}">
+                    ${r.completado ? '✅ Completado' : 'No completado'}
+                </span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editarNota(${r.registroId}, '${(r.nota || '').replace(/'/g, "\\'")}')">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </div>
         </div>
     `).join('');
 }
 
+    // ── Editar nota de un registro ───────────────────────────
+    async function editarNota(registroId, notaActual) {
+        const nuevaNota = prompt('Editar nota:', notaActual);
+        if (nuevaNota === null) return; // Canceló
+
+        try {
+            const response = await fetch(`${API}/registros/${registroId}/nota`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ nota: nuevaNota })
+            });
+
+            if (response.ok) {
+                cargarDetalle();
+            } else {
+                alert('Error al actualizar la nota');
+            }
+        } catch (error) {
+            console.error('Error actualizando nota:', error);
+        }
+}
 // ── Navegación entre meses ─────────────────────────────
 function cambiarMes(direccion) {
     mesActual.setMonth(mesActual.getMonth() + direccion);

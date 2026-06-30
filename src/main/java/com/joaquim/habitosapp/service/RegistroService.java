@@ -60,4 +60,13 @@ public class RegistroService {
     public Registro obtenerPorFecha(Habito habito, LocalDate fecha) {
         return registroDAO.findByHabitoAndFecha(habito, fecha);
     }
+
+    public void actualizarNota(int registroId, String nota) {
+        Registro registro = registroDAO.findById(registroId);
+        if (registro == null) {
+            throw new RuntimeException("Registro no encontrado");
+        }
+        registro.setNota(nota);
+        registroDAO.update(registro);
+    }
 }

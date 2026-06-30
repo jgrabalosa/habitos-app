@@ -81,4 +81,8 @@ public class RegistroDAO implements IRegistroDAO {
                 .setParameter("hasta", hasta)
                 .getResultList();
     }
+    @Override
+    public void update(Registro registro) {
+        em.merge(registro);
+    }
 }

@@ -61,4 +61,15 @@ public class RegistroController {
         boolean completado = registroService.estaCompletadoHoy(habito);
         return ResponseEntity.ok(Map.of("completadoHoy", completado));
     }
+    @PutMapping("/{registroId}/nota")
+    public ResponseEntity<?> actualizarNota(@PathVariable int registroId,
+                                            @RequestBody Map<String, String> body) {
+        try {
+            String nota = body.get("nota");
+            registroService.actualizarNota(registroId, nota);
+            return ResponseEntity.ok("Nota actualizada correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
 }
