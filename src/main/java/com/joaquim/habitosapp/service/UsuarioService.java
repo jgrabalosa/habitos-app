@@ -1,11 +1,18 @@
 package com.joaquim.habitosapp.service;
 
+import com.joaquim.habitosapp.model.Categoria;
+import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.repository.ICategoriaDAO;
+import com.joaquim.habitosapp.repository.IHabitoDAO;
+import com.joaquim.habitosapp.repository.IRachaDAO;
+import com.joaquim.habitosapp.repository.IRegistroDAO;
 import com.joaquim.habitosapp.repository.IUsuarioDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class UsuarioService {
@@ -18,6 +25,18 @@ public class UsuarioService {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private IHabitoDAO habitoDAO;
+
+    @Autowired
+    private IRegistroDAO registroDAO;
+
+    @Autowired
+    private IRachaDAO rachaDAO;
+
+    @Autowired
+    private ICategoriaDAO categoriaDAO;
 
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
@@ -57,6 +76,30 @@ public class UsuarioService {
     }
 
     public void eliminarCuenta(int id) {
+        Usuario usuario = usuarioDAO.findById(id);
+        if (usuario == null) {
+            throw new RuntimeException("Usuario no encontrado");
+        }
+
+        // 1. Borrar registros y rachas de todos sus hábitos
+        List<Habito> habitos = habitoDAO.findByPropietario(usuario);
+        for (Habito habito : habitos) {
+            registroDAO.deleteByHabito(habito.getHabitoId());
+            rachaDAO.deleteByHabito(habito.getHabitoId());
+        }
+
+        // 2. Borrar los hábitos
+        for (Habito habito : habitos) {
+            habitoDAO.delete(habito.getHabitoId());
+        }
+
+        // 3. Borrar categorías personalizadas del usuario
+        List<Categoria> categorias = categoriaDAO.findByCreador(usuario);
+        for (Categoria categoria : categorias) {
+            categoriaDAO.delete(categoria.getCategoriaId());
+        }
+
+        // 4. Borrar el usuario
         usuarioDAO.delete(id);
     }
 }
