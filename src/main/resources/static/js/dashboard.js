@@ -90,7 +90,7 @@ function renderHabitos() {
             ? `<button class="btn btn-success btn-sm flex-grow-1" disabled onclick="event.stopPropagation();">
                             <i class="fas fa-check me-1"></i>Completado hoy
                            </button>`
-            : `<button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); completar(${habito.habitoId})">
+            : `<button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); abrirModalNota(${habito.habitoId})">
                             <i class="fas fa-check me-1"></i>Completar
                            </button>`
         }
@@ -103,25 +103,37 @@ function renderHabitos() {
     }).join('');
 }
 
-// ── Completar hábito ──────────────────────────────────
-async function completar(habitoId) {
+// ── Abrir modal de nota ───────────────────────────────
+let habitoIdPendiente = null;
+
+function abrirModalNota(habitoId) {
+    habitoIdPendiente = habitoId;
+    document.getElementById('notaCompletar').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('modalNota'));
+    modal.show();
+}
+
+// ── Confirmar completar con nota ──────────────────────
+async function confirmarCompletar() {
+    const nota = document.getElementById('notaCompletar').value.trim();
+
     try {
-        const response = await fetch(`${API}/registros/completar/${habitoId}`, {
+        const response = await fetch(`${API}/registros/completar/${habitoIdPendiente}`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ nota: '' })
+            body: JSON.stringify({ nota })
         });
 
         if (response.ok) {
-            completadosHoy.add(habitoId);
+            completadosHoy.add(habitoIdPendiente);
             renderHabitos();
             actualizarEstadisticas();
+            bootstrap.Modal.getInstance(document.getElementById('modalNota')).hide();
         }
     } catch (error) {
         console.error('Error completando hábito:', error);
     }
 }
-
 // ── Estadísticas ──────────────────────────────────────
 function actualizarEstadisticas() {
     const total = habitos.length;
