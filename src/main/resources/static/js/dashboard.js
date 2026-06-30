@@ -72,7 +72,7 @@ function renderHabitos() {
         const completado = completadosHoy.has(habito.habitoId);
         return `
         <div class="col-md-6 col-lg-4">
-            <div class="card habito-card ${completado ? 'habito-completado' : 'habito-pendiente'} p-3">
+            <div class="card habito-card ${completado ? 'habito-completado' : 'habito-pendiente'} p-3" style="cursor: pointer;" onclick="window.location.href='/habito-detalle.html?id=${habito.habitoId}'">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                         <h6 class="mb-1 fw-bold">${habito.nombre}</h6>
@@ -87,14 +87,14 @@ function renderHabitos() {
                 ${habito.descripcion ? `<p class="text-muted small mb-2">${habito.descripcion}</p>` : ''}
               <div class="d-flex gap-2 mt-2">
                     ${completado
-            ? `<button class="btn btn-success btn-sm flex-grow-1" disabled>
+            ? `<button class="btn btn-success btn-sm flex-grow-1" disabled onclick="event.stopPropagation();">
                             <i class="fas fa-check me-1"></i>Completado hoy
                            </button>`
-            : `<button class="btn btn-primary btn-sm flex-grow-1" onclick="completar(${habito.habitoId})">
+            : `<button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); completar(${habito.habitoId})">
                             <i class="fas fa-check me-1"></i>Completar
                            </button>`
         }
-                    <button class="btn btn-outline-secondary btn-sm" onclick="window.location.href='/habito.html?id=${habito.habitoId}'">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); window.location.href='/habito.html?id=${habito.habitoId}'">
                         <i class="fas fa-edit"></i>
                     </button>
                 </div>

@@ -2,14 +2,21 @@ package com.joaquim.habitosapp.service;
 
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Racha;
+import com.joaquim.habitosapp.model.Registro;
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.model.dto.HabitoDetalleDTO;
+import com.joaquim.habitosapp.model.dto.RegistroDiaDTO;
+import com.joaquim.habitosapp.model.dto.RegistroResumenDTO;
 import com.joaquim.habitosapp.repository.IHabitoDAO;
 import com.joaquim.habitosapp.repository.IRachaDAO;
+import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.List;
 import java.time.LocalDate;
-import com.joaquim.habitosapp.repository.IRegistroDAO;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class HabitoService {
@@ -77,5 +84,66 @@ public class HabitoService {
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);
         habitoDAO.delete(id);
+    }
+
+    public HabitoDetalleDTO obtenerDetalle(int habitoId, YearMonth mes) {
+        Habito habito = habitoDAO.findById(habitoId);
+        if (habito == null) {
+            throw new RuntimeException("Hábito no encontrado");
+        }
+
+        if (mes == null) {
+            mes = YearMonth.now();
+        }
+
+        Racha racha = rachaDAO.findByHabito(habito);
+        List<Registro> todosRegistros = registroDAO.findByHabito(habito);
+
+        LocalDate desde = mes.atDay(1);
+        LocalDate hasta = mes.atEndOfMonth();
+        List<Registro> registrosMes = registroDAO.findByHabitoAndRango(habito, desde, hasta);
+
+        List<RegistroDiaDTO> heatmap = new ArrayList<>();
+        for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
+            LocalDate fechaActual = dia;
+            boolean completado = registrosMes.stream()
+                    .anyMatch(r -> r.getFecha().equals(fechaActual) && r.isCompletado());
+            heatmap.add(new RegistroDiaDTO(fechaActual, completado));
+        }
+
+        int completadosMesActual = (int) registrosMes.stream()
+                .filter(Registro::isCompletado)
+                .count();
+
+        Double porcentaje = null;
+        if (habito.getFrecuencia().name().equals("DIARIO")) {
+            int diasTranscurridos = Math.min(LocalDate.now().getDayOfMonth(), mes.lengthOfMonth());
+            if (mes.equals(YearMonth.now()) && diasTranscurridos > 0) {
+                porcentaje = (completadosMesActual * 100.0) / diasTranscurridos;
+            } else if (!mes.equals(YearMonth.now())) {
+                porcentaje = (completadosMesActual * 100.0) / mes.lengthOfMonth();
+            }
+        }
+
+        List<RegistroResumenDTO> ultimosRegistros = todosRegistros.stream()
+                .limit(10)
+                .map(r -> new RegistroResumenDTO(r.getRegistroId(), r.getFecha(), r.isCompletado(), r.getNota()))
+                .collect(Collectors.toList());
+
+        HabitoDetalleDTO dto = new HabitoDetalleDTO();
+        dto.setHabitoId(habito.getHabitoId());
+        dto.setNombre(habito.getNombre());
+        dto.setRachaActual(racha != null ? racha.getRachaActual() : 0);
+        dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
+        dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
+        dto.setMeta(habito.getMeta());
+        dto.setFrecuencia(habito.getFrecuencia().name());
+        dto.setCompletadosMesActual(completadosMesActual);
+        dto.setPorcentajeMesActual(porcentaje);
+        dto.setMesConsultado(mes.toString());
+        dto.setHeatmap(heatmap);
+        dto.setUltimosRegistros(ultimosRegistros);
+
+        return dto;
     }
 }

@@ -72,4 +72,13 @@ public class RegistroDAO implements IRegistroDAO {
                 .setParameter("habitoId", habitoId)
                 .executeUpdate();
     }
+    @Override
+    public List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta) {
+        return em.createQuery(
+                        "SELECT r FROM Registro r WHERE r.habito = :habito AND r.fecha BETWEEN :desde AND :hasta ORDER BY r.fecha ASC", Registro.class)
+                .setParameter("habito", habito)
+                .setParameter("desde", desde)
+                .setParameter("hasta", hasta)
+                .getResultList();
+    }
 }

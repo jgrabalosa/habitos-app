@@ -15,4 +15,5 @@ public interface IRegistroDAO {
     boolean existeRegistroHoy(Habito habito);
     void delete(int id);
     void deleteByHabito(int habitoId);
+    List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta);
 }

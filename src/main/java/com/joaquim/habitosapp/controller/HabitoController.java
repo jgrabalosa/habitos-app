@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.joaquim.habitosapp.model.dto.HabitoDetalleDTO;
+import java.time.YearMonth;
 
 @RestController
 @RequestMapping("/api/habitos")
@@ -105,6 +107,17 @@ public class HabitoController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(e.getMessage());
+        }
+    }
+    @GetMapping("/{id}/detalle")
+    public ResponseEntity<?> obtenerDetalle(@PathVariable int id,
+                                            @RequestParam(required = false) String mes) {
+        try {
+            YearMonth yearMonth = (mes != null && !mes.isEmpty()) ? YearMonth.parse(mes) : null;
+            HabitoDetalleDTO detalle = habitoService.obtenerDetalle(id, yearMonth);
+            return ResponseEntity.ok(detalle);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 }
