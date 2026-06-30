@@ -58,8 +58,6 @@ async function login() {
     }
 }
 
-
-
 // ── Registro ──────────────────────────────────────────
 async function registro() {
     const nombre = document.getElementById('regNombre').value;
@@ -114,5 +112,33 @@ function togglePassword(inputId, button) {
         input.type = 'password';
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
+    }
+}
+
+// ── Login con Google ──────────────────────────────────
+async function manejarRespuestaGoogle(response) {
+    try {
+        const resp = await fetch(`${API}/usuarios/login-google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: response.credential })
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('usuario', JSON.stringify({
+                usuarioId: data.usuarioId,
+                nombre: data.nombre,
+                username: data.username,
+                email: data.email
+            }));
+            window.location.href = '/index.html';
+        } else {
+            const mensaje = await resp.text();
+            alert(mensaje);
+        }
+    } catch (error) {
+        alert('Error al iniciar sesión con Google');
     }
 }

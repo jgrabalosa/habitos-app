@@ -33,12 +33,11 @@ public class Usuario {
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
+    @Column(name = "proveedor_auth", nullable = false, length = 20)
+    private String proveedorAuth = "LOCAL";
+
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
-
-    // Constructores, getters, setters, toString, equals, hashCode
-    // (mantén el resto igual)
-
 
     // Constructor vacío — obligatorio para JPA
     public Usuario() {}
@@ -66,6 +65,9 @@ public class Usuario {
 
     public String getContrasena() { return contrasena; }
     public void setContrasena(String contrasena) { this.contrasena = contrasena; }
+
+    public String getProveedorAuth() { return proveedorAuth; }
+    public void setProveedorAuth(String proveedorAuth) { this.proveedorAuth = proveedorAuth; }
 
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }

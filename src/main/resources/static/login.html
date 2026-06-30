@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/css/styles.css" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="bg-light">
 
@@ -34,6 +35,18 @@
                             <a class="nav-link" id="registroTab" href="#">Registrarse</a>
                         </li>
                     </ul>
+
+                    <!-- Botón Google -->
+                    <div id="g_id_onload"
+                         data-client_id="177339814167-fdtmn2i1s6aeg1agrqtikq066opib8ce.apps.googleusercontent.com"
+                         data-callback="manejarRespuestaGoogle">
+                    </div>
+                    <div class="g_id_signin mb-3 d-flex justify-content-center"
+                         data-type="standard"
+                         data-size="large"
+                         data-width="300">
+                    </div>
+                    <div class="text-center text-muted mb-3">— o —</div>
 
                     <!-- Formulario Login -->
                     <div id="formLogin">

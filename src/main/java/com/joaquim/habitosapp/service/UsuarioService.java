@@ -61,10 +61,42 @@ public class UsuarioService {
         if (usuario == null) {
             throw new RuntimeException("Email no encontrado");
         }
+        if ("GOOGLE".equals(usuario.getProveedorAuth())) {
+            throw new RuntimeException("Esta cuenta usa Google para iniciar sesión. Pulsa \"Continuar con Google\".");
+        }
         if (!passwordEncoder.matches(contrasena, usuario.getContrasena())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
         return usuario;
+    }
+
+    public Usuario loginConGoogle(String email, String nombre) {
+        Usuario usuario = usuarioDAO.findByEmail(email);
+
+        if (usuario != null) {
+            if (!"GOOGLE".equals(usuario.getProveedorAuth())) {
+                usuario.setProveedorAuth("GOOGLE");
+                usuarioDAO.update(usuario);
+            }
+            return usuario;
+        }
+
+        // Usuario nuevo vía Google
+        String username = email.split("@")[0] + "_" + System.currentTimeMillis() % 10000;
+        String contrasenaAleatoria = passwordEncoder.encode(java.util.UUID.randomUUID().toString());
+
+        Usuario nuevoUsuario = new Usuario(nombre, username, email, contrasenaAleatoria);
+        nuevoUsuario.setProveedorAuth("GOOGLE");
+        nuevoUsuario.setFechaRegistro(java.time.LocalDateTime.now());
+        usuarioDAO.save(nuevoUsuario);
+
+        try {
+            emailService.enviarEmailBienvenida(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
+        } catch (Exception e) {
+            System.out.println("Error al enviar email de bienvenida: " + e.getMessage());
+        }
+
+        return nuevoUsuario;
     }
 
     public Usuario buscarPorId(int id) {

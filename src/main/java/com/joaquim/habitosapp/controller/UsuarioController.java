@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -56,6 +61,41 @@ public class UsuarioController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/login-google")
+    public ResponseEntity<?> loginGoogle(@RequestBody Map<String, String> body) {
+        try {
+            String idTokenString = body.get("idToken");
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                    .setAudience(Collections.singletonList(
+                            "177339814167-fdtmn2i1s6aeg1agrqtikq066opib8ce.apps.googleusercontent.com"))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token de Google inválido");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String nombre = (String) payload.get("name");
+
+            Usuario usuario = usuarioService.loginConGoogle(email, nombre);
+            String token = jwtUtil.generateToken(usuario.getEmail());
+
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "usuarioId", usuario.getUsuarioId(),
+                    "nombre", usuario.getNombre(),
+                    "username", usuario.getUsername(),
+                    "email", usuario.getEmail()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error al verificar token de Google");
         }
     }
 
