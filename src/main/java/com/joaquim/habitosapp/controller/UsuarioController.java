@@ -127,6 +127,19 @@ public class UsuarioController {
         }
     }
 
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<?> actualizarFcmToken(@PathVariable int id,
+                                                @RequestBody Map<String, String> body) {
+        try {
+            String fcmToken = body.get("fcmToken");
+            usuarioService.actualizarFcmToken(id, fcmToken);
+            return ResponseEntity.ok("Token FCM actualizado correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable int id) {
         try {

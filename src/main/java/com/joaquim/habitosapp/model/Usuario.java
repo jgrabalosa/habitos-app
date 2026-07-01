@@ -36,6 +36,9 @@ public class Usuario {
     @Column(name = "proveedor_auth", nullable = false, length = 20)
     private String proveedorAuth = "LOCAL";
 
+    @Column(name = "fcm_token", length = 255)
+    private String fcmToken;
+
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
 
@@ -68,6 +71,9 @@ public class Usuario {
 
     public String getProveedorAuth() { return proveedorAuth; }
     public void setProveedorAuth(String proveedorAuth) { this.proveedorAuth = proveedorAuth; }
+
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
