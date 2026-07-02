@@ -30,12 +30,17 @@ public class HabitoService {
     @Autowired
     private IRegistroDAO registroDAO;
 
+    @Autowired
+    private MotorLogrosService motorLogrosService;
+
     public void crearHabito(Habito habito) {
         habito.setFechaInicio(LocalDate.now());
         habito.setActivo(true);
         habitoDAO.save(habito);
         Racha racha = new Racha(habito);
         rachaDAO.save(racha);
+
+        motorLogrosService.evaluarTrasCrearHabito(habito.getPropietario());
     }
 
     public Habito buscarPorId(int id) {
@@ -62,6 +67,8 @@ public class HabitoService {
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
         habitoDAO.update(habito);
+
+        motorLogrosService.evaluarTrasEditarHabito(habito.getPropietario());
     }
 
     public void activar(int id) {
@@ -91,6 +98,8 @@ public class HabitoService {
         if (habito == null) {
             throw new RuntimeException("Hábito no encontrado");
         }
+
+        motorLogrosService.evaluarTrasVerDetalleHabito(habito.getPropietario());
 
         if (mes == null) {
             mes = YearMonth.now();

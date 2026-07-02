@@ -13,8 +13,16 @@ public class CategoriaService {
     @Autowired
     private ICategoriaDAO categoriaDAO;
 
+    @Autowired
+    private MotorLogrosService motorLogrosService;
+
     public void crearCategoria(Categoria categoria) {
         categoriaDAO.save(categoria);
+
+        if (categoria.getCreador() != null) {
+            List<Categoria> categoriasDelUsuario = categoriaDAO.findByCreador(categoria.getCreador());
+            motorLogrosService.evaluarTrasCrearCategoria(categoria.getCreador(), categoriasDelUsuario);
+        }
     }
 
     public Categoria buscarPorId(int id) {

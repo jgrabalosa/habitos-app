@@ -38,6 +38,9 @@ public class UsuarioService {
     @Autowired
     private ICategoriaDAO categoriaDAO;
 
+    @Autowired
+    private MotorLogrosService motorLogrosService;
+
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese email");
@@ -78,6 +81,7 @@ public class UsuarioService {
                 usuario.setProveedorAuth("GOOGLE");
                 usuarioDAO.update(usuario);
             }
+            motorLogrosService.evaluarTrasLoginGoogle(usuario);
             return usuario;
         }
 
@@ -96,6 +100,7 @@ public class UsuarioService {
             System.out.println("Error al enviar email de bienvenida: " + e.getMessage());
         }
 
+        motorLogrosService.evaluarTrasLoginGoogle(nuevoUsuario);
         return nuevoUsuario;
     }
 
@@ -105,6 +110,7 @@ public class UsuarioService {
 
     public void actualizarPerfil(Usuario usuario) {
         usuarioDAO.update(usuario);
+        motorLogrosService.evaluarTrasActualizarPerfil(usuario);
     }
 
     public void actualizarFcmToken(int id, String fcmToken) {

@@ -3,6 +3,7 @@ package com.joaquim.habitosapp.service;
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Racha;
 import com.joaquim.habitosapp.model.Registro;
+import com.joaquim.habitosapp.model.Usuario;
 import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,14 @@ public class RegistroService {
     @Autowired
     private IRachaDAO rachaDAO;
 
+    @Autowired
+    private MotorLogrosService motorLogrosService;
+
+    @Autowired
+    private UsuarioMonedaService usuarioMonedaService;
+
+    private static final int PUNTOS_HABITO_COMPLETADO = 100; // provisional
+
     public void completarHabito(Habito habito, String nota) {
         if (registroDAO.existeRegistroHoy(habito)) {
             throw new RuntimeException("El hábito ya fue completado hoy");
@@ -26,6 +35,38 @@ public class RegistroService {
         Registro registro = new Registro(habito, true, nota);
         registroDAO.save(registro);
         actualizarRacha(habito);
+
+        Usuario usuario = habito.getPropietario();
+
+        usuarioMonedaService.registrarMovimiento(
+                usuario, PUNTOS_HABITO_COMPLETADO, "HABITO_COMPLETADO",
+                habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
+        );
+
+        otorgarPuntosPorHitoRacha(usuario, habito);
+        motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+    }
+
+    private void otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
+        Racha racha = rachaDAO.findByHabito(habito);
+        if (racha == null) return;
+
+        int actual = racha.getRachaActual();
+        int puntos = switch (actual) {
+            case 3 -> 20;
+            case 7 -> 50;
+            case 30 -> 200;
+            case 100 -> 500;
+            case 365 -> 1000;
+            default -> 0;
+        };
+
+        if (puntos > 0) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, puntos, "HITO_RACHA", habito.getHabitoId(),
+                    "Hito de racha (" + actual + ") en: " + habito.getNombre()
+            );
+        }
     }
 
     public void actualizarRacha(Habito habito) {
@@ -68,5 +109,8 @@ public class RegistroService {
         }
         registro.setNota(nota);
         registroDAO.update(registro);
+
+        Usuario usuario = registro.getHabito().getPropietario();
+        motorLogrosService.evaluarTrasAnadirNota(usuario);
     }
 }
