@@ -85,4 +85,25 @@ public class RegistroDAO implements IRegistroDAO {
     public void update(Registro registro) {
         em.merge(registro);
     }
+
+    @Override
+    public int contarPorUsuario(int usuarioId) {
+        Long count = em.createQuery(
+                        "SELECT COUNT(r) FROM Registro r WHERE r.habito.propietario.usuarioId = :usuarioId",
+                        Long.class)
+                .setParameter("usuarioId", usuarioId)
+                .getSingleResult();
+        return count.intValue();
+    }
+
+    @Override
+    public int contarConNotaPorUsuario(int usuarioId) {
+        Long count = em.createQuery(
+                        "SELECT COUNT(r) FROM Registro r WHERE r.habito.propietario.usuarioId = :usuarioId " +
+                                "AND r.nota IS NOT NULL AND r.nota <> ''",
+                        Long.class)
+                .setParameter("usuarioId", usuarioId)
+                .getSingleResult();
+        return count.intValue();
+    }
 }

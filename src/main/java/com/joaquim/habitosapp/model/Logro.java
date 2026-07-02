@@ -12,6 +12,9 @@ public class Logro {
     @Column(name = "logro_id")
     private int logroId;
 
+    @Column(name = "codigo", nullable = false, unique = true, length = 50)
+    private String codigo;
+
     @NotBlank(message = "El nombre es obligatorio")
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
@@ -38,8 +41,9 @@ public class Logro {
     public Logro() {}
 
     // Constructor con parámetros
-    public Logro(String nombre, String descripcion, String categoria,
+    public Logro(String codigo, String nombre, String descripcion, String categoria,
                  String nivel, int puntos, String icono) {
+        this.codigo = codigo;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.categoria = categoria;
@@ -51,6 +55,9 @@ public class Logro {
 
     public int getLogroId() { return logroId; }
     public void setLogroId(int logroId) { this.logroId = logroId; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
@@ -75,7 +82,7 @@ public class Logro {
 
     @Override
     public String toString() {
-        return "Logro{logroId=" + logroId + ", nombre='" + nombre + "', nivel='" + nivel + "'}";
+        return "Logro{logroId=" + logroId + ", codigo='" + codigo + "', nombre='" + nombre + "'}";
     }
 
     @Override

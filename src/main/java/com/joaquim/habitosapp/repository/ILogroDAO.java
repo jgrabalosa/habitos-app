@@ -10,4 +10,5 @@ public interface ILogroDAO {
     List<Logro> findActivos();
     void update(Logro logro);
     void delete(int id);
+    Logro findByCodigo(String codigo);
 }

@@ -65,43 +65,43 @@ public class DataInitializer implements CommandLineRunner {
             return; // Ya están creados, no hacemos nada
         }
 
-        // {nombre, descripcion, categoria, nivel, puntos}
+        // {codigo, nombre, descripcion, categoria, nivel, puntos}
         String[][] logros = {
                 // Inicio
-                {"Primeros pasos", "Completa tu primer hábito", "Inicio", "Facil", "100"},
-                {"Bienvenido/a", "Personaliza tu perfil de usuario", "Inicio", "Facil", "100"},
-                {"Tu primer hábito propio", "Crea tu primer hábito personalizado", "Inicio", "Facil", "100"},
-                {"Organizado desde el día 1", "Crea tu primera categoría personalizada", "Inicio", "Facil", "100"},
-                {"Conectado con Google", "Inicia sesión usando tu cuenta de Google", "Inicio", "Facil", "100"},
+                {"PRIMER_HABITO", "Tu primer hábito propio", "Crea tu primer hábito personalizado", "Inicio", "Facil", "100"},
+                {"BIENVENIDO", "Bienvenido/a", "Personaliza tu perfil de usuario", "Inicio", "Facil", "100"},
+                {"PRIMERA_CATEGORIA", "Organizado desde el día 1", "Crea tu primera categoría personalizada", "Inicio", "Facil", "100"},
+                {"LOGIN_GOOGLE", "Conectado con Google", "Inicia sesión usando tu cuenta de Google", "Inicio", "Facil", "100"},
+                {"PRIMEROS_PASOS", "Primeros pasos", "Completa tu primer hábito", "Inicio", "Facil", "100"},
                 // Constancia
-                {"En racha", "Alcanza tu primera racha de 3", "Constancia", "Facil", "100"},
-                {"Buen ritmo", "Alcanza una racha de 7", "Constancia", "Medio", "200"},
-                {"Resiliencia", "Recupera un hábito tras romper una racha y vuelve a alcanzar 3", "Constancia", "Medio", "200"},
-                {"Imparable", "Alcanza una racha de 30", "Constancia", "Dificil", "500"},
-                {"Maestro de la constancia", "Alcanza una racha de 100", "Constancia", "Dificil", "500"},
-                {"Leyenda", "Alcanza una racha de 365", "Constancia", "Dificil", "500"},
+                {"RACHA_3", "En racha", "Alcanza tu primera racha de 3", "Constancia", "Facil", "100"},
+                {"RACHA_7", "Buen ritmo", "Alcanza una racha de 7", "Constancia", "Medio", "200"},
+                {"RACHA_RECUPERADA", "Resiliencia", "Recupera un hábito tras romper una racha y vuelve a alcanzar 3", "Constancia", "Medio", "200"},
+                {"RACHA_30", "Imparable", "Alcanza una racha de 30", "Constancia", "Dificil", "500"},
+                {"RACHA_100", "Maestro de la constancia", "Alcanza una racha de 100", "Constancia", "Dificil", "500"},
+                {"RACHA_365", "Leyenda", "Alcanza una racha de 365", "Constancia", "Dificil", "500"},
                 // Volumen
-                {"Coleccionista de hábitos", "Ten 3 hábitos activos a la vez", "Volumen", "Facil", "100"},
-                {"Vida equilibrada", "Ten 5 hábitos activos a la vez", "Volumen", "Medio", "200"},
-                {"Cien no es nada", "Alcanza 100 registros completados en total", "Volumen", "Medio", "200"},
-                {"Quinientos y contando", "Alcanza 500 registros completados en total", "Volumen", "Dificil", "500"},
-                {"Mil pasos", "Alcanza 1000 registros completados en total", "Volumen", "Dificil", "500"},
+                {"HABITOS_ACTIVOS_3", "Coleccionista de hábitos", "Ten 3 hábitos activos a la vez", "Volumen", "Facil", "100"},
+                {"HABITOS_ACTIVOS_5", "Vida equilibrada", "Ten 5 hábitos activos a la vez", "Volumen", "Medio", "200"},
+                {"REGISTROS_100", "Cien no es nada", "Alcanza 100 registros completados en total", "Volumen", "Medio", "200"},
+                {"REGISTROS_500", "Quinientos y contando", "Alcanza 500 registros completados en total", "Volumen", "Dificil", "500"},
+                {"REGISTROS_1000", "Mil pasos", "Alcanza 1000 registros completados en total", "Volumen", "Dificil", "500"},
                 // Variedad
-                {"Explorador de categorías", "Usa 3 categorías distintas en tus hábitos", "Variedad", "Facil", "100"},
-                {"Todoterreno", "Usa 5 categorías distintas", "Variedad", "Medio", "200"},
-                {"Mezcla de frecuencias", "Ten a la vez un hábito diario, uno semanal y uno mensual activos", "Variedad", "Medio", "200"},
-                {"Diseñador de hábitos", "Crea 3 categorías personalizadas propias", "Variedad", "Medio", "200"},
+                {"CATEGORIAS_3", "Explorador de categorías", "Usa 3 categorías distintas en tus hábitos", "Variedad", "Facil", "100"},
+                {"CATEGORIAS_5", "Todoterreno", "Usa 5 categorías distintas", "Variedad", "Medio", "200"},
+                {"FRECUENCIAS_MIXTAS", "Mezcla de frecuencias", "Ten a la vez un hábito diario, uno semanal y uno mensual activos", "Variedad", "Medio", "200"},
+                {"CATEGORIAS_PERSONALIZADAS_3", "Diseñador de hábitos", "Crea 3 categorías personalizadas propias", "Variedad", "Medio", "200"},
                 // Exploración
-                {"Historias que contar", "Añade una nota a un registro", "Exploración", "Facil", "100"},
-                {"Diario detallado", "Añade notas en 10 registros distintos", "Exploración", "Medio", "200"},
-                {"Vista completa", "Consulta el detalle de un hábito (heatmap) por primera vez", "Exploración", "Facil", "100"},
-                {"Perfeccionista", "Edita un hábito existente", "Exploración", "Facil", "100"},
-                {"Depurador", "Elimina un hábito que ya no te sirve", "Exploración", "Facil", "100"}
+                {"PRIMERA_NOTA", "Historias que contar", "Añade una nota a un registro", "Exploración", "Facil", "100"},
+                {"NOTAS_10", "Diario detallado", "Añade notas en 10 registros distintos", "Exploración", "Medio", "200"},
+                {"VER_DETALLE_HABITO", "Vista completa", "Consulta el detalle de un hábito (heatmap) por primera vez", "Exploración", "Facil", "100"},
+                {"EDITAR_HABITO", "Perfeccionista", "Edita un hábito existente", "Exploración", "Facil", "100"},
+                {"INTERACCION_RESENA", "Tu opinión cuenta", "Interactúa con la valoración de la app en Google Play", "Exploración", "Facil", "100"}
         };
 
         for (String[] datos : logros) {
-            Logro logro = new Logro(datos[0], datos[1], datos[2], datos[3],
-                    Integer.parseInt(datos[4]), null);
+            Logro logro = new Logro(datos[0], datos[1], datos[2], datos[3], datos[4],
+                    Integer.parseInt(datos[5]), null);
             logroDAO.save(logro);
         }
 

@@ -25,6 +25,10 @@ public class LogroService {
         return logroDAO.findActivos();
     }
 
+    public Logro buscarPorCodigo(String codigo) {
+        return logroDAO.findByCodigo(codigo);
+    }
+
     public List<UsuarioLogro> logrosDeUsuario(Usuario usuario) {
         return usuarioLogroDAO.findByUsuario(usuario);
     }
@@ -49,4 +53,6 @@ public class LogroService {
 
         return true;
     }
+
+
 }

@@ -50,4 +50,15 @@ public class LogroDAO implements ILogroDAO {
             em.remove(logro);
         }
     }
+    @Override
+    public Logro findByCodigo(String codigo) {
+        try {
+            return em.createQuery(
+                            "SELECT l FROM Logro l WHERE l.codigo = :codigo", Logro.class)
+                    .setParameter("codigo", codigo)
+                    .getSingleResult();
+        } catch (jakarta.persistence.NoResultException e) {
+            return null;
+        }
+    }
 }
