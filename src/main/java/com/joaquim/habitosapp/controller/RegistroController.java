@@ -31,9 +31,12 @@ public class RegistroController {
                         .body("Hábito no encontrado");
             }
             String nota = body != null ? body.get("nota") : null;
-            registroService.completarHabito(habito, nota);
+            List<String> logrosOtorgados = registroService.completarHabito(habito, nota);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("Hábito completado correctamente");
+                    .body(Map.of(
+                            "mensaje", "Hábito completado correctamente",
+                            "logrosOtorgados", logrosOtorgados
+                    ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(e.getMessage());
@@ -61,6 +64,7 @@ public class RegistroController {
         boolean completado = registroService.estaCompletadoHoy(habito);
         return ResponseEntity.ok(Map.of("completadoHoy", completado));
     }
+
     @PutMapping("/{registroId}/nota")
     public ResponseEntity<?> actualizarNota(@PathVariable int registroId,
                                             @RequestBody Map<String, String> body) {

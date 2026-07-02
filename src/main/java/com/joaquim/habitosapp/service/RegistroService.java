@@ -28,7 +28,7 @@ public class RegistroService {
 
     private static final int PUNTOS_HABITO_COMPLETADO = 100; // provisional
 
-    public void completarHabito(Habito habito, String nota) {
+    public List<String> completarHabito(Habito habito, String nota) {
         if (registroDAO.existeRegistroHoy(habito)) {
             throw new RuntimeException("El hábito ya fue completado hoy");
         }
@@ -44,7 +44,7 @@ public class RegistroService {
         );
 
         otorgarPuntosPorHitoRacha(usuario, habito);
-        motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        return motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
     }
 
     private void otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {

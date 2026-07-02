@@ -7,6 +7,7 @@ import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,53 +28,59 @@ public class MotorLogrosService {
     private IRachaDAO rachaDAO;
 
     // ── Evento: completar un registro ───────────────────────
-    public void evaluarTrasCompletarRegistro(Usuario usuario, Habito habito) {
-        comprobarLogrosDeRacha(usuario, habito);
-        comprobarLogrosDeVolumen(usuario);
+    public List<String> evaluarTrasCompletarRegistro(Usuario usuario, Habito habito) {
+        List<String> logrosOtorgados = new ArrayList<>();
+        logrosOtorgados.addAll(comprobarLogrosDeRacha(usuario, habito));
+        logrosOtorgados.addAll(comprobarLogrosDeVolumen(usuario));
+        return logrosOtorgados;
     }
 
-    private void comprobarLogrosDeRacha(Usuario usuario, Habito habito) {
+    private List<String> comprobarLogrosDeRacha(Usuario usuario, Habito habito) {
+        List<String> otorgados = new ArrayList<>();
         Racha racha = rachaDAO.findByHabito(habito);
-        if (racha == null) return;
+        if (racha == null) return otorgados;
 
         int actual = racha.getRachaActual();
         int maxima = racha.getRachaMaxima();
 
         if (actual == 3 && maxima == actual) {
-            otorgar(usuario, "RACHA_3");
+            if (otorgar(usuario, "RACHA_3")) otorgados.add("RACHA_3");
         }
         if (actual == 3 && maxima > actual) {
-            otorgar(usuario, "RACHA_RECUPERADA");
+            if (otorgar(usuario, "RACHA_RECUPERADA")) otorgados.add("RACHA_RECUPERADA");
         }
         if (actual == 7) {
-            otorgar(usuario, "RACHA_7");
+            if (otorgar(usuario, "RACHA_7")) otorgados.add("RACHA_7");
         }
         if (actual == 30) {
-            otorgar(usuario, "RACHA_30");
+            if (otorgar(usuario, "RACHA_30")) otorgados.add("RACHA_30");
         }
         if (actual == 100) {
-            otorgar(usuario, "RACHA_100");
+            if (otorgar(usuario, "RACHA_100")) otorgados.add("RACHA_100");
         }
         if (actual == 365) {
-            otorgar(usuario, "RACHA_365");
+            if (otorgar(usuario, "RACHA_365")) otorgados.add("RACHA_365");
         }
+        return otorgados;
     }
 
-    private void comprobarLogrosDeVolumen(Usuario usuario) {
+    private List<String> comprobarLogrosDeVolumen(Usuario usuario) {
+        List<String> otorgados = new ArrayList<>();
         int totalRegistros = registroDAO.contarPorUsuario(usuario.getUsuarioId());
 
         if (totalRegistros == 1) {
-            otorgar(usuario, "PRIMEROS_PASOS");
+            if (otorgar(usuario, "PRIMEROS_PASOS")) otorgados.add("PRIMEROS_PASOS");
         }
         if (totalRegistros == 100) {
-            otorgar(usuario, "REGISTROS_100");
+            if (otorgar(usuario, "REGISTROS_100")) otorgados.add("REGISTROS_100");
         }
         if (totalRegistros == 500) {
-            otorgar(usuario, "REGISTROS_500");
+            if (otorgar(usuario, "REGISTROS_500")) otorgados.add("REGISTROS_500");
         }
         if (totalRegistros == 1000) {
-            otorgar(usuario, "REGISTROS_1000");
+            if (otorgar(usuario, "REGISTROS_1000")) otorgados.add("REGISTROS_1000");
         }
+        return otorgados;
     }
 
     // ── Evento: crear un hábito ──────────────────────────────
@@ -172,10 +179,11 @@ public class MotorLogrosService {
     }
 
     // ── Helper interno ────────────────────────────────────────
-    private void otorgar(Usuario usuario, String codigo) {
+    private boolean otorgar(Usuario usuario, String codigo) {
         Logro logro = logroService.buscarPorCodigo(codigo);
         if (logro != null) {
-            logroService.otorgarLogro(usuario, logro.getLogroId());
+            return logroService.otorgarLogro(usuario, logro.getLogroId());
         }
+        return false;
     }
 }
