@@ -21,6 +21,9 @@ public class Racha {
     @Column(name = "ultima_fecha", nullable = false)
     private LocalDate ultimaFecha;
 
+    @Column(name = "meta_alcanzada_periodo_actual", nullable = false)
+    private boolean metaAlcanzadaPeriodoActual = false;
+
     @OneToOne
     @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_racha_habito"))
     private Habito habito;
@@ -50,6 +53,9 @@ public class Racha {
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }
+
+    public boolean isMetaAlcanzadaPeriodoActual() { return metaAlcanzadaPeriodoActual; }
+    public void setMetaAlcanzadaPeriodoActual(boolean metaAlcanzadaPeriodoActual) { this.metaAlcanzadaPeriodoActual = metaAlcanzadaPeriodoActual; }
 
     @Override
     public String toString() {

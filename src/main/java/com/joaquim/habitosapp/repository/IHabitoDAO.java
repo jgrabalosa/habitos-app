@@ -13,4 +13,5 @@ public interface IHabitoDAO {
     List<Habito> findInactivos(Usuario propietario);
     void update(Habito habito);
     void delete(int id);
+    List<Habito> findTodosActivos();
 }

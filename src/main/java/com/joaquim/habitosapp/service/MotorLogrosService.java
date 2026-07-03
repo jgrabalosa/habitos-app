@@ -98,7 +98,6 @@ public class MotorLogrosService {
         }
 
         comprobarCategoriasUsadas(usuario, activos);
-        comprobarFrecuenciasMixtas(usuario, activos);
     }
 
     private void comprobarCategoriasUsadas(Usuario usuario, List<Habito> activos) {
@@ -114,22 +113,6 @@ public class MotorLogrosService {
         }
         if (categoriasDistintas.size() == 5) {
             otorgar(usuario, "CATEGORIAS_5");
-        }
-    }
-
-    private void comprobarFrecuenciasMixtas(Usuario usuario, List<Habito> activos) {
-        boolean tieneDiario = false, tieneSemanal = false, tieneMensual = false;
-        for (Habito h : activos) {
-            switch (h.getFrecuencia()) {
-                case DIARIO -> tieneDiario = true;
-                case SEMANAL -> tieneSemanal = true;
-                case MENSUAL -> tieneMensual = true;
-                case PERSONALIZADO -> {} // no cuenta para este logro
-            }
-        }
-
-        if (tieneDiario && tieneSemanal && tieneMensual) {
-            otorgar(usuario, "FRECUENCIAS_MIXTAS");
         }
     }
 

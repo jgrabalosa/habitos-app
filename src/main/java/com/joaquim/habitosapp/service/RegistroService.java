@@ -1,5 +1,6 @@
 package com.joaquim.habitosapp.service;
 
+import com.joaquim.habitosapp.model.Frecuencia;
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Racha;
 import com.joaquim.habitosapp.model.Registro;
@@ -8,6 +9,7 @@ import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -29,22 +31,69 @@ public class RegistroService {
     private static final int PUNTOS_HABITO_COMPLETADO = 100; // provisional
 
     public List<String> completarHabito(Habito habito, String nota) {
-        if (registroDAO.existeRegistroHoy(habito)) {
-            throw new RuntimeException("El hábito ya fue completado hoy");
-        }
+        LocalDate[] periodo = calcularRangoPeriodoActual(habito);
+        int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+        int meta = habito.getMeta();
+
         Registro registro = new Registro(habito, true, nota);
         registroDAO.save(registro);
-        actualizarRacha(habito);
 
         Usuario usuario = habito.getPropietario();
 
-        usuarioMonedaService.registrarMovimiento(
-                usuario, PUNTOS_HABITO_COMPLETADO, "HABITO_COMPLETADO",
-                habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
-        );
+        // Puntos solo hasta alcanzar la meta del periodo — evita farmeo con clics extra
+        if (completadosAntes < meta) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, PUNTOS_HABITO_COMPLETADO, "HABITO_COMPLETADO",
+                    habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
+            );
+        }
 
-        otorgarPuntosPorHitoRacha(usuario, habito);
+        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta);
+        if (metaAlcanzadaAhora) {
+            otorgarPuntosPorHitoRacha(usuario, habito);
+        }
+
         return motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+    }
+
+    /**
+     * Calcula el rango de fechas [desde, hasta] del periodo actual del hábito,
+     * según su frecuencia. DIARIO = solo hoy. SEMANAL = semana natural actual (lunes a domingo).
+     */
+    private LocalDate[] calcularRangoPeriodoActual(Habito habito) {
+        LocalDate hoy = LocalDate.now();
+        if (habito.getFrecuencia() == Frecuencia.SEMANAL) {
+            LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
+            LocalDate domingo = lunes.plusDays(6);
+            return new LocalDate[]{lunes, domingo};
+        }
+        return new LocalDate[]{hoy, hoy};
+    }
+
+    /**
+     * Actualiza la racha SOLO si se alcanza la meta del periodo por primera vez en ese periodo.
+     * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
+     */
+    private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta) {
+        Racha racha = rachaDAO.findByHabito(habito);
+        if (racha == null) return false;
+
+        if (racha.isMetaAlcanzadaPeriodoActual()) {
+            return false; // ya subió este periodo, completar de más no hace nada
+        }
+
+        if (completadosEnPeriodo >= meta) {
+            racha.setRachaActual(racha.getRachaActual() + 1);
+            if (racha.getRachaActual() > racha.getRachaMaxima()) {
+                racha.setRachaMaxima(racha.getRachaActual());
+            }
+            racha.setMetaAlcanzadaPeriodoActual(true);
+            racha.setUltimaFecha(LocalDate.now());
+            rachaDAO.update(racha);
+            return true;
+        }
+
+        return false;
     }
 
     private void otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
@@ -67,27 +116,6 @@ public class RegistroService {
                     "Hito de racha (" + actual + ") en: " + habito.getNombre()
             );
         }
-    }
-
-    public void actualizarRacha(Habito habito) {
-        Racha racha = rachaDAO.findByHabito(habito);
-        if (racha == null) return;
-
-        LocalDate hoy = LocalDate.now();
-        LocalDate ayer = hoy.minusDays(1);
-
-        if (racha.getUltimaFecha().equals(ayer)) {
-            racha.setRachaActual(racha.getRachaActual() + 1);
-        } else if (!racha.getUltimaFecha().equals(hoy)) {
-            racha.setRachaActual(1);
-        }
-
-        if (racha.getRachaActual() > racha.getRachaMaxima()) {
-            racha.setRachaMaxima(racha.getRachaActual());
-        }
-
-        racha.setUltimaFecha(hoy);
-        rachaDAO.update(racha);
     }
 
     public boolean estaCompletadoHoy(Habito habito) {

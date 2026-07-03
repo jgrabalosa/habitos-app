@@ -62,4 +62,11 @@ public class HabitoDAO implements IHabitoDAO {
             em.remove(habito);
         }
     }
+
+    @Override
+    public List<Habito> findTodosActivos() {
+        return em.createQuery(
+                        "SELECT h FROM Habito h WHERE h.activo = true", Habito.class)
+                .getResultList();
+    }
 }

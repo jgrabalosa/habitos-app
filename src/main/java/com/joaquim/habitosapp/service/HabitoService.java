@@ -64,9 +64,21 @@ public class HabitoService {
         if (existente == null) {
             throw new RuntimeException("Hábito no encontrado");
         }
+
+        boolean cambioFrecuencia = existente.getFrecuencia() != habito.getFrecuencia();
+
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
         habitoDAO.update(habito);
+
+        if (cambioFrecuencia) {
+            Racha racha = rachaDAO.findByHabito(habito);
+            if (racha != null) {
+                racha.setRachaActual(0);
+                racha.setMetaAlcanzadaPeriodoActual(false);
+                rachaDAO.update(racha);
+            }
+        }
 
         motorLogrosService.evaluarTrasEditarHabito(habito.getPropietario());
     }
