@@ -85,7 +85,8 @@ function renderHeatmap(dias) {
 
     let html = '';
     for (let i = 0; i < diaSemana; i++) {
-        html += `<div class="heatmap-day futuro"></div>`;
+        const esHoy = dia.fecha === new Date().toISOString().split('T')[0];
+        html += `<div class="heatmap-day ${dia.completado ? 'completado' : ''}${esHoy ? ' hoy' : ''}" title="${dia.fecha}">${numero}</div>`;
     }
 
     dias.forEach(dia => {

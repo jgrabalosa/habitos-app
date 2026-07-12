@@ -59,28 +59,54 @@ async function cargarLogros() {
 
 // ── Renderizar logros ─────────────────────────────────
 function renderLogros() {
-    const lista = document.getElementById('listaLogros');
+    const ICONOS_CATEGORIA = {
+        'Inicio': '🌱',
+        'Constancia': '🔥',
+        'Volumen': '📊',
+        'Variedad': '🎨',
+        'Exploración': '🧭'
+    };
 
-    const idsConseguidos = new Set(logrosConseguidos.map(ul => ul.logro.logroId));
+    function renderLogros() {
+        const lista = document.getElementById('listaLogros');
+        const idsConseguidos = new Set(logrosConseguidos.map(ul => ul.logro.logroId));
 
-    lista.innerHTML = catalogoLogros.map(logro => {
-        const conseguido = idsConseguidos.has(logro.logroId);
-        return `
+        // Barra de progreso global
+        const total = catalogoLogros.length;
+        const conseguidos = idsConseguidos.size;
+        const pct = total > 0 ? Math.round((conseguidos / total) * 100) : 0;
+        document.getElementById('textoProgreso').textContent = `${conseguidos} de ${total} logros`;
+        document.getElementById('pctProgreso').textContent = `${pct}%`;
+        document.getElementById('barraProgreso').style.width = `${pct}%`;
+
+        if (catalogoLogros.length === 0) {
+            lista.innerHTML = `
+            <div class="col-12 text-center text-muted py-4">
+                <span style="font-size: 2rem;">🧭</span>
+                <p class="mb-0">El catálogo de logros llegará pronto.</p>
+            </div>`;
+            return;
+        }
+
+        lista.innerHTML = catalogoLogros.map(logro => {
+            const conseguido = idsConseguidos.has(logro.logroId);
+            const icono = ICONOS_CATEGORIA[logro.categoria] || '⭐';
+            return `
         <div class="col-md-6 col-lg-4">
-            <div class="card p-3 ${conseguido ? '' : 'opacity-50'}">
+            <div class="card p-3 h-100 ${conseguido ? '' : 'opacity-50'}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6 class="mb-1 fw-bold">${logro.nombre}</h6>
+                        <h6 class="mb-1 fw-bold">${icono} ${logro.nombre}</h6>
                         <small class="text-muted d-block">${logro.descripcion}</small>
-                        <span class="badge bg-secondary mt-2">${logro.categoria}</span>
-                        <span class="badge bg-info mt-2">${logro.nivel}</span>
+                        <span class="badge-frecuencia mt-2 d-inline-block">${logro.categoria} · ${logro.nivel}</span>
                     </div>
                     <span class="fs-4">${conseguido ? '🏆' : '🔒'}</span>
                 </div>
                 <small class="text-muted mt-2">+${logro.puntos} pts</small>
             </div>
         </div>`;
-    }).join('');
+        }).join('');
+    }
 }
 
 // ── Cerrar sesión ─────────────────────────────────────

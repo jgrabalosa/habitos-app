@@ -6,7 +6,12 @@
     <title>HábitosApp — Detalle</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="/css/styles.css" rel="stylesheet">
+    <link href="/css/design-tokens.css" rel="stylesheet">
+    <script src="/js/theme.js"></script>
     <style>
         .heatmap-grid {
             display: grid;
@@ -15,32 +20,32 @@
         }
         .heatmap-day {
             aspect-ratio: 1;
-            border-radius: 4px;
-            background-color: #e9ecef;
+            border-radius: 8px;
+            background-color: var(--surface-2);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.7rem;
-            color: #adb5bd;
+            color: var(--text-muted);
+            transition: transform var(--t-fast);
         }
+        .heatmap-day:hover { transform: scale(1.1); }
         .heatmap-day.completado {
-            background-color: #198754;
+            background-color: var(--success);
             color: white;
+            font-weight: 700;
         }
-        .heatmap-day.futuro {
-            background-color: transparent;
+        .heatmap-day.hoy {
+            outline: 2px solid var(--primary);
+            outline-offset: 1px;
         }
-        .stat-mini {
-            text-align: center;
-            padding: 16px;
-        }
-        .stat-mini .numero {
-            font-size: 2rem;
-            font-weight: bold;
-        }
+        .heatmap-day.futuro { background-color: transparent; }
+        .stat-mini { text-align: center; padding: 16px; }
+        .stat-mini .numero { font-size: 2rem; font-weight: 800; }
+        .footer-espacio { height: 48px; }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -118,6 +123,7 @@
 
         </div>
     </div>
+    <div class="footer-espacio"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

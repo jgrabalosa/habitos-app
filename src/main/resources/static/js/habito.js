@@ -18,6 +18,7 @@ const headers = {
 const params = new URLSearchParams(window.location.search);
 const habitoId = params.get('id');
 const esEdicion = habitoId !== null;
+let frecuenciaOriginal = null;
 
 // ── Cargar categorías ─────────────────────────────────
 async function cargarCategorias() {
@@ -55,6 +56,7 @@ async function cargarHabito() {
         document.getElementById('nombre').value = habito.nombre;
         document.getElementById('descripcion').value = habito.descripcion || '';
         document.getElementById('frecuencia').value = habito.frecuencia;
+        frecuenciaOriginal = habito.frecuencia;
         document.getElementById('meta').value = habito.meta || 1;
         if (habito.tipo) {
             document.getElementById('categoria').value = habito.tipo.categoriaId;
@@ -96,6 +98,14 @@ async function guardarHabito() {
 
     if (categoriaId) {
         habito.tipo = { categoriaId: parseInt(categoriaId) };
+    }
+
+    if (esEdicion && frecuenciaOriginal && frecuencia !== frecuenciaOriginal) {
+        const confirmar = confirm(
+            'Cambiar la frecuencia reiniciará tu racha actual a 0.\n' +
+            'Tu mejor racha se conserva.\n\n¿Quieres continuar?'
+        );
+        if (!confirmar) return;
     }
 
     try {

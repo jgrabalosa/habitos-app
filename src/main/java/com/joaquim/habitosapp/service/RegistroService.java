@@ -70,6 +70,11 @@ public class RegistroService {
         return new LocalDate[]{hoy, hoy};
     }
 
+    public int contarCompletadosPeriodoActual(Habito habito) {
+        LocalDate[] periodo = calcularRangoPeriodoActual(habito);
+        return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+    }
+
     /**
      * Actualiza la racha SOLO si se alcanza la meta del periodo por primera vez en ese periodo.
      * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).

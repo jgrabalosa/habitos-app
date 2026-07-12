@@ -1,0 +1,299 @@
+/* ═══════════════════════════════════════════════
+   HábitosApp — Design Tokens (Fase 11)
+   Fuente única de verdad visual. Light + Dark.
+   ═══════════════════════════════════════════════ */
+
+:root {
+    /* ── Color: marca y semánticos ── */
+    --primary: #4a6cf7;
+    --primary-dark: #3a5ce5;
+    --primary-soft: rgba(74, 108, 247, 0.12);
+    --success: #22c55e;
+    --success-soft: rgba(34, 197, 94, 0.12);
+    --streak: #f97316;
+    --streak-soft: rgba(249, 115, 22, 0.14);
+    --points: #f59e0b;
+    --danger: #ef4444;
+
+    /* ── Color: superficies y texto ── */
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+
+    /* ── Tipografía ── */
+    --font: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+    --fs-xl: 28px;
+    --fs-lg: 20px;
+    --fs-md: 16px;
+    --fs-sm: 14px;
+    --fs-xs: 12px;
+
+    /* ── Espaciado (sistema 8px) ── */
+    --sp-1: 8px;
+    --sp-2: 16px;
+    --sp-3: 24px;
+    --sp-4: 32px;
+
+    /* ── Radios y sombras ── */
+    --radius-card: 20px;
+    --radius-btn: 12px;
+    --shadow-1: 0 2px 12px rgba(15, 23, 42, 0.06);
+    --shadow-2: 0 6px 24px rgba(15, 23, 42, 0.10);
+
+    /* ── Movimiento ── */
+    --t-fast: 180ms ease;
+    --t-med: 300ms ease;
+}
+
+/* ── Dark Mode (acentos +10% saturación) ── */
+[data-bs-theme="dark"] {
+    --primary: #5d7bff;
+    --primary-dark: #4a6cf7;
+    --primary-soft: rgba(93, 123, 255, 0.18);
+    --success: #2fdd6e;
+    --success-soft: rgba(47, 221, 110, 0.16);
+    --streak: #ff8226;
+    --streak-soft: rgba(255, 130, 38, 0.18);
+    --points: #ffb020;
+    --danger: #ff5c5c;
+
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-2: #263449;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border: #334155;
+
+    --shadow-1: 0 2px 12px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ═══════════════════════════════════════════════
+   Base: aplicar tokens sobre Bootstrap
+   ═══════════════════════════════════════════════ */
+
+body {
+    font-family: var(--font);
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+/* ── Navbar ── */
+.navbar.bg-primary {
+    background-color: var(--primary) !important;
+}
+
+/* ── Cards ── */
+.card {
+    border: none;
+    border-radius: var(--radius-card);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-1);
+    color: var(--text);
+}
+
+.card-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-card) var(--radius-card) 0 0 !important;
+    padding: var(--sp-2) var(--sp-3);
+}
+
+/* ── Botones ── */
+.btn {
+    border-radius: var(--radius-btn);
+    font-weight: 600;
+    transition: transform var(--t-fast), box-shadow var(--t-fast),
+    background-color var(--t-fast);
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    box-shadow: 0 4px 14px var(--primary-soft);
+}
+
+.btn-success {
+    background-color: var(--success);
+    border-color: var(--success);
+}
+
+.btn-outline-primary {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* ── Inputs ── */
+.form-control, .form-select {
+    border-radius: var(--radius-btn);
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    color: var(--text);
+    padding: 10px var(--sp-2);
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-soft);
+    background-color: var(--surface);
+    color: var(--text);
+}
+
+/* ── Texto auxiliar ── */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* ── Modales (Dark Mode correcto) ── */
+.modal-content {
+    background-color: var(--surface);
+    color: var(--text);
+    border-radius: var(--radius-card);
+    border: none;
+}
+
+/* ── Badge de racha (unificado con tokens) ── */
+.racha-badge {
+    background: var(--streak-soft);
+    color: var(--streak);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════
+   Componentes del dashboard rediseñado
+   ═══════════════════════════════════════════════ */
+
+.habito-fila {
+    cursor: pointer;
+    transition: transform var(--t-fast), box-shadow var(--t-fast), opacity var(--t-med);
+}
+
+.habito-fila:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+}
+
+.habito-hecha {
+    opacity: 0.72;
+}
+
+.habito-hecha h6 {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.badge-frecuencia {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.check-hecho {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    animation: pop 350ms ease;
+}
+
+/* ── Mini-heatmap (28 días) ── */
+.mini-heatmap {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.mini-dia {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--surface-2);
+}
+
+.mini-dia.lleno {
+    background: var(--success);
+}
+
+.mini-dia.es-hoy {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* ── Animación al completar ── */
+@keyframes pop {
+    0%   { transform: scale(0.4); }
+    60%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.completando {
+    animation: completar-slide 450ms ease forwards;
+}
+
+@keyframes completar-slide {
+    0%   { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(24px); opacity: 0.2; }
+}
+
+/* ── Celebraciones (toasts de logros) ── */
+.celebraciones-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast-logro {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    color: var(--text);
+    border-left: 4px solid var(--points);
+    border-radius: var(--radius-btn);
+    box-shadow: var(--shadow-2);
+    padding: 12px 16px;
+    cursor: pointer;
+    animation: toast-in 300ms ease;
+}
+
+.toast-logro .emoji {
+    font-size: 1.6rem;
+}
+
+@keyframes toast-in {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}

@@ -3,75 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HábitosApp — Dashboard</title>
+    <title>HábitosApp — Hoy</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="/css/styles.css" rel="stylesheet">
+    <link href="/css/design-tokens.css" rel="stylesheet">
+    <script src="/js/theme.js"></script>
 </head>
 <body>
 
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
+    <div class="container" style="max-width: 720px;">
         <a class="navbar-brand" href="#">
             <i class="fas fa-check-circle me-2"></i>HábitosApp
         </a>
-        <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-white" id="nombreUsuario"></span>
+        <div class="ms-auto d-flex align-items-center gap-2">
+            <a href="/logros.html" class="btn btn-outline-light btn-sm" title="Mis logros">
+                <i class="fas fa-trophy"></i>
+            </a>
+            <button class="btn btn-outline-light btn-sm" onclick="alternarTema()" title="Cambiar tema">
+                <i class="fas fa-moon" id="iconoTema"></i>
+            </button>
+            <span class="text-white d-none d-sm-inline" id="nombreUsuario"></span>
             <button class="btn btn-outline-light btn-sm" onclick="cerrarSesion()">
-                <i class="fas fa-sign-out-alt me-1"></i>Salir
+                <i class="fas fa-sign-out-alt"></i>
             </button>
         </div>
     </div>
 </nav>
 
-<div class="container mt-4">
+<div class="container mt-4" style="max-width: 720px;">
 
-    <!-- Estadísticas -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="card stat-card bg-primary text-white">
-                <div class="stat-number" id="totalHabitos">0</div>
-                <div class="stat-label">Hábitos activos</div>
-            </div>
+    <!-- Cabecera del día -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="fw-bold mb-0">Hoy</h4>
+            <small class="text-muted" id="fechaHoy"></small>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card bg-success text-white">
-                <div class="stat-number" id="completadosHoy">0</div>
-                <div class="stat-label">Completados hoy</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card bg-warning text-white">
-                <div class="stat-number" id="pendientesHoy">0</div>
-                <div class="stat-label">Pendientes hoy</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card bg-info text-white">
-                <div class="stat-number" id="rachaMax">0</div>
-                <div class="stat-label">Mejor racha</div>
+        <button class="btn btn-primary" onclick="window.location.href='/habito.html'">
+            <i class="fas fa-plus me-1"></i>Nuevo hábito
+        </button>
+    </div>
+
+    <!-- Pendientes -->
+    <div id="seccionPendientes" class="mb-4">
+        <div id="listaPendientes" class="d-flex flex-column gap-2">
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                <p>Cargando hábitos...</p>
             </div>
         </div>
     </div>
 
-    <!-- Hábitos de hoy -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-calendar-day me-2 text-primary"></i>Hábitos de hoy</h5>
-            <button class="btn btn-primary btn-sm" onclick="window.location.href='/habito.html'">
-                <i class="fas fa-plus me-1"></i>Nuevo hábito
-            </button>
-        </div>
-        <div class="card-body">
-            <div id="listaHabitos" class="row g-3">
-                <div class="col-12 text-center text-muted py-4">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                    <p>Cargando hábitos...</p>
-                </div>
-            </div>
-        </div>
+    <!-- Completados -->
+    <div id="seccionCompletados" class="mb-4 d-none">
+        <h6 class="text-muted fw-bold mb-2"><i class="fas fa-check me-1"></i>Completados</h6>
+        <div id="listaCompletados" class="d-flex flex-column gap-2"></div>
     </div>
+
     <!-- Modal nota al completar -->
     <div class="modal fade" id="modalNota" tabindex="-1">
         <div class="modal-dialog">
@@ -91,6 +84,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Contenedor de celebraciones (toasts de logros) -->
+    <div id="celebraciones" class="celebraciones-container"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

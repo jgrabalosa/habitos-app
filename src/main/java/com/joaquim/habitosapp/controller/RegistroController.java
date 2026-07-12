@@ -62,7 +62,12 @@ public class RegistroController {
                     .body("Hábito no encontrado");
         }
         boolean completado = registroService.estaCompletadoHoy(habito);
-        return ResponseEntity.ok(Map.of("completadoHoy", completado));
+        int completadosPeriodo = registroService.contarCompletadosPeriodoActual(habito);
+        return ResponseEntity.ok(Map.of(
+                "completadoHoy", completado,
+                "completadosPeriodo", completadosPeriodo,
+                "meta", habito.getMeta()
+        ));
     }
 
     @PutMapping("/{registroId}/nota")
