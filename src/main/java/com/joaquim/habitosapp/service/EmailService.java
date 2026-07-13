@@ -14,14 +14,14 @@ public class EmailService {
     public void enviarEmailBienvenida(String destinatario, String nombre) {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(destinatario);
-        mensaje.setSubject("¡Bienvenido a HábitosApp! 🎉");
+        mensaje.setSubject("¡Bienvenido a Norday! 🎉");
         mensaje.setText(
                 "Hola " + nombre + ",\n\n" +
-                        "¡Gracias por unirte a HábitosApp! Estamos encantados de acompañarte " +
+                        "¡Gracias por unirte a Norday! Estamos encantados de acompañarte " +
                         "en tu camino para construir mejores hábitos.\n\n" +
                         "Empieza creando tu primer hábito y da el primer paso hacia una mejor versión de ti mismo.\n\n" +
                         "Un saludo,\n" +
-                        "El equipo de HábitosApp"
+                        "El equipo de Norday"
         );
         mailSender.send(mensaje);
     }
