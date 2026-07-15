@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import com.joaquim.habitosapp.model.dto.HabitoDetalleDTO;
 import java.time.YearMonth;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/habitos")
@@ -55,9 +57,11 @@ public class HabitoController {
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Habito habito) {
         try {
-            habitoService.crearHabito(habito);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("Hábito creado correctamente");
+            List<String> logrosOtorgados = habitoService.crearHabito(habito);
+            Map<String, Object> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Hábito creado correctamente");
+            respuesta.put("logrosOtorgados", logrosOtorgados);
+            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(e.getMessage());

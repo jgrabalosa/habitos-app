@@ -84,23 +84,26 @@ public class MotorLogrosService {
     }
 
     // ── Evento: crear un hábito ──────────────────────────────
-    public void evaluarTrasCrearHabito(Usuario usuario) {
+    public List<String> evaluarTrasCrearHabito(Usuario usuario) {
+        List<String> otorgados = new ArrayList<>();
         List<Habito> activos = habitoDAO.findActivos(usuario);
 
         if (activos.size() == 1) {
-            otorgar(usuario, "PRIMER_HABITO");
+            if (otorgar(usuario, "PRIMER_HABITO")) otorgados.add("PRIMER_HABITO");
         }
         if (activos.size() == 3) {
-            otorgar(usuario, "HABITOS_ACTIVOS_3");
+            if (otorgar(usuario, "HABITOS_ACTIVOS_3")) otorgados.add("HABITOS_ACTIVOS_3");
         }
         if (activos.size() == 5) {
-            otorgar(usuario, "HABITOS_ACTIVOS_5");
+            if (otorgar(usuario, "HABITOS_ACTIVOS_5")) otorgados.add("HABITOS_ACTIVOS_5");
         }
 
-        comprobarCategoriasUsadas(usuario, activos);
+        otorgados.addAll(comprobarCategoriasUsadas(usuario, activos));
+        return otorgados;
     }
 
-    private void comprobarCategoriasUsadas(Usuario usuario, List<Habito> activos) {
+    private List<String> comprobarCategoriasUsadas(Usuario usuario, List<Habito> activos) {
+        List<String> otorgados = new ArrayList<>();
         Set<Integer> categoriasDistintas = new HashSet<>();
         for (Habito h : activos) {
             if (h.getTipo() != null) {
@@ -109,11 +112,12 @@ public class MotorLogrosService {
         }
 
         if (categoriasDistintas.size() == 3) {
-            otorgar(usuario, "CATEGORIAS_3");
+            if (otorgar(usuario, "CATEGORIAS_3")) otorgados.add("CATEGORIAS_3");
         }
         if (categoriasDistintas.size() == 5) {
-            otorgar(usuario, "CATEGORIAS_5");
+            if (otorgar(usuario, "CATEGORIAS_5")) otorgados.add("CATEGORIAS_5");
         }
+        return otorgados;
     }
 
     // ── Evento: crear categoría personalizada ────────────────

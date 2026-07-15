@@ -33,14 +33,14 @@ public class HabitoService {
     @Autowired
     private MotorLogrosService motorLogrosService;
 
-    public void crearHabito(Habito habito) {
+    public List<String> crearHabito(Habito habito) {
         habito.setFechaInicio(LocalDate.now());
         habito.setActivo(true);
         habitoDAO.save(habito);
         Racha racha = new Racha(habito);
         rachaDAO.save(racha);
 
-        motorLogrosService.evaluarTrasCrearHabito(habito.getPropietario());
+        return motorLogrosService.evaluarTrasCrearHabito(habito.getPropietario());
     }
 
     public Habito buscarPorId(int id) {
