@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RegistroService {
@@ -30,7 +31,7 @@ public class RegistroService {
 
     private static final int PUNTOS_HABITO_COMPLETADO = 100; // provisional
 
-    public List<String> completarHabito(Habito habito, String nota) {
+    public Map<String, Object> completarHabito(Habito habito, String nota) {
         LocalDate[] periodo = calcularRangoPeriodoActual(habito);
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
         int meta = habito.getMeta();
@@ -39,6 +40,7 @@ public class RegistroService {
         registroDAO.save(registro);
 
         Usuario usuario = habito.getPropietario();
+        int puntosGanados = 0;
 
         // Puntos solo hasta alcanzar la meta del periodo — evita farmeo con clics extra
         if (completadosAntes < meta) {
@@ -46,14 +48,17 @@ public class RegistroService {
                     usuario, PUNTOS_HABITO_COMPLETADO, "HABITO_COMPLETADO",
                     habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
             );
+            puntosGanados += PUNTOS_HABITO_COMPLETADO;
         }
 
         boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta);
         if (metaAlcanzadaAhora) {
-            otorgarPuntosPorHitoRacha(usuario, habito);
+            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
         }
 
-        return motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> logros = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        return Map.of("logros", logros, "puntosGanados", puntosGanados);
     }
 
     /**
@@ -101,9 +106,9 @@ public class RegistroService {
         return false;
     }
 
-    private void otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
+    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
         Racha racha = rachaDAO.findByHabito(habito);
-        if (racha == null) return;
+        if (racha == null) return 0;
 
         int actual = racha.getRachaActual();
         int puntos = switch (actual) {
@@ -121,6 +126,7 @@ public class RegistroService {
                     "Hito de racha (" + actual + ") en: " + habito.getNombre()
             );
         }
+        return puntos;
     }
 
     public boolean estaCompletadoHoy(Habito habito) {

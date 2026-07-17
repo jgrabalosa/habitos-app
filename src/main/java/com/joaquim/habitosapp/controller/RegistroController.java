@@ -31,11 +31,12 @@ public class RegistroController {
                         .body("Hábito no encontrado");
             }
             String nota = body != null ? body.get("nota") : null;
-            List<String> logrosOtorgados = registroService.completarHabito(habito, nota);
+            Map<String, Object> resultado = registroService.completarHabito(habito, nota);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(Map.of(
                             "mensaje", "Hábito completado correctamente",
-                            "logrosOtorgados", logrosOtorgados
+                            "logrosOtorgados", resultado.get("logros"),
+                            "puntosGanados", resultado.get("puntosGanados")
                     ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
