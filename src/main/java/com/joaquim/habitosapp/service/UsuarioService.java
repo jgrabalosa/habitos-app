@@ -109,8 +109,26 @@ public class UsuarioService {
     }
 
     public void actualizarPerfil(Usuario usuario) {
-        usuarioDAO.update(usuario);
-        motorLogrosService.evaluarTrasActualizarPerfil(usuario);
+        Usuario existente = usuarioDAO.findById(usuario.getUsuarioId());
+        if (existente == null) {
+            throw new RuntimeException("Usuario no encontrado");
+        }
+
+        // Solo se actualizan los campos editables del perfil.
+        // El resto (contrasena, proveedorAuth, fcmToken, fechaRegistro...)
+        // se conservan tal cual están en la BD.
+        if (usuario.getNombre() != null) {
+            existente.setNombre(usuario.getNombre());
+        }
+        if (usuario.getUsername() != null) {
+            existente.setUsername(usuario.getUsername());
+        }
+        if (usuario.getEmail() != null) {
+            existente.setEmail(usuario.getEmail());
+        }
+
+        usuarioDAO.update(existente);
+        motorLogrosService.evaluarTrasActualizarPerfil(existente);
     }
 
     public void actualizarFcmToken(int id, String fcmToken) {
