@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface IUsuarioMonedaDAO {
     void save(UsuarioMoneda movimiento);
+    void deleteByUsuario(int usuarioId);
     List<UsuarioMoneda> findByUsuario(Usuario usuario);
     int calcularSaldo(int usuarioId);
 }

@@ -54,4 +54,11 @@ public class UsuarioProductoDAO implements IUsuarioProductoDAO {
     public void update(UsuarioProducto usuarioProducto) {
         em.merge(usuarioProducto);
     }
+
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM UsuarioProducto up WHERE up.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }

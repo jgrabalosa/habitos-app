@@ -8,6 +8,9 @@ import com.joaquim.habitosapp.repository.IHabitoDAO;
 import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import com.joaquim.habitosapp.repository.IUsuarioDAO;
+import com.joaquim.habitosapp.repository.IUsuarioLogroDAO;
+import com.joaquim.habitosapp.repository.IUsuarioMonedaDAO;
+import com.joaquim.habitosapp.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,15 @@ public class UsuarioService {
 
     @Autowired
     private MotorLogrosService motorLogrosService;
+
+    @Autowired
+    private IUsuarioLogroDAO usuarioLogroDAO;
+
+    @Autowired
+    private IUsuarioMonedaDAO usuarioMonedaDAO;
+
+    @Autowired
+    private IUsuarioProductoDAO usuarioProductoDAO;
 
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
@@ -191,7 +203,12 @@ public class UsuarioService {
             categoriaDAO.delete(categoria.getCategoriaId());
         }
 
-        // 4. Borrar el usuario
+        // 4. Borrar datos de gamificación del usuario
+        usuarioLogroDAO.deleteByUsuario(id);
+        usuarioMonedaDAO.deleteByUsuario(id);
+        usuarioProductoDAO.deleteByUsuario(id);
+
+        // 5. Borrar el usuario
         usuarioDAO.delete(id);
     }
 }

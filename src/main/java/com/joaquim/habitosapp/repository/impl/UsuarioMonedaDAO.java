@@ -39,4 +39,10 @@ public class UsuarioMonedaDAO implements IUsuarioMonedaDAO {
                 .getSingleResult();
         return saldo.intValue();
     }
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM UsuarioMoneda um WHERE um.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }

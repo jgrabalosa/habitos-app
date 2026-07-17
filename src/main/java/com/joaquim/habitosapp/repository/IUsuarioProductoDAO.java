@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface IUsuarioProductoDAO {
     void save(UsuarioProducto usuarioProducto);
+    void deleteByUsuario(int usuarioId);
     UsuarioProducto findById(int id);
     List<UsuarioProducto> findByUsuario(Usuario usuario);
     UsuarioProducto findByUsuarioYProducto(int usuarioId, int productoId);

@@ -45,4 +45,10 @@ public class UsuarioLogroDAO implements IUsuarioLogroDAO {
                 .getSingleResult();
         return count > 0;
     }
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM UsuarioLogro ul WHERE ul.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }
