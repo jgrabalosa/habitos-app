@@ -135,6 +135,29 @@ public class UsuarioService {
         motorLogrosService.evaluarTrasActualizarPerfil(existente);
     }
 
+    public void cambiarContrasena(int id, String contrasenaActual, String contrasenaNueva) {
+        Usuario usuario = usuarioDAO.findById(id);
+        if (usuario == null) {
+            throw new RuntimeException("Usuario no encontrado");
+        }
+
+        if ("GOOGLE".equals(usuario.getProveedorAuth())) {
+            throw new RuntimeException("Las cuentas de Google no tienen contraseña propia");
+        }
+
+        if (contrasenaActual == null
+                || !passwordEncoder.matches(contrasenaActual, usuario.getContrasena())) {
+            throw new RuntimeException("La contraseña actual no es correcta");
+        }
+
+        if (contrasenaNueva == null || contrasenaNueva.length() < 6) {
+            throw new RuntimeException("La nueva contraseña debe tener al menos 6 caracteres");
+        }
+
+        usuario.setContrasena(passwordEncoder.encode(contrasenaNueva));
+        usuarioDAO.update(usuario);
+    }
+
     public void actualizarFcmToken(int id, String fcmToken) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {

@@ -129,6 +129,20 @@ public class UsuarioController {
         }
     }
 
+    @PutMapping("/{id}/contrasena")
+    public ResponseEntity<?> cambiarContrasena(@PathVariable int id,
+                                               @RequestBody Map<String, String> body) {
+        try {
+            usuarioService.cambiarContrasena(id,
+                    body.get("contrasenaActual"),
+                    body.get("contrasenaNueva"));
+            return ResponseEntity.ok("Contraseña actualizada correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        }
+    }
+
     @PutMapping("/{id}/fcm-token")
     public ResponseEntity<?> actualizarFcmToken(@PathVariable int id,
                                                 @RequestBody Map<String, String> body) {
