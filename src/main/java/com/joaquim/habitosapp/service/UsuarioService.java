@@ -123,10 +123,14 @@ public class UsuarioService {
         if (usuario.getUsername() != null) {
             existente.setUsername(usuario.getUsername());
         }
-        if (usuario.getEmail() != null) {
+        if (usuario.getEmail() != null
+                && !usuario.getEmail().equals(existente.getEmail())) {
+            if ("GOOGLE".equals(existente.getProveedorAuth())) {
+                throw new RuntimeException(
+                        "Las cuentas de Google no pueden cambiar su email");
+            }
             existente.setEmail(usuario.getEmail());
         }
-
         usuarioDAO.update(existente);
         motorLogrosService.evaluarTrasActualizarPerfil(existente);
     }
