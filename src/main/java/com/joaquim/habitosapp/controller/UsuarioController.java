@@ -56,7 +56,8 @@ public class UsuarioController {
                     "usuarioId", encontrado.getUsuarioId(),
                     "nombre", encontrado.getNombre(),
                     "username", encontrado.getUsername(),
-                    "email", encontrado.getEmail()
+                    "email", encontrado.getEmail(),
+                    "proveedorAuth", encontrado.getProveedorAuth()
             ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -92,7 +93,8 @@ public class UsuarioController {
                     "usuarioId", usuario.getUsuarioId(),
                     "nombre", usuario.getNombre(),
                     "username", usuario.getUsername(),
-                    "email", usuario.getEmail()
+                    "email", usuario.getEmail(),
+                    "proveedorAuth", usuario.getProveedorAuth()
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error al verificar token de Google");
