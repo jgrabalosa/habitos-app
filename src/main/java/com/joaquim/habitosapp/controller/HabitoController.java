@@ -13,6 +13,7 @@ import com.joaquim.habitosapp.model.dto.HabitoDetalleDTO;
 import java.time.YearMonth;
 import java.util.Map;
 import java.util.HashMap;
+import com.joaquim.habitosapp.model.dto.DashboardHabitoDTO;
 
 @RestController
 @RequestMapping("/api/habitos")
@@ -42,6 +43,16 @@ public class HabitoController {
                     .body("Usuario no encontrado");
         }
         return ResponseEntity.ok(habitoService.obtenerActivos(usuario));
+    }
+
+    @GetMapping("/usuario/{usuarioId}/dashboard")
+    public ResponseEntity<?> obtenerDashboard(@PathVariable int usuarioId) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Usuario no encontrado");
+        }
+        return ResponseEntity.ok(habitoService.obtenerDashboard(usuario));
     }
 
     @GetMapping("/{id}")

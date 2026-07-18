@@ -17,6 +17,11 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.joaquim.habitosapp.model.dto.DashboardHabitoDTO;
+import com.joaquim.habitosapp.model.Frecuencia;
+import java.time.DayOfWeek;
+
+
 
 @Service
 public class HabitoService {
@@ -169,5 +174,33 @@ public class HabitoService {
         dto.setValoracionMedia(valoracionMedia);
 
         return dto;
+    }
+    public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
+        List<Habito> activos = habitoDAO.findActivos(usuario);
+        List<DashboardHabitoDTO> dashboard = new ArrayList<>();
+
+        for (Habito habito : activos) {
+            LocalDate[] periodo = calcularRangoPeriodoActualDashboard(habito);
+            int completadosPeriodo = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+            boolean completadoHoy = registroDAO.existeRegistroHoy(habito);
+
+            List<String> fechasCompletadas = registroDAO.findByHabito(habito).stream()
+                    .filter(Registro::isCompletado)
+                    .map(r -> r.getFecha().toString())
+                    .collect(Collectors.toList());
+
+            dashboard.add(new DashboardHabitoDTO(habito, completadoHoy, completadosPeriodo, fechasCompletadas));
+        }
+        return dashboard;
+    }
+
+    private LocalDate[] calcularRangoPeriodoActualDashboard(Habito habito) {
+        LocalDate hoy = LocalDate.now();
+        if (habito.getFrecuencia() == Frecuencia.SEMANAL) {
+            LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
+            LocalDate domingo = lunes.plusDays(6);
+            return new LocalDate[]{lunes, domingo};
+        }
+        return new LocalDate[]{hoy, hoy};
     }
 }
