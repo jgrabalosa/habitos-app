@@ -1,9 +1,11 @@
 package com.joaquim.habitosapp.service;
 
+import com.joaquim.habitosapp.model.Frecuencia;
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Racha;
 import com.joaquim.habitosapp.model.Registro;
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.model.dto.DashboardHabitoDTO;
 import com.joaquim.habitosapp.model.dto.HabitoDetalleDTO;
 import com.joaquim.habitosapp.model.dto.RegistroDiaDTO;
 import com.joaquim.habitosapp.model.dto.RegistroResumenDTO;
@@ -12,16 +14,12 @@ import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import com.joaquim.habitosapp.model.dto.DashboardHabitoDTO;
-import com.joaquim.habitosapp.model.Frecuencia;
-import java.time.DayOfWeek;
-
-
 
 @Service
 public class HabitoService {
@@ -128,9 +126,10 @@ public class HabitoService {
         List<RegistroDiaDTO> heatmap = new ArrayList<>();
         for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
             LocalDate fechaActual = dia;
-            boolean completado = registrosMes.stream()
-                    .anyMatch(r -> r.getFecha().equals(fechaActual) && r.isCompletado());
-            heatmap.add(new RegistroDiaDTO(fechaActual, completado));
+            int veces = (int) registrosMes.stream()
+                    .filter(r -> r.getFecha().equals(fechaActual) && r.isCompletado())
+                    .count();
+            heatmap.add(new RegistroDiaDTO(fechaActual, veces > 0, veces));
         }
 
         int completadosMesActual = (int) registrosMes.stream()
@@ -175,6 +174,7 @@ public class HabitoService {
 
         return dto;
     }
+
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();
