@@ -79,8 +79,6 @@ public class HabitoService {
                 rachaDAO.update(racha);
             }
         }
-
-        motorLogrosService.evaluarTrasEditarHabito(habito.getPropietario());
     }
 
     public void activar(int id) {
@@ -110,8 +108,6 @@ public class HabitoService {
         if (habito == null) {
             throw new RuntimeException("Hábito no encontrado");
         }
-
-        motorLogrosService.evaluarTrasVerDetalleHabito(habito.getPropietario());
 
         if (mes == null) {
             mes = YearMonth.now();
@@ -148,8 +144,14 @@ public class HabitoService {
 
         List<RegistroResumenDTO> ultimosRegistros = todosRegistros.stream()
                 .limit(10)
-                .map(r -> new RegistroResumenDTO(r.getRegistroId(), r.getFecha(), r.isCompletado(), r.getNota()))
+                .map(r -> new RegistroResumenDTO(r.getRegistroId(), r.getFecha(), r.isCompletado(), r.getNota(), r.getValoracion()))
                 .collect(Collectors.toList());
+
+        var valoracionStats = todosRegistros.stream()
+                .filter(r -> r.getValoracion() != null)
+                .mapToInt(Registro::getValoracion)
+                .average();
+        Double valoracionMedia = valoracionStats.isPresent() ? valoracionStats.getAsDouble() : null;
 
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
@@ -164,6 +166,7 @@ public class HabitoService {
         dto.setMesConsultado(mes.toString());
         dto.setHeatmap(heatmap);
         dto.setUltimosRegistros(ultimosRegistros);
+        dto.setValoracionMedia(valoracionMedia);
 
         return dto;
     }

@@ -125,19 +125,6 @@ public class MotorLogrosService {
         if (categoriasCreadorUsuario.size() == 1) {
             otorgar(usuario, "PRIMERA_CATEGORIA");
         }
-        if (categoriasCreadorUsuario.size() == 3) {
-            otorgar(usuario, "CATEGORIAS_PERSONALIZADAS_3");
-        }
-    }
-
-    // ── Evento: editar hábito ────────────────────────────────
-    public void evaluarTrasEditarHabito(Usuario usuario) {
-        otorgar(usuario, "EDITAR_HABITO");
-    }
-
-    // ── Evento: ver detalle de hábito ────────────────────────
-    public void evaluarTrasVerDetalleHabito(Usuario usuario) {
-        otorgar(usuario, "VER_DETALLE_HABITO");
     }
 
     // ── Evento: login con Google ─────────────────────────────
@@ -153,11 +140,6 @@ public class MotorLogrosService {
     // ── Evento: añadir nota a registro ───────────────────────
     public void evaluarTrasAnadirNota(Usuario usuario) {
         otorgar(usuario, "PRIMERA_NOTA");
-
-        int totalConNota = registroDAO.contarConNotaPorUsuario(usuario.getUsuarioId());
-        if (totalConNota == 10) {
-            otorgar(usuario, "NOTAS_10");
-        }
     }
 
     // ── Evento: interacción con reseña (llamado desde Flutter) ──
