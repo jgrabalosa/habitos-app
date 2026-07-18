@@ -15,6 +15,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import java.util.Collections;
+import com.joaquim.habitosapp.service.RecuperacionService;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -25,6 +26,9 @@ public class UsuarioController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private RecuperacionService recuperacionService;
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
@@ -98,6 +102,32 @@ public class UsuarioController {
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error al verificar token de Google");
+        }
+    }
+
+    @PostMapping("/recuperar")
+    public ResponseEntity<?> recuperarContrasena(@RequestBody Map<String, String> body) {
+        try {
+            recuperacionService.solicitarCodigo(body.get("email"));
+        } catch (Exception e) {
+            // No revelamos nada: la respuesta es la misma en todos los casos
+            System.out.println("Error al enviar código de recuperación: " + e.getMessage());
+        }
+        return ResponseEntity.ok(
+                "Si el email está registrado, recibirás un código de recuperación");
+    }
+
+    @PostMapping("/restablecer")
+    public ResponseEntity<?> restablecerContrasena(@RequestBody Map<String, String> body) {
+        try {
+            recuperacionService.restablecerContrasena(
+                    body.get("email"),
+                    body.get("codigo"),
+                    body.get("contrasenaNueva")
+            );
+            return ResponseEntity.ok("Contraseña restablecida correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 

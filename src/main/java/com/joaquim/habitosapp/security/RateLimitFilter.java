@@ -29,21 +29,41 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return buckets.computeIfAbsent(ip, k -> crearBucket());
     }
 
+    /**
+     * Obtiene la IP real del cliente. Detrás del proxy de Railway,
+     * getRemoteAddr() devuelve la IP del proxy (igual para todos los
+     * usuarios), así que leemos X-Forwarded-For. Cogemos la ÚLTIMA IP
+     * de la lista: es la que añade el proxy de confianza y el cliente
+     * no puede falsificarla (las primeras sí podrían venir inventadas).
+     * En local no hay cabecera y se usa getRemoteAddr() como siempre.
+     */
+    private String obtenerIpCliente(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor == null || xForwardedFor.isBlank()) {
+            return request.getRemoteAddr();
+        }
+        String[] ips = xForwardedFor.split(",");
+        return ips[ips.length - 1].trim();
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (request.getRequestURI().equals("/api/usuarios/login")) {
-            String ip = request.getRemoteAddr();
+        String uri = request.getRequestURI();
+        if (uri.equals("/api/usuarios/login")
+                || uri.equals("/api/usuarios/recuperar")
+                || uri.equals("/api/usuarios/restablecer")) {
+            String ip = obtenerIpCliente(request);
             Bucket bucket = getBucket(ip);
 
             if (!bucket.tryConsume(1)) {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.setContentType("application/json");
                 response.getWriter().write(
-                        "\"Demasiados intentos. Espera 1 minuto.\"}"
+                        "\"Demasiados intentos. Espera 1 minuto.\""
                 );
                 return;
             }

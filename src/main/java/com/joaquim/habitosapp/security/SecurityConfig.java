@@ -51,7 +51,9 @@ public class SecurityConfig {
                                 "/img/**",
                                 "/favicon.ico",
                                 "/habito-detalle.html",
-                                "/logros.html"
+                                "/logros.html",
+                                "/api/usuarios/recuperar",
+                                "/api/usuarios/restablecer"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
