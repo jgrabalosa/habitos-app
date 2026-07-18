@@ -17,6 +17,7 @@ public class HabitoDetalleDTO {
     private String mesConsultado;
     private List<RegistroDiaDTO> heatmap;
     private List<RegistroResumenDTO> ultimosRegistros;
+    private Double valoracionMedia; // media de valoraciones 1-5, null si no hay ninguna
 
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }
@@ -53,4 +54,7 @@ public class HabitoDetalleDTO {
 
     public List<RegistroResumenDTO> getUltimosRegistros() { return ultimosRegistros; }
     public void setUltimosRegistros(List<RegistroResumenDTO> ultimosRegistros) { this.ultimosRegistros = ultimosRegistros; }
+
+    public Double getValoracionMedia() { return valoracionMedia; }
+    public void setValoracionMedia(Double valoracionMedia) { this.valoracionMedia = valoracionMedia; }
 }

@@ -21,6 +21,9 @@ public class Registro {
     @Column(name = "nota", length = 500)
     private String nota;
 
+    @Column(name = "valoracion")
+    private Integer valoracion; // 1-5, null si el usuario no valoró
+
     @ManyToOne
     @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_registro_habito"))
     private Habito habito;
@@ -47,6 +50,9 @@ public class Registro {
 
     public String getNota() { return nota; }
     public void setNota(String nota) { this.nota = nota; }
+
+    public Integer getValoracion() { return valoracion; }
+    public void setValoracion(Integer valoracion) { this.valoracion = valoracion; }
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }

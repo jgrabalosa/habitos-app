@@ -58,7 +58,17 @@ public class RegistroService {
 
         List<String> logros = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
 
-        return Map.of("logros", logros, "puntosGanados", puntosGanados);
+        // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
+        // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
+        boolean mostrarValoracion = habito.getFrecuencia() == Frecuencia.SEMANAL
+                || (completadosAntes + 1) >= meta;
+
+        return Map.of(
+                "logros", logros,
+                "puntosGanados", puntosGanados,
+                "registroId", registro.getRegistroId(),
+                "mostrarValoracion", mostrarValoracion
+        );
     }
 
     /**
@@ -151,5 +161,17 @@ public class RegistroService {
 
         Usuario usuario = registro.getHabito().getPropietario();
         motorLogrosService.evaluarTrasAnadirNota(usuario);
+    }
+
+    public void actualizarValoracion(int registroId, Integer valoracion) {
+        if (valoracion == null || valoracion < 1 || valoracion > 5) {
+            throw new IllegalArgumentException("La valoración debe estar entre 1 y 5");
+        }
+        Registro registro = registroDAO.findById(registroId);
+        if (registro == null) {
+            throw new RuntimeException("Registro no encontrado");
+        }
+        registro.setValoracion(valoracion);
+        registroDAO.update(registro);
     }
 }

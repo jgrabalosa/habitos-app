@@ -36,22 +36,23 @@ public class DataInitializer implements CommandLineRunner {
             return; // Ya están creadas, no hacemos nada
         }
 
+        // {nombre, descripcion, icono, color}
         String[][] categorias = {
-                {"Salud", "Hábitos relacionados con tu salud general"},
-                {"Deporte", "Hábitos de ejercicio y actividad física"},
-                {"Alimentación", "Hábitos de nutrición y dieta"},
-                {"Mente", "Mindfulness, meditación y bienestar mental"},
-                {"Trabajo", "Productividad y hábitos laborales"},
-                {"Estudio", "Hábitos de aprendizaje y formación"},
-                {"Finanzas", "Hábitos de ahorro y gestión económica"},
-                {"Social", "Hábitos relacionados con relaciones personales"},
-                {"Creatividad", "Hábitos creativos y artísticos"},
-                {"Sueño", "Hábitos de descanso y sueño"}
+                {"Salud", "Hábitos relacionados con tu salud general", "❤️", "#E05252"},
+                {"Deporte", "Hábitos de ejercicio y actividad física", "🏃", "#27C76F"},
+                {"Alimentación", "Hábitos de nutrición y dieta", "🥗", "#6EE7A8"},
+                {"Mente", "Mindfulness, meditación y bienestar mental", "🧘", "#8B7EC8"},
+                {"Trabajo", "Productividad y hábitos laborales", "💼", "#23395D"},
+                {"Estudio", "Hábitos de aprendizaje y formación", "📚", "#3B82C4"},
+                {"Finanzas", "Hábitos de ahorro y gestión económica", "💰", "#D4A843"},
+                {"Social", "Hábitos relacionados con relaciones personales", "👥", "#E8875B"},
+                {"Creatividad", "Hábitos creativos y artísticos", "🎨", "#C75B9B"},
+                {"Sueño", "Hábitos de descanso y sueño", "🌙", "#5B6EE8"}
         };
 
         int orden = 1;
         for (String[] datos : categorias) {
-            Categoria categoria = new Categoria(datos[0], datos[1], null, null, true, orden, null);
+            Categoria categoria = new Categoria(datos[0], datos[1], datos[3], datos[2], true, orden, null);
             categoriaDAO.save(categoria);
             orden++;
         }
@@ -89,13 +90,8 @@ public class DataInitializer implements CommandLineRunner {
                 // Variedad
                 {"CATEGORIAS_3", "Explorador de categorías", "Usa 3 categorías distintas en tus hábitos", "Variedad", "Facil", "100"},
                 {"CATEGORIAS_5", "Todoterreno", "Usa 5 categorías distintas", "Variedad", "Medio", "200"},
-                {"FRECUENCIAS_MIXTAS", "Mezcla de frecuencias", "Ten a la vez un hábito diario, uno semanal y uno mensual activos", "Variedad", "Medio", "200"},
-                {"CATEGORIAS_PERSONALIZADAS_3", "Diseñador de hábitos", "Crea 3 categorías personalizadas propias", "Variedad", "Medio", "200"},
                 // Exploración
                 {"PRIMERA_NOTA", "Historias que contar", "Añade una nota a un registro", "Exploración", "Facil", "100"},
-                {"NOTAS_10", "Diario detallado", "Añade notas en 10 registros distintos", "Exploración", "Medio", "200"},
-                {"VER_DETALLE_HABITO", "Vista completa", "Consulta el detalle de un hábito (heatmap) por primera vez", "Exploración", "Facil", "100"},
-                {"EDITAR_HABITO", "Perfeccionista", "Edita un hábito existente", "Exploración", "Facil", "100"},
                 {"INTERACCION_RESENA", "Tu opinión cuenta", "Interactúa con la valoración de la app en Google Play", "Exploración", "Facil", "100"}
         };
 

@@ -36,7 +36,9 @@ public class RegistroController {
                     .body(Map.of(
                             "mensaje", "Hábito completado correctamente",
                             "logrosOtorgados", resultado.get("logros"),
-                            "puntosGanados", resultado.get("puntosGanados")
+                            "puntosGanados", resultado.get("puntosGanados"),
+                            "registroId", resultado.get("registroId"),
+                            "mostrarValoracion", resultado.get("mostrarValoracion")
                     ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -78,6 +80,20 @@ public class RegistroController {
             String nota = body.get("nota");
             registroService.actualizarNota(registroId, nota);
             return ResponseEntity.ok("Nota actualizada correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{registroId}/valoracion")
+    public ResponseEntity<?> actualizarValoracion(@PathVariable int registroId,
+                                                  @RequestBody Map<String, Integer> body) {
+        try {
+            Integer valoracion = body.get("valoracion");
+            registroService.actualizarValoracion(registroId, valoracion);
+            return ResponseEntity.ok("Valoración guardada correctamente");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
