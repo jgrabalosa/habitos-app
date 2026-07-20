@@ -25,6 +25,13 @@ public class Habito {
     @Column(name = "meta")
     private int meta;
 
+    // Días planificados (solo SEMANAL): números ISO separados por comas,
+    // 1=lunes ... 7=domingo (ej. "2,4,6" = martes, jueves y sábado).
+    // Coincide con DayOfWeek.getValue() en Java y DateTime.weekday en Dart.
+    // null o vacío = semanal flexible (sin días concretos).
+    @Column(name = "dias_semana", length = 20)
+    private String diasSemana;
+
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 
@@ -68,6 +75,9 @@ public class Habito {
 
     public int getMeta() { return meta; }
     public void setMeta(int meta) { this.meta = meta; }
+
+    public String getDiasSemana() { return diasSemana; }
+    public void setDiasSemana(String diasSemana) { this.diasSemana = diasSemana; }
 
     public LocalDate getFechaInicio() { return fechaInicio; }
     public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }

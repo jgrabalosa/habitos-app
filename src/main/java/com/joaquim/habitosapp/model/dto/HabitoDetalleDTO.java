@@ -18,6 +18,7 @@ public class HabitoDetalleDTO {
     private List<RegistroDiaDTO> heatmap;
     private List<RegistroResumenDTO> ultimosRegistros;
     private Double valoracionMedia; // media de valoraciones 1-5, null si no hay ninguna
+    private String diasSemana;
 
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }
@@ -57,4 +58,7 @@ public class HabitoDetalleDTO {
 
     public Double getValoracionMedia() { return valoracionMedia; }
     public void setValoracionMedia(Double valoracionMedia) { this.valoracionMedia = valoracionMedia; }
+
+    public String getDiasSemana() { return diasSemana; }
+    public void setDiasSemana(String diasSemana) { this.diasSemana = diasSemana; }
 }

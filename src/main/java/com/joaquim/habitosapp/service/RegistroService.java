@@ -9,7 +9,6 @@ import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +28,22 @@ public class RegistroService {
     @Autowired
     private UsuarioMonedaService usuarioMonedaService;
 
-    private static final int PUNTOS_HABITO_COMPLETADO = 100; // provisional
+    // Recompensa por completar, según frecuencia (provisional: se afinará en el
+    // reequilibrio, donde esta misma tabla ganará la columna de XP de mascota)
+    private static int puntosPorCompletar(Frecuencia frecuencia) {
+        return switch (frecuencia) {
+            case DIARIO -> 100;
+            case SEMANAL -> 150;
+        };
+    }
 
     public Map<String, Object> completarHabito(Habito habito, String nota) {
-        LocalDate[] periodo = calcularRangoPeriodoActual(habito);
+        // SEMANAL: máximo un completado por día (cada completado es un día distinto)
+        if (habito.getFrecuencia() == Frecuencia.SEMANAL && registroDAO.existeRegistroHoy(habito)) {
+            throw new RuntimeException("Este hábito ya se ha completado hoy");
+        }
+
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
         int meta = habito.getMeta();
 
@@ -44,11 +55,12 @@ public class RegistroService {
 
         // Puntos solo hasta alcanzar la meta del periodo — evita farmeo con clics extra
         if (completadosAntes < meta) {
+            int puntosBase = puntosPorCompletar(habito.getFrecuencia());
             usuarioMonedaService.registrarMovimiento(
-                    usuario, PUNTOS_HABITO_COMPLETADO, "HABITO_COMPLETADO",
+                    usuario, puntosBase, "HABITO_COMPLETADO",
                     habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
             );
-            puntosGanados += PUNTOS_HABITO_COMPLETADO;
+            puntosGanados += puntosBase;
         }
 
         boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta);
@@ -71,22 +83,8 @@ public class RegistroService {
         );
     }
 
-    /**
-     * Calcula el rango de fechas [desde, hasta] del periodo actual del hábito,
-     * según su frecuencia. DIARIO = solo hoy. SEMANAL = semana natural actual (lunes a domingo).
-     */
-    private LocalDate[] calcularRangoPeriodoActual(Habito habito) {
-        LocalDate hoy = LocalDate.now();
-        if (habito.getFrecuencia() == Frecuencia.SEMANAL) {
-            LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
-            LocalDate domingo = lunes.plusDays(6);
-            return new LocalDate[]{lunes, domingo};
-        }
-        return new LocalDate[]{hoy, hoy};
-    }
-
     public int contarCompletadosPeriodoActual(Habito habito) {
-        LocalDate[] periodo = calcularRangoPeriodoActual(habito);
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 

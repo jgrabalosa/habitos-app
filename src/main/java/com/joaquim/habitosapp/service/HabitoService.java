@@ -14,7 +14,6 @@ import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -36,7 +35,22 @@ public class HabitoService {
     @Autowired
     private MotorLogrosService motorLogrosService;
 
+    /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
+     *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos. */
+    private void normalizarPlanificacion(Habito habito) {
+        if (habito.getFrecuencia() != Frecuencia.SEMANAL) {
+            habito.setDiasSemana(null);
+            return;
+        }
+        String dias = habito.getDiasSemana();
+        if (dias != null && !dias.isBlank()) {
+            habito.setMeta((int) java.util.Arrays.stream(dias.split(","))
+                    .filter(d -> !d.isBlank()).count());
+        }
+    }
+
     public List<String> crearHabito(Habito habito) {
+        normalizarPlanificacion(habito);
         habito.setFechaInicio(LocalDate.now());
         habito.setActivo(true);
         habitoDAO.save(habito);
@@ -72,6 +86,7 @@ public class HabitoService {
 
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
+        normalizarPlanificacion(habito);
         habitoDAO.update(habito);
 
         if (cambioFrecuencia) {
@@ -132,8 +147,12 @@ public class HabitoService {
             heatmap.add(new RegistroDiaDTO(fechaActual, veces > 0, veces));
         }
 
+        // Días distintos con al menos un completado (no registros: un diario
+        // con meta 3/día que se hace 3 veces el lunes cuenta como 1 día)
         int completadosMesActual = (int) registrosMes.stream()
                 .filter(Registro::isCompletado)
+                .map(Registro::getFecha)
+                .distinct()
                 .count();
 
         Double porcentaje = null;
@@ -165,6 +184,7 @@ public class HabitoService {
         dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
         dto.setMeta(habito.getMeta());
         dto.setFrecuencia(habito.getFrecuencia().name());
+        dto.setDiasSemana(habito.getDiasSemana());
         dto.setCompletadosMesActual(completadosMesActual);
         dto.setPorcentajeMesActual(porcentaje);
         dto.setMesConsultado(mes.toString());
@@ -179,14 +199,20 @@ public class HabitoService {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();
         LocalDate hoy = LocalDate.now();
-        LocalDate inicioVentana = hoy.minusDays(27); // 28 días: lo que pinta la mini-heatmap
+
+        // Ventana: los 10 días de la mini-heatmap, extendida hacia atrás hasta
+        // el lunes de la semana del día más antiguo (para calcular "semana
+        // cumplida" con la semana completa). Máximo 16 días.
+        LocalDate baseVentana = hoy.minusDays(9);
+        LocalDate inicioVentana =
+                baseVentana.minusDays(baseVentana.getDayOfWeek().getValue() - 1L);
 
         for (Habito habito : activos) {
-            // Una sola consulta por hábito: registros de los últimos 28 días
+            // Una sola consulta acotada por hábito
             List<Registro> registrosVentana =
                     registroDAO.findByHabitoAndRango(habito, inicioVentana, hoy);
 
-            LocalDate[] periodo = calcularRangoPeriodoActualDashboard(habito);
+            LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
 
             int completadosPeriodo = (int) registrosVentana.stream()
                     .filter(r -> !r.getFecha().isBefore(periodo[0]) && !r.getFecha().isAfter(periodo[1]))
@@ -203,15 +229,5 @@ public class HabitoService {
             dashboard.add(new DashboardHabitoDTO(habito, completadoHoy, completadosPeriodo, fechasCompletadas));
         }
         return dashboard;
-    }
-
-    private LocalDate[] calcularRangoPeriodoActualDashboard(Habito habito) {
-        LocalDate hoy = LocalDate.now();
-        if (habito.getFrecuencia() == Frecuencia.SEMANAL) {
-            LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
-            LocalDate domingo = lunes.plusDays(6);
-            return new LocalDate[]{lunes, domingo};
-        }
-        return new LocalDate[]{hoy, hoy};
     }
 }
