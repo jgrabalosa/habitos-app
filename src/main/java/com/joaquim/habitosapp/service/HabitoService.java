@@ -178,13 +178,24 @@ public class HabitoService {
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();
+        LocalDate hoy = LocalDate.now();
+        LocalDate inicioVentana = hoy.minusDays(27); // 28 días: lo que pinta la mini-heatmap
 
         for (Habito habito : activos) {
-            LocalDate[] periodo = calcularRangoPeriodoActualDashboard(habito);
-            int completadosPeriodo = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
-            boolean completadoHoy = registroDAO.existeRegistroHoy(habito);
+            // Una sola consulta por hábito: registros de los últimos 28 días
+            List<Registro> registrosVentana =
+                    registroDAO.findByHabitoAndRango(habito, inicioVentana, hoy);
 
-            List<String> fechasCompletadas = registroDAO.findByHabito(habito).stream()
+            LocalDate[] periodo = calcularRangoPeriodoActualDashboard(habito);
+
+            int completadosPeriodo = (int) registrosVentana.stream()
+                    .filter(r -> !r.getFecha().isBefore(periodo[0]) && !r.getFecha().isAfter(periodo[1]))
+                    .count();
+
+            boolean completadoHoy = registrosVentana.stream()
+                    .anyMatch(r -> r.getFecha().equals(hoy));
+
+            List<String> fechasCompletadas = registrosVentana.stream()
                     .filter(Registro::isCompletado)
                     .map(r -> r.getFecha().toString())
                     .collect(Collectors.toList());
