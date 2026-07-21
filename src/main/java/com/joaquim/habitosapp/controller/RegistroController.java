@@ -38,7 +38,9 @@ public class RegistroController {
                             "logrosOtorgados", resultado.get("logros"),
                             "puntosGanados", resultado.get("puntosGanados"),
                             "registroId", resultado.get("registroId"),
-                            "mostrarValoracion", resultado.get("mostrarValoracion")
+                            "mostrarValoracion", resultado.get("mostrarValoracion"),
+                            "subioNivel", resultado.get("subioNivel"),
+                            "nivelNuevo", resultado.get("nivelNuevo")
                     ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

@@ -165,6 +165,18 @@ public class DataInitializer implements CommandLineRunner {
             productoDAO.save(avatar);
         }
 
-        System.out.println("Productos creados correctamente (" + (1 + temas.length + avatares.length) + ")");
+        // Placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
+        Producto comidaBasica = new Producto(
+                "COMIDA_BASICA",
+                "Comida",
+                "Alimenta a tu mascota y gana experiencia",
+                "Consumible",
+                "CONSUMIBLE",
+                50,
+                null
+        );
+        productoDAO.save(comidaBasica);
+
+        System.out.println("Productos creados correctamente (" + (2 + temas.length + avatares.length) + ")");
     }
 }

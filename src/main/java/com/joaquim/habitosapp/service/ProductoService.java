@@ -8,6 +8,8 @@ import com.joaquim.habitosapp.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import com.joaquim.habitosapp.model.dto.ResultadoExperienciaDTO;
+import java.util.Map;
 
 @Service
 public class ProductoService {
@@ -20,6 +22,9 @@ public class ProductoService {
 
     @Autowired
     private UsuarioMonedaService usuarioMonedaService;
+
+    @Autowired
+    private MascotaService mascotaService;
 
     public List<Producto> catalogoActivo() {
         return productoDAO.findActivos();
@@ -122,7 +127,7 @@ public class ProductoService {
         usuarioProductoDAO.update(poseido);
     }
 
-    public String usarProducto(Usuario usuario, int productoId) {
+    public Map<String, Object> usarProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
         if (poseido == null) {
@@ -141,6 +146,22 @@ public class ProductoService {
         poseido.setCantidad(poseido.getCantidad() - 1);
         usuarioProductoDAO.update(poseido);
 
-        return producto.getCodigo();
+        String codigo = producto.getCodigo();
+        boolean subioNivel = false;
+        int nivelNuevo = 0;
+
+        // Por código, no por categoría: mañana puede haber consumibles que no den XP
+        if (codigo.startsWith("COMIDA_")) {
+            ResultadoExperienciaDTO resultadoXp = mascotaService.ganarExperiencia(usuario.getUsuarioId(), 10);
+            mascotaService.registrarComida(usuario.getUsuarioId());
+            subioNivel = resultadoXp.isSubioNivel();
+            nivelNuevo = resultadoXp.getNivelNuevo();
+        }
+
+        return Map.of(
+                "codigoConsumido", codigo,
+                "subioNivel", subioNivel,
+                "nivelNuevo", nivelNuevo
+        );
     }
 }

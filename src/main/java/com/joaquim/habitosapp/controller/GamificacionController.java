@@ -145,8 +145,8 @@ public class GamificacionController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
         try {
-            String codigoConsumido = productoService.usarProducto(usuario, productoId);
-            return ResponseEntity.ok(Map.of("codigoConsumido", codigoConsumido));
+            Map<String, Object> resultado = productoService.usarProducto(usuario, productoId);
+            return ResponseEntity.ok(resultado);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }

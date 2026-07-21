@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import com.joaquim.habitosapp.model.dto.ResultadoExperienciaDTO;
 
 @Service
 public class RegistroService {
@@ -27,6 +28,9 @@ public class RegistroService {
 
     @Autowired
     private UsuarioMonedaService usuarioMonedaService;
+
+    @Autowired
+    private MascotaService mascotaService;
 
     // Recompensa por completar, según frecuencia (provisional: se afinará en el
     // reequilibrio, donde esta misma tabla ganará la columna de XP de mascota)
@@ -75,11 +79,16 @@ public class RegistroService {
         boolean mostrarValoracion = habito.getFrecuencia() == Frecuencia.SEMANAL
                 || (completadosAntes + 1) >= meta;
 
+        // La mascota crece porque el usuario crece: vía orgánica, +2 XP por completar
+        ResultadoExperienciaDTO resultadoXp = mascotaService.ganarExperiencia(usuario.getUsuarioId(), 2);
+
         return Map.of(
                 "logros", logros,
                 "puntosGanados", puntosGanados,
                 "registroId", registro.getRegistroId(),
-                "mostrarValoracion", mostrarValoracion
+                "mostrarValoracion", mostrarValoracion,
+                "subioNivel", resultadoXp.isSubioNivel(),
+                "nivelNuevo", resultadoXp.getNivelNuevo()
         );
     }
 
