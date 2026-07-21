@@ -86,6 +86,20 @@ public class GamificacionController {
         }
     }
 
+    @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
+    public ResponseEntity<?> equiparProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        try {
+            productoService.equiparProducto(usuario, productoId);
+            return ResponseEntity.ok("Producto equipado correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/resena/{usuarioId}")
     public ResponseEntity<?> registrarInteraccionResena(@PathVariable int usuarioId) {
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
@@ -94,5 +108,33 @@ public class GamificacionController {
         }
         motorLogrosService.evaluarTrasInteraccionResena(usuario);
         return ResponseEntity.ok("Interacción registrada");
+    }
+
+    @PostMapping("/productos/desequipar/{usuarioId}/{productoId}")
+    public ResponseEntity<?> desequiparProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        try {
+            productoService.desequiparProducto(usuario, productoId);
+            return ResponseEntity.ok("Producto desequipado correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/productos/usar/{usuarioId}/{productoId}")
+    public ResponseEntity<?> usarProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        try {
+            String codigoConsumido = productoService.usarProducto(usuario, productoId);
+            return ResponseEntity.ok(Map.of("codigoConsumido", codigoConsumido));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }

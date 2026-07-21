@@ -19,6 +19,9 @@ public class Producto {
     @Column(name = "descripcion", nullable = false, length = 255)
     private String descripcion;
 
+    @Column(name = "codigo", nullable = false, length = 50, unique = true)
+    private String codigo;
+
     @Column(name = "categoria", nullable = false, length = 50)
     private String categoria;
 
@@ -38,8 +41,9 @@ public class Producto {
     public Producto() {}
 
     // Constructor con parámetros
-    public Producto(String nombre, String descripcion, String categoria,
+    public Producto(String codigo, String nombre, String descripcion, String categoria,
                     String tipo, int precio, String icono) {
+        this.codigo = codigo;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.categoria = categoria;
@@ -51,6 +55,9 @@ public class Producto {
 
     public int getProductoId() { return productoId; }
     public void setProductoId(int productoId) { this.productoId = productoId; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
@@ -75,7 +82,7 @@ public class Producto {
 
     @Override
     public String toString() {
-        return "Producto{productoId=" + productoId + ", nombre='" + nombre + "', tipo='" + tipo + "'}";
+        return "Producto{productoId=" + productoId + ", codigo='" + codigo + "', nombre='" + nombre + "', tipo='" + tipo + "'}";
     }
 
     @Override

@@ -111,6 +111,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         Producto escudoRacha = new Producto(
+                "ESCUDO_RACHA",
                 "Escudo de racha",
                 "Protege tu racha durante 1 día si olvidas completar tu hábito",
                 "Protección",
@@ -120,6 +121,28 @@ public class DataInitializer implements CommandLineRunner {
         );
         productoDAO.save(escudoRacha);
 
-        System.out.println("Productos creados correctamente (1)");
+        // {codigo, nombre, descripcion, precio} — precio provisional, se reajustará en el punto 7 de la Fase 2
+        String[][] temas = {
+                {"TEMA_CALIDEZ", "Calidez", "Un tema premium con tonos cálidos y acogedores", "1000"},
+                {"TEMA_NEOTOKYO", "Neo-Tokyo", "Un tema premium inspirado en la estética anime y neón", "1000"},
+                {"TEMA_OCEANO", "Océano", "Un tema premium con tonos azules y frescos del mar", "1000"},
+                {"TEMA_BOSQUE", "Bosque", "Un tema premium con tonos verdes y naturales", "1000"},
+                {"TEMA_COBRE", "Cobre Nocturno", "Un tema premium elegante en azul noche y cobre", "1000"}
+        };
+
+        for (String[] datos : temas) {
+            Producto tema = new Producto(
+                    datos[0],
+                    datos[1],
+                    datos[2],
+                    "Tema",
+                    "EQUIPABLE",
+                    Integer.parseInt(datos[3]),
+                    null
+            );
+            productoDAO.save(tema);
+        }
+
+        System.out.println("Productos creados correctamente (" + (1 + temas.length) + ")");
     }
 }

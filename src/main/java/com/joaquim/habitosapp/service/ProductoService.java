@@ -35,13 +35,17 @@ public class ProductoService {
             throw new RuntimeException("Producto no disponible");
         }
 
+        UsuarioProducto existente = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), productoId);
+
+        if (existente != null && "EQUIPABLE".equals(producto.getTipo())) {
+            throw new RuntimeException("Ya tienes este producto");
+        }
+
         int saldoActual = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
         if (saldoActual < producto.getPrecio()) {
             throw new RuntimeException("Saldo insuficiente");
         }
-
-        UsuarioProducto existente = usuarioProductoDAO.findByUsuarioYProducto(
-                usuario.getUsuarioId(), productoId);
 
         if (existente != null && "CONSUMIBLE".equals(producto.getTipo())) {
             existente.setCantidad(existente.getCantidad() + 1);
@@ -55,5 +59,61 @@ public class ProductoService {
                 usuario, -producto.getPrecio(), "COMPRA", productoId,
                 "Compra: " + producto.getNombre()
         );
+    }
+
+    public void equiparProducto(Usuario usuario, int productoId) {
+        UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), productoId);
+        if (poseido == null) {
+            throw new RuntimeException("No posees este producto");
+        }
+
+        Producto producto = poseido.getProducto();
+        if (!"EQUIPABLE".equals(producto.getTipo())) {
+            throw new RuntimeException("Este producto no es equipable");
+        }
+
+        UsuarioProducto equipadoActual = usuarioProductoDAO.findEquipadoPorCategoria(
+                usuario.getUsuarioId(), producto.getCategoria());
+        if (equipadoActual != null
+                && equipadoActual.getUsuarioProductoId() != poseido.getUsuarioProductoId()) {
+            equipadoActual.setEquipado(false);
+            usuarioProductoDAO.update(equipadoActual);
+        }
+
+        poseido.setEquipado(true);
+        usuarioProductoDAO.update(poseido);
+    }
+
+    public void desequiparProducto(Usuario usuario, int productoId) {
+        UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), productoId);
+        if (poseido == null) {
+            throw new RuntimeException("No posees este producto");
+        }
+        poseido.setEquipado(false);
+        usuarioProductoDAO.update(poseido);
+    }
+
+    public String usarProducto(Usuario usuario, int productoId) {
+        UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), productoId);
+        if (poseido == null) {
+            throw new RuntimeException("No posees este producto");
+        }
+
+        Producto producto = poseido.getProducto();
+        if (!"CONSUMIBLE".equals(producto.getTipo())) {
+            throw new RuntimeException("Este producto no es consumible");
+        }
+
+        if (poseido.getCantidad() <= 0) {
+            throw new RuntimeException("No te quedan unidades de este producto");
+        }
+
+        poseido.setCantidad(poseido.getCantidad() - 1);
+        usuarioProductoDAO.update(poseido);
+
+        return producto.getCodigo();
     }
 }

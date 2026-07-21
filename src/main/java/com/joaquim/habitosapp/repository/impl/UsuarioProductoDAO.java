@@ -51,6 +51,23 @@ public class UsuarioProductoDAO implements IUsuarioProductoDAO {
     }
 
     @Override
+    public UsuarioProducto findEquipadoPorCategoria(int usuarioId, String categoria) {
+        try {
+            return em.createQuery(
+                            "SELECT up FROM UsuarioProducto up " +
+                                    "WHERE up.usuario.usuarioId = :usuarioId " +
+                                    "AND up.producto.categoria = :categoria " +
+                                    "AND up.equipado = true",
+                            UsuarioProducto.class)
+                    .setParameter("usuarioId", usuarioId)
+                    .setParameter("categoria", categoria)
+                    .getSingleResult();
+        } catch (NoResultException e) {
+            return null;
+        }
+    }
+
+    @Override
     public void update(UsuarioProducto usuarioProducto) {
         em.merge(usuarioProducto);
     }
