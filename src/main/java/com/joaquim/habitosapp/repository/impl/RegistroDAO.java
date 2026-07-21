@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 @Transactional
@@ -105,5 +107,21 @@ public class RegistroDAO implements IRegistroDAO {
                 .setParameter("usuarioId", usuarioId)
                 .getSingleResult();
         return count.intValue();
+    }
+
+    @Override
+    public Map<Integer, Long> contarCompletadosPorUsuario(int usuarioId) {
+        List<Object[]> filas = em.createQuery(
+                        "SELECT r.habito.habitoId, COUNT(r) FROM Registro r " +
+                                "WHERE r.habito.propietario.usuarioId = :usuarioId AND r.completado = true " +
+                                "GROUP BY r.habito.habitoId",
+                        Object[].class)
+                .setParameter("usuarioId", usuarioId)
+                .getResultList();
+
+        return filas.stream().collect(Collectors.toMap(
+                fila -> (Integer) fila[0],
+                fila -> (Long) fila[1]
+        ));
     }
 }

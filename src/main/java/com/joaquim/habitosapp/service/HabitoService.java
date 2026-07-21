@@ -19,6 +19,8 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
+import com.joaquim.habitosapp.model.dto.HabitoResumenDTO;
 
 @Service
 public class HabitoService {
@@ -74,6 +76,18 @@ public class HabitoService {
 
     public List<Habito> obtenerInactivos(Usuario propietario) {
         return habitoDAO.findInactivos(propietario);
+    }
+
+    public List<HabitoResumenDTO> obtenerResumen(Usuario propietario) {
+        List<Habito> todos = habitoDAO.findByPropietario(propietario);
+        Map<Integer, Long> conteos = registroDAO.contarCompletadosPorUsuario(propietario.getUsuarioId());
+
+        List<HabitoResumenDTO> resumen = new ArrayList<>();
+        for (Habito habito : todos) {
+            long total = conteos.getOrDefault(habito.getHabitoId(), 0L);
+            resumen.add(new HabitoResumenDTO(habito, (int) total));
+        }
+        return resumen;
     }
 
     public void actualizar(Habito habito) {

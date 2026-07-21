@@ -143,6 +143,28 @@ public class DataInitializer implements CommandLineRunner {
             productoDAO.save(tema);
         }
 
-        System.out.println("Productos creados correctamente (" + (1 + temas.length) + ")");
+        // {codigo, nombre, descripcion, precio} — placeholder hasta que revises los DiceBear reales
+        String[][] avatares = {
+                {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "500"},
+                {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "500"},
+                {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "500"},
+                {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "500"},
+                {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "500"}
+        };
+
+        for (String[] datos : avatares) {
+            Producto avatar = new Producto(
+                    datos[0],
+                    datos[1],
+                    datos[2],
+                    "Avatar",
+                    "EQUIPABLE",
+                    Integer.parseInt(datos[3]),
+                    null
+            );
+            productoDAO.save(avatar);
+        }
+
+        System.out.println("Productos creados correctamente (" + (1 + temas.length + avatares.length) + ")");
     }
 }

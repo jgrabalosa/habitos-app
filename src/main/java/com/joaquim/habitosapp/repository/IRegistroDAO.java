@@ -19,4 +19,5 @@ public interface IRegistroDAO {
     void update(Registro registro);
     int contarPorUsuario(int usuarioId);
     int contarConNotaPorUsuario(int usuarioId);
+    java.util.Map<Integer, Long> contarCompletadosPorUsuario(int usuarioId);
 }

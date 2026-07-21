@@ -61,6 +61,33 @@ public class ProductoService {
         );
     }
 
+    public void otorgarProducto(Usuario usuario, int productoId) {
+        Producto producto = productoDAO.findById(productoId);
+        if (producto == null || !producto.isActivo()) {
+            throw new RuntimeException("Producto no disponible");
+        }
+
+        UsuarioProducto existente = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), productoId);
+
+        if (existente != null && "EQUIPABLE".equals(producto.getTipo())) {
+            throw new RuntimeException("Ya tienes este producto");
+        }
+
+        if (existente != null && "CONSUMIBLE".equals(producto.getTipo())) {
+            existente.setCantidad(existente.getCantidad() + 1);
+            usuarioProductoDAO.update(existente);
+        } else {
+            UsuarioProducto nuevo = new UsuarioProducto(usuario, producto, 1);
+            usuarioProductoDAO.save(nuevo);
+        }
+
+        usuarioMonedaService.registrarMovimiento(
+                usuario, 0, "REGALO", productoId,
+                "Regalo: " + producto.getNombre()
+        );
+    }
+
     public void equiparProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);

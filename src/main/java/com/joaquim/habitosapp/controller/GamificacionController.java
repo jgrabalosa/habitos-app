@@ -86,6 +86,20 @@ public class GamificacionController {
         }
     }
 
+    @PostMapping("/productos/otorgar/{usuarioId}/{productoId}")
+    public ResponseEntity<?> otorgarProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        try {
+            productoService.otorgarProducto(usuario, productoId);
+            return ResponseEntity.ok("Producto otorgado correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
     public ResponseEntity<?> equiparProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
