@@ -20,6 +20,8 @@ import java.util.List;
 @Service
 public class UsuarioService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UsuarioService.class);
+
     @Autowired
     private IUsuarioDAO usuarioDAO;
 
@@ -68,10 +70,17 @@ public class UsuarioService {
         usuarioDAO.save(usuario);
         productoService.otorgarTemasBasicosGratis(usuario);
 
+        enviarBienvenidaSilenciosa(usuario.getEmail(), usuario.getNombre());
+    }
+
+    // Envía el email de bienvenida sin bloquear el flujo si falla (SMTP caído,
+    // credenciales mal configuradas, etc.). El fallo queda registrado como
+    // advertencia para poder detectar problemas sistemáticos de envío.
+    private void enviarBienvenidaSilenciosa(String email, String nombre) {
         try {
-            emailService.enviarEmailBienvenida(usuario.getEmail(), usuario.getNombre());
+            emailService.enviarEmailBienvenida(email, nombre);
         } catch (Exception e) {
-            System.out.println("Error al enviar email de bienvenida: " + e.getMessage());
+            log.warn("Error al enviar email de bienvenida a {}: {}", email, e.getMessage());
         }
     }
 
@@ -111,11 +120,7 @@ public class UsuarioService {
         usuarioDAO.save(nuevoUsuario);
         productoService.otorgarTemasBasicosGratis(nuevoUsuario);
 
-        try {
-            emailService.enviarEmailBienvenida(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
-        } catch (Exception e) {
-            System.out.println("Error al enviar email de bienvenida: " + e.getMessage());
-        }
+        enviarBienvenidaSilenciosa(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
 
         motorLogrosService.evaluarTrasLoginGoogle(nuevoUsuario);
         return nuevoUsuario;
