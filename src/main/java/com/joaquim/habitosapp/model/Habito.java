@@ -35,6 +35,20 @@ public class Habito {
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 
+    // Si true, el hábito participa en el barrido de recordatorios push.
+    // Default true: todo hábito nuevo empieza con recordatorio activado.
+
+    @Column(name = "recordatorio_activo", nullable = false)
+    private boolean recordatorioActivo = true;
+
+    // Hora del día a la que debe llegar el recordatorio (redondeada a
+    // múltiplos de 5 minutos por el propio formulario/selector de hora).
+    // null = sin hora elegida todavía; no se envía recordatorio aunque
+    // recordatorioActivo sea true.
+
+    @Column(name = "recordatorio_hora")
+    private java.time.LocalTime recordatorioHora;
+
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
@@ -90,6 +104,12 @@ public class Habito {
 
     public Categoria getTipo() { return tipo; }
     public void setTipo(Categoria tipo) { this.tipo = tipo; }
+
+    public boolean isRecordatorioActivo() { return recordatorioActivo; }
+    public void setRecordatorioActivo(boolean recordatorioActivo) { this.recordatorioActivo = recordatorioActivo; }
+
+    public java.time.LocalTime getRecordatorioHora() { return recordatorioHora; }
+    public void setRecordatorioHora(java.time.LocalTime recordatorioHora) { this.recordatorioHora = recordatorioHora; }
 
     @Override
     public String toString() {
