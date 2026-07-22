@@ -36,4 +36,11 @@ public class MascotaDAO implements IMascotaDAO {
             return null;
         }
     }
+
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM Mascota m WHERE m.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }

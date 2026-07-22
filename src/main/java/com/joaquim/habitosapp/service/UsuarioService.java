@@ -58,6 +58,9 @@ public class UsuarioService {
     @Autowired
     private IUsuarioProductoDAO usuarioProductoDAO;
 
+    @Autowired
+    private com.joaquim.habitosapp.repository.IMascotaDAO mascotaDAO;
+
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese email");
@@ -217,6 +220,9 @@ public class UsuarioService {
         usuarioLogroDAO.deleteByUsuario(id);
         usuarioMonedaDAO.deleteByUsuario(id);
         usuarioProductoDAO.deleteByUsuario(id);
+
+        // 4b. Borrar la mascota del usuario (FK hacia Usuario)
+        mascotaDAO.deleteByUsuario(id);
 
         // 5. Borrar el usuario
         usuarioDAO.delete(id);
