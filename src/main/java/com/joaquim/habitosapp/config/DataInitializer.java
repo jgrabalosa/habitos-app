@@ -109,6 +109,10 @@ public class DataInitializer implements CommandLineRunner {
     // aquí la crea en el próximo arranque aunque la tabla ya tenga datos.
     private static final String[][] PRODUCTOS = {
             {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
+            // Regalo de bienvenida: todo usuario los posee desde el registro (ver ProductoService.otorgarTemasBasicosGratis).
+            // Precio 0: nunca se compran, solo se equipan/desequipan como cualquier otro tema.
+            {"TEMA_BASICO_CLARO", "Básico Claro", "El tema claro de serie de Norday", "Tema", "EQUIPABLE", "0"},
+            {"TEMA_BASICO_OSCURO", "Básico Oscuro", "El tema oscuro de serie de Norday", "Tema", "EQUIPABLE", "0"},
             // precio provisional, se reajustará en el punto 7 de la Fase 2
             {"TEMA_CALIDEZ", "Calidez", "Un tema premium con tonos cálidos y acogedores", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_NEOTOKYO", "Neo-Tokyo", "Un tema premium inspirado en la estética anime y neón", "Tema", "EQUIPABLE", "1000"},

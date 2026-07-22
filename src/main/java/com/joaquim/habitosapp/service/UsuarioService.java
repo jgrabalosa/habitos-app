@@ -30,6 +30,9 @@ public class UsuarioService {
     private EmailService emailService;
 
     @Autowired
+    private ProductoService productoService;
+
+    @Autowired
     private IHabitoDAO habitoDAO;
 
     @Autowired
@@ -63,6 +66,7 @@ public class UsuarioService {
         usuario.setFechaRegistro(LocalDateTime.now());
         usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
         usuarioDAO.save(usuario);
+        productoService.otorgarTemasBasicosGratis(usuario);
 
         try {
             emailService.enviarEmailBienvenida(usuario.getEmail(), usuario.getNombre());
@@ -105,6 +109,7 @@ public class UsuarioService {
         nuevoUsuario.setProveedorAuth("GOOGLE");
         nuevoUsuario.setFechaRegistro(java.time.LocalDateTime.now());
         usuarioDAO.save(nuevoUsuario);
+        productoService.otorgarTemasBasicosGratis(nuevoUsuario);
 
         try {
             emailService.enviarEmailBienvenida(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
