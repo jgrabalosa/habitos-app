@@ -26,6 +26,15 @@ public class ProductoDAO implements IProductoDAO {
     }
 
     @Override
+    public Producto findByCodigo(String codigo) {
+        return em.createQuery("SELECT p FROM Producto p WHERE p.codigo = :codigo", Producto.class)
+                .setParameter("codigo", codigo)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
     public List<Producto> findAll() {
         return em.createQuery("SELECT p FROM Producto p ORDER BY p.categoria, p.nombre", Producto.class)
                 .getResultList();

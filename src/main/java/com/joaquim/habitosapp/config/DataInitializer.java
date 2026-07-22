@@ -104,79 +104,51 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("Logros creados correctamente (" + logros.length + ")");
     }
 
+    // {codigo, nombre, descripcion, categoria, tipo, precio}
+    // Se comprueba producto a producto por su código: añadir una fila nueva
+    // aquí la crea en el próximo arranque aunque la tabla ya tenga datos.
+    private static final String[][] PRODUCTOS = {
+            {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
+            // precio provisional, se reajustará en el punto 7 de la Fase 2
+            {"TEMA_CALIDEZ", "Calidez", "Un tema premium con tonos cálidos y acogedores", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_NEOTOKYO", "Neo-Tokyo", "Un tema premium inspirado en la estética anime y neón", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_OCEANO", "Océano", "Un tema premium con tonos azules y frescos del mar", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_BOSQUE", "Bosque", "Un tema premium con tonos verdes y naturales", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_COBRE", "Cobre Nocturno", "Un tema premium elegante en azul noche y cobre", "Tema", "EQUIPABLE", "1000"},
+            // placeholder hasta que revises los DiceBear reales
+            {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "Avatar", "EQUIPABLE", "500"},
+            // placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
+            {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "50"},
+    };
+
     private void inicializarProductos() {
-        List<Producto> existentes = productoDAO.findAll();
-        if (!existentes.isEmpty()) {
-            return; // Ya están creados, no hacemos nada
-        }
-
-        Producto escudoRacha = new Producto(
-                "ESCUDO_RACHA",
-                "Escudo de racha",
-                "Protege tu racha durante 1 día si olvidas completar tu hábito",
-                "Protección",
-                "CONSUMIBLE",
-                300,
-                null
-        );
-        productoDAO.save(escudoRacha);
-
-        // {codigo, nombre, descripcion, precio} — precio provisional, se reajustará en el punto 7 de la Fase 2
-        String[][] temas = {
-                {"TEMA_CALIDEZ", "Calidez", "Un tema premium con tonos cálidos y acogedores", "1000"},
-                {"TEMA_NEOTOKYO", "Neo-Tokyo", "Un tema premium inspirado en la estética anime y neón", "1000"},
-                {"TEMA_OCEANO", "Océano", "Un tema premium con tonos azules y frescos del mar", "1000"},
-                {"TEMA_BOSQUE", "Bosque", "Un tema premium con tonos verdes y naturales", "1000"},
-                {"TEMA_COBRE", "Cobre Nocturno", "Un tema premium elegante en azul noche y cobre", "1000"}
-        };
-
-        for (String[] datos : temas) {
-            Producto tema = new Producto(
-                    datos[0],
+        int creados = 0;
+        for (String[] datos : PRODUCTOS) {
+            String codigo = datos[0];
+            if (productoDAO.findByCodigo(codigo) != null) {
+                continue; // ya existe, no lo tocamos
+            }
+            Producto producto = new Producto(
+                    codigo,
                     datos[1],
                     datos[2],
-                    "Tema",
-                    "EQUIPABLE",
-                    Integer.parseInt(datos[3]),
+                    datos[3],
+                    datos[4],
+                    Integer.parseInt(datos[5]),
                     null
             );
-            productoDAO.save(tema);
+            productoDAO.save(producto);
+            creados++;
         }
 
-        // {codigo, nombre, descripcion, precio} — placeholder hasta que revises los DiceBear reales
-        String[][] avatares = {
-                {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "500"},
-                {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "500"},
-                {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "500"},
-                {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "500"},
-                {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "500"}
-        };
-
-        for (String[] datos : avatares) {
-            Producto avatar = new Producto(
-                    datos[0],
-                    datos[1],
-                    datos[2],
-                    "Avatar",
-                    "EQUIPABLE",
-                    Integer.parseInt(datos[3]),
-                    null
-            );
-            productoDAO.save(avatar);
+        if (creados > 0) {
+            System.out.println("Productos nuevos creados: " + creados);
+        } else {
+            System.out.println("Productos: nada nuevo que crear (todos ya existían).");
         }
-
-        // Placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
-        Producto comidaBasica = new Producto(
-                "COMIDA_BASICA",
-                "Comida",
-                "Alimenta a tu mascota y gana experiencia",
-                "Consumible",
-                "CONSUMIBLE",
-                50,
-                null
-        );
-        productoDAO.save(comidaBasica);
-
-        System.out.println("Productos creados correctamente (" + (2 + temas.length + avatares.length) + ")");
     }
 }
