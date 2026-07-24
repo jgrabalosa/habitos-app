@@ -21,6 +21,8 @@ import com.joaquim.habitosapp.service.RecuperacionService;
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UsuarioController.class);
+
     @Autowired
     private UsuarioService usuarioService;
 
@@ -111,7 +113,7 @@ public class UsuarioController {
             recuperacionService.solicitarCodigo(body.get("email"));
         } catch (Exception e) {
             // No revelamos nada: la respuesta es la misma en todos los casos
-            System.out.println("Error al enviar código de recuperación: " + e.getMessage());
+            log.warn("Error al enviar código de recuperación: {}", e.getMessage());
         }
         return ResponseEntity.ok(
                 "Si el email está registrado, recibirás un código de recuperación");

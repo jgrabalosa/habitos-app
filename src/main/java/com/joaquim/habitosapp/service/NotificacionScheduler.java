@@ -3,8 +3,10 @@ package com.joaquim.habitosapp.service;
 import com.joaquim.habitosapp.model.Frecuencia;
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Registro;
+import com.joaquim.habitosapp.model.Usuario;
 import com.joaquim.habitosapp.repository.IHabitoDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
+import com.joaquim.habitosapp.repository.IUsuarioDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 @Component
 public class NotificacionScheduler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NotificacionScheduler.class);
+
     private static final ZoneId ZONA = ZoneId.of("Europe/Madrid");
 
     @Autowired
@@ -28,6 +32,9 @@ public class NotificacionScheduler {
 
     @Autowired
     private IRegistroDAO registroDAO;
+
+    @Autowired
+    private IUsuarioDAO usuarioDAO;
 
     @Autowired
     private NotificacionService notificacionService;
@@ -66,20 +73,27 @@ public class NotificacionScheduler {
             if (completadosHoy.contains(habito.getHabitoId())) {
                 continue; // ya completado hoy, no está pendiente
             }
-            String fcmToken = habito.getPropietario() != null ? habito.getPropietario().getFcmToken() : null;
+            Usuario propietario = habito.getPropietario();
+            String fcmToken = propietario != null ? propietario.getFcmToken() : null;
             if (fcmToken == null || fcmToken.isBlank()) {
                 continue;
             }
-            notificacionService.enviarNotificacion(
+            boolean tokenInvalido = notificacionService.enviarNotificacion(
                     fcmToken,
                     "¡No olvides \"" + habito.getNombre() + "\"! 🎯",
                     "Tómate un momento para completarlo hoy."
             );
-            enviados++;
+            if (tokenInvalido) {
+                // Token dado de baja en FCM: lo borramos para no reintentar indefinidamente.
+                propietario.setFcmToken(null);
+                usuarioDAO.update(propietario);
+            } else {
+                enviados++;
+            }
         }
 
         if (enviados > 0) {
-            System.out.println("Recordatorios enviados: " + enviados + " (ventana " + ahora + ")");
+            log.info("Recordatorios enviados: {} (ventana {})", enviados, ahora);
         }
     }
 

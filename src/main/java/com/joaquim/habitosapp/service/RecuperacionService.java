@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 @Service
 public class RecuperacionService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RecuperacionService.class);
+
     private static final int MINUTOS_EXPIRACION = 15;
     private static final SecureRandom random = new SecureRandom();
 
@@ -56,7 +58,18 @@ public class RecuperacionService {
         );
         codigoRecuperacionDAO.save(registro);
 
-        emailService.enviarEmailRecuperacion(usuario.getEmail(), codigo);
+        enviarCodigoSilencioso(usuario.getEmail(), codigo);
+    }
+
+    // Envía el email de recuperación sin bloquear el flujo si falla (SMTP caído,
+    // credenciales mal configuradas, etc.). El fallo queda registrado como
+    // advertencia para poder detectar problemas sistemáticos de envío.
+    private void enviarCodigoSilencioso(String email, String codigo) {
+        try {
+            emailService.enviarEmailRecuperacion(email, codigo);
+        } catch (Exception e) {
+            log.warn("Error al enviar email de recuperación a {}: {}", email, e.getMessage());
+        }
     }
 
     /**

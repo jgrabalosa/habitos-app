@@ -14,6 +14,8 @@ import java.util.List;
 @Component
 public class DataInitializer implements CommandLineRunner {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DataInitializer.class);
+
     @Autowired
     private ICategoriaDAO categoriaDAO;
 
@@ -57,7 +59,7 @@ public class DataInitializer implements CommandLineRunner {
             orden++;
         }
 
-        System.out.println("Categorías globales creadas correctamente (" + categorias.length + ")");
+        log.info("Categorías globales creadas correctamente ({})", categorias.length);
     }
 
     private void inicializarLogros() {
@@ -101,7 +103,7 @@ public class DataInitializer implements CommandLineRunner {
             logroDAO.save(logro);
         }
 
-        System.out.println("Logros creados correctamente (" + logros.length + ")");
+        log.info("Logros creados correctamente ({})", logros.length);
     }
 
     // {codigo, nombre, descripcion, categoria, tipo, precio}
@@ -150,9 +152,9 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         if (creados > 0) {
-            System.out.println("Productos nuevos creados: " + creados);
+            log.info("Productos nuevos creados: {}", creados);
         } else {
-            System.out.println("Productos: nada nuevo que crear (todos ya existían).");
+            log.info("Productos: nada nuevo que crear (todos ya existían).");
         }
     }
 }

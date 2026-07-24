@@ -16,6 +16,8 @@ import java.util.List;
 @Component
 public class RachaSchedulerService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RachaSchedulerService.class);
+
     @Autowired
     private IHabitoDAO habitoDAO;
 
@@ -50,6 +52,6 @@ public class RachaSchedulerService {
             periodosReseteados++;
         }
 
-        System.out.println("RachaScheduler: " + periodosReseteados + " periodos evaluados, " + rachasRotas + " rachas rotas.");
+        log.info("RachaScheduler: {} periodos evaluados, {} rachas rotas.", periodosReseteados, rachasRotas);
     }
 }

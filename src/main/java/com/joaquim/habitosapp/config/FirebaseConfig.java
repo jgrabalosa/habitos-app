@@ -13,13 +13,15 @@ import java.util.Base64;
 @Component
 public class FirebaseConfig {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FirebaseConfig.class);
+
     @Value("${firebase.credentials.base64:}")
     private String firebaseCredentialsBase64;
 
     @PostConstruct
     public void initialize() {
         if (firebaseCredentialsBase64 == null || firebaseCredentialsBase64.isBlank()) {
-            System.out.println("⚠️ FIREBASE_CREDENTIALS_BASE64 no configurada. Firebase no se inicializará.");
+            log.warn("FIREBASE_CREDENTIALS_BASE64 no configurada. Firebase no se inicializará.");
             return;
         }
 
@@ -33,10 +35,10 @@ public class FirebaseConfig {
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
-                System.out.println("✅ Firebase inicializado correctamente.");
+                log.info("Firebase inicializado correctamente.");
             }
         } catch (Exception e) {
-            System.err.println("❌ Error al inicializar Firebase: " + e.getMessage());
+            log.error("Error al inicializar Firebase: {}", e.getMessage());
         }
     }
 }

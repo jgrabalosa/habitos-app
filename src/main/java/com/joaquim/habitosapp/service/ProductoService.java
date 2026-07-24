@@ -14,6 +14,8 @@ import java.util.Map;
 @Service
 public class ProductoService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ProductoService.class);
+
     @Autowired
     private IProductoDAO productoDAO;
 
@@ -38,7 +40,7 @@ public class ProductoService {
         Producto claro = productoDAO.findByCodigo("TEMA_BASICO_CLARO");
         Producto oscuro = productoDAO.findByCodigo("TEMA_BASICO_OSCURO");
         if (claro == null || oscuro == null) {
-            System.err.println("⚠️ Temas básicos no encontrados en catálogo; revisa DataInitializer.");
+            log.warn("Temas básicos no encontrados en catálogo; revisa DataInitializer.");
             return;
         }
         otorgarProducto(usuario, claro.getProductoId());
