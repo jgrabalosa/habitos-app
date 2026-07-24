@@ -1,8 +1,10 @@
 package com.joaquim.habitosapp;
 
 import com.joaquim.habitosapp.model.*;
+import com.joaquim.habitosapp.model.dto.ResultadoExperienciaDTO;
 import com.joaquim.habitosapp.repository.IRachaDAO;
 import com.joaquim.habitosapp.repository.IRegistroDAO;
+import com.joaquim.habitosapp.service.MascotaService;
 import com.joaquim.habitosapp.service.MotorLogrosService;
 import com.joaquim.habitosapp.service.RegistroService;
 import com.joaquim.habitosapp.service.UsuarioMonedaService;
@@ -35,6 +37,9 @@ class RegistroServiceTest {
     @Mock
     private UsuarioMonedaService usuarioMonedaService;
 
+    @Mock
+    private MascotaService mascotaService;
+
     @InjectMocks
     private RegistroService registroService;
 
@@ -65,6 +70,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         // Act
         registroService.completarHabito(habito, "");
@@ -109,6 +116,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         // Act: completamos la 3ª vez, alcanzando la meta exacta
         registroService.completarHabito(habito, "");
@@ -171,6 +180,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         registroService.completarHabito(habito, "");
 
@@ -212,12 +223,14 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         registroService.completarHabito(habito, "");
 
         assertEquals(3, racha.getRachaActual());
         verify(usuarioMonedaService).registrarMovimiento(
-                eq(usuario), eq(20), eq("HITO_RACHA"), eq(habito.getHabitoId()), anyString()
+                eq(usuario), eq(50), eq("HITO_RACHA"), eq(habito.getHabitoId()), anyString()
         );
     }
 

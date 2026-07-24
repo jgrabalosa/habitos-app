@@ -32,14 +32,10 @@ public class RegistroService {
     @Autowired
     private MascotaService mascotaService;
 
-    // Recompensa por completar, según frecuencia (provisional: se afinará en el
-    // reequilibrio, donde esta misma tabla ganará la columna de XP de mascota)
-    private static int puntosPorCompletar(Frecuencia frecuencia) {
-        return switch (frecuencia) {
-            case DIARIO -> 100;
-            case SEMANAL -> 150;
-        };
-    }
+    // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
+    // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
+    private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
+    private static final int XP_POR_DIA_COMPLETADO = 5;
 
     public Map<String, Object> completarHabito(Habito habito, String nota) {
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
@@ -56,15 +52,22 @@ public class RegistroService {
 
         Usuario usuario = habito.getPropietario();
         int puntosGanados = 0;
+        boolean subioNivel = false;
+        int nivelNuevo = 0;
 
-        // Puntos solo hasta alcanzar la meta del periodo — evita farmeo con clics extra
-        if (completadosAntes < meta) {
-            int puntosBase = puntosPorCompletar(habito.getFrecuencia());
+        // Puntos y XP solo en el instante exacto en que se alcanza la meta del día —
+        // ni antes, ni de nuevo si sigues completando después de alcanzarla
+        if (completadosAntes + 1 == meta) {
             usuarioMonedaService.registrarMovimiento(
-                    usuario, puntosBase, "HABITO_COMPLETADO",
+                    usuario, PUNTOS_POR_DIA_COMPLETADO, "HABITO_COMPLETADO",
                     habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
             );
-            puntosGanados += puntosBase;
+            puntosGanados += PUNTOS_POR_DIA_COMPLETADO;
+
+            ResultadoExperienciaDTO resultadoXp =
+                    mascotaService.ganarExperiencia(usuario.getUsuarioId(), XP_POR_DIA_COMPLETADO);
+            subioNivel = resultadoXp.isSubioNivel();
+            nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
         boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta);
@@ -79,16 +82,13 @@ public class RegistroService {
         boolean mostrarValoracion = habito.getFrecuencia() == Frecuencia.SEMANAL
                 || (completadosAntes + 1) >= meta;
 
-        // La mascota crece porque el usuario crece: vía orgánica, +2 XP por completar
-        ResultadoExperienciaDTO resultadoXp = mascotaService.ganarExperiencia(usuario.getUsuarioId(), 2);
-
         return Map.of(
                 "logros", logros,
                 "puntosGanados", puntosGanados,
                 "registroId", registro.getRegistroId(),
                 "mostrarValoracion", mostrarValoracion,
-                "subioNivel", resultadoXp.isSubioNivel(),
-                "nivelNuevo", resultadoXp.getNivelNuevo()
+                "subioNivel", subioNivel,
+                "nivelNuevo", nivelNuevo
         );
     }
 
@@ -129,11 +129,11 @@ public class RegistroService {
 
         int actual = racha.getRachaActual();
         int puntos = switch (actual) {
-            case 3 -> 20;
-            case 7 -> 50;
-            case 30 -> 200;
-            case 100 -> 500;
-            case 365 -> 1000;
+            case 3 -> 50;
+            case 7 -> 100;
+            case 30 -> 300;
+            case 100 -> 750;
+            case 365 -> 2000;
             default -> 0;
         };
 
