@@ -3,6 +3,7 @@ package com.joaquim.habitosapp.service;
 import com.joaquim.habitosapp.model.Categoria;
 import com.joaquim.habitosapp.model.Habito;
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.model.dto.ResultadoLoginGoogle;
 import com.joaquim.habitosapp.repository.ICategoriaDAO;
 import com.joaquim.habitosapp.repository.IHabitoDAO;
 import com.joaquim.habitosapp.repository.IRachaDAO;
@@ -101,7 +102,7 @@ public class UsuarioService {
         return usuario;
     }
 
-    public Usuario loginConGoogle(String email, String nombre) {
+    public ResultadoLoginGoogle loginConGoogle(String email, String nombre) {
         Usuario usuario = usuarioDAO.findByEmail(email);
 
         if (usuario != null) {
@@ -110,7 +111,7 @@ public class UsuarioService {
                 usuarioDAO.update(usuario);
             }
             motorLogrosService.evaluarTrasLoginGoogle(usuario);
-            return usuario;
+            return new ResultadoLoginGoogle(usuario, false);
         }
 
         // Usuario nuevo vía Google
@@ -126,7 +127,7 @@ public class UsuarioService {
         enviarBienvenidaSilenciosa(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
 
         motorLogrosService.evaluarTrasLoginGoogle(nuevoUsuario);
-        return nuevoUsuario;
+        return new ResultadoLoginGoogle(nuevoUsuario, true);
     }
 
     public Usuario buscarPorId(int id) {

@@ -1,6 +1,7 @@
 package com.joaquim.habitosapp.controller;
 
 import com.joaquim.habitosapp.model.Usuario;
+import com.joaquim.habitosapp.model.dto.ResultadoLoginGoogle;
 import com.joaquim.habitosapp.security.JwtUtil;
 import com.joaquim.habitosapp.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,7 +92,8 @@ public class UsuarioController {
             String email = payload.getEmail();
             String nombre = (String) payload.get("name");
 
-            Usuario usuario = usuarioService.loginConGoogle(email, nombre);
+            ResultadoLoginGoogle resultado = usuarioService.loginConGoogle(email, nombre);
+            Usuario usuario = resultado.usuario();
             String token = jwtUtil.generateToken(usuario.getEmail());
 
             return ResponseEntity.ok(Map.of(
@@ -100,7 +102,8 @@ public class UsuarioController {
                     "nombre", usuario.getNombre(),
                     "username", usuario.getUsername(),
                     "email", usuario.getEmail(),
-                    "proveedorAuth", usuario.getProveedorAuth()
+                    "proveedorAuth", usuario.getProveedorAuth(),
+                    "esNuevo", resultado.esNuevo()
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error al verificar token de Google");
