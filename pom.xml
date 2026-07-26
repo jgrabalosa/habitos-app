@@ -8,7 +8,7 @@
         <version>3.4.5</version>
         <relativePath/>
     </parent>
-    <groupId>com.joaquim</groupId>
+    <groupId>com.norday</groupId>
     <artifactId>habitos-app</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>habitos-app</name>
