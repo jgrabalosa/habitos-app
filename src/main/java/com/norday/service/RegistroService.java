@@ -24,7 +24,7 @@ public class RegistroService {
     private IRachaDAO rachaDAO;
 
     @Autowired
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     @Autowired
     private UsuarioMonedaService usuarioMonedaService;
@@ -75,7 +75,7 @@ public class RegistroService {
             puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
         }
 
-        List<String> logros = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> logros = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
@@ -167,7 +167,7 @@ public class RegistroService {
         registroDAO.update(registro);
 
         Usuario usuario = registro.getHabito().getPropietario();
-        motorLogrosService.evaluarTrasAnadirNota(usuario);
+        logrosHabitosService.evaluarTrasAnadirNota(usuario);
     }
 
     public void actualizarValoracion(int registroId, Integer valoracion) {

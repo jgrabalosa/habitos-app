@@ -5,7 +5,7 @@ import com.norday.model.dto.ResultadoExperienciaDTO;
 import com.norday.repository.IRachaDAO;
 import com.norday.repository.IRegistroDAO;
 import com.norday.service.MascotaService;
-import com.norday.service.MotorLogrosService;
+import com.norday.service.LogrosHabitosService;
 import com.norday.service.RegistroService;
 import com.norday.service.UsuarioMonedaService;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +32,7 @@ class RegistroServiceTest {
     private IRachaDAO rachaDAO;
 
     @Mock
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     @Mock
     private UsuarioMonedaService usuarioMonedaService;
@@ -68,7 +68,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
                 .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
@@ -91,7 +91,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
         // Act: completamos una 2ª vez (total 2 de 3, aún no llega a la meta)
@@ -114,7 +114,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
                 .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
@@ -136,7 +136,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
         // Act: completamos una 2ª vez, superando la meta
@@ -157,7 +157,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
         registroService.completarHabito(habito, "");
@@ -178,7 +178,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
                 .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
@@ -204,7 +204,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
         registroService.completarHabito(habito, "");
@@ -221,7 +221,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
                 .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
@@ -242,7 +242,7 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito))
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
         registroService.completarHabito(habito, "");

@@ -35,7 +35,7 @@ public class HabitoService {
     private IRegistroDAO registroDAO;
 
     @Autowired
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
      *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos. */
@@ -59,7 +59,7 @@ public class HabitoService {
         Racha racha = new Racha(habito);
         rachaDAO.save(racha);
 
-        return motorLogrosService.evaluarTrasCrearHabito(habito.getPropietario());
+        return logrosHabitosService.evaluarTrasCrearHabito(habito.getPropietario());
     }
 
     public Habito buscarPorId(int id) {

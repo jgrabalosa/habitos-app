@@ -5,7 +5,7 @@ import com.norday.repository.IHabitoDAO;
 import com.norday.repository.IRachaDAO;
 import com.norday.repository.IRegistroDAO;
 import com.norday.service.LogroService;
-import com.norday.service.MotorLogrosService;
+import com.norday.service.LogrosHabitosService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class MotorLogrosServiceTest {
+class LogrosHabitosServiceTest {
 
     @Mock
     private LogroService logroService;
@@ -34,7 +34,7 @@ class MotorLogrosServiceTest {
     private IRachaDAO rachaDAO;
 
     @InjectMocks
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     private Usuario usuario;
     private Habito habito;
@@ -52,27 +52,17 @@ class MotorLogrosServiceTest {
         habito.setPropietario(usuario);
     }
 
-    private Logro crearLogro(int id, String codigo) {
-        Logro logro = new Logro();
-        logro.setLogroId(id);
-        logro.setCodigo(codigo);
-        return logro;
-    }
-
     @Test
     void alAlcanzarRacha3PorPrimeraVez_seOtorgaRACHA_3() {
         Racha racha = new Racha(habito);
         racha.setRachaActual(3);
         racha.setRachaMaxima(3); // primera vez que llega, nunca bajó de ahí
 
-        Logro logroRacha3 = crearLogro(1, "RACHA_3");
-
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logroService.buscarPorCodigo("RACHA_3")).thenReturn(logroRacha3);
-        when(logroService.otorgarLogro(usuario, 1)).thenReturn(true);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(true);
         when(registroDAO.contarPorUsuario(1)).thenReturn(3);
 
-        List<String> otorgados = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertTrue(otorgados.contains("RACHA_3"));
     }
@@ -83,14 +73,11 @@ class MotorLogrosServiceTest {
         racha.setRachaActual(3);
         racha.setRachaMaxima(10); // ya tuvo una racha más alta antes, esta vez volvió a 3
 
-        Logro logroRecuperada = crearLogro(2, "RACHA_RECUPERADA");
-
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logroService.buscarPorCodigo("RACHA_RECUPERADA")).thenReturn(logroRecuperada);
-        when(logroService.otorgarLogro(usuario, 2)).thenReturn(true);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_RECUPERADA")).thenReturn(true);
         when(registroDAO.contarPorUsuario(1)).thenReturn(20);
 
-        List<String> otorgados = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertTrue(otorgados.contains("RACHA_RECUPERADA"));
         assertFalse(otorgados.contains("RACHA_3")); // no debe darse el de "primera vez"
@@ -102,14 +89,11 @@ class MotorLogrosServiceTest {
         racha.setRachaActual(3);
         racha.setRachaMaxima(3); // nunca bajó, es su récord actual
 
-        Logro logroRacha3 = crearLogro(1, "RACHA_3");
-
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logroService.buscarPorCodigo("RACHA_3")).thenReturn(logroRacha3);
-        when(logroService.otorgarLogro(usuario, 1)).thenReturn(true);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(true);
         when(registroDAO.contarPorUsuario(1)).thenReturn(3);
 
-        List<String> otorgados = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertFalse(otorgados.contains("RACHA_RECUPERADA"));
     }
@@ -120,14 +104,12 @@ class MotorLogrosServiceTest {
         racha.setRachaActual(3);
         racha.setRachaMaxima(3);
 
-        Logro logroRacha3 = crearLogro(1, "RACHA_3");
-
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logroService.buscarPorCodigo("RACHA_3")).thenReturn(logroRacha3);
-        when(logroService.otorgarLogro(usuario, 1)).thenReturn(false); // ya lo tenía, LogroService lo rechaza
+        // ya lo tenía: LogroService lo rechaza y no se añade a la lista devuelta
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(false);
         when(registroDAO.contarPorUsuario(1)).thenReturn(3);
 
-        List<String> otorgados = motorLogrosService.evaluarTrasCompletarRegistro(usuario, habito);
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertFalse(otorgados.contains("RACHA_3")); // no se añade a la lista si ya lo tenía
     }
@@ -138,15 +120,12 @@ class MotorLogrosServiceTest {
                 crearHabitoSimple(1), crearHabitoSimple(2), crearHabitoSimple(3)
         );
 
-        Logro logroHabitos3 = crearLogro(5, "HABITOS_ACTIVOS_3");
-
         when(habitoDAO.findActivos(usuario)).thenReturn(tresHabitos);
-        when(logroService.buscarPorCodigo("HABITOS_ACTIVOS_3")).thenReturn(logroHabitos3);
-        when(logroService.otorgarLogro(usuario, 5)).thenReturn(true);
+        when(logroService.otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3")).thenReturn(true);
 
-        motorLogrosService.evaluarTrasCrearHabito(usuario);
+        logrosHabitosService.evaluarTrasCrearHabito(usuario);
 
-        verify(logroService).otorgarLogro(usuario, 5);
+        verify(logroService).otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3");
     }
 
     private Habito crearHabitoSimple(int id) {

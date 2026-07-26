@@ -33,6 +33,19 @@ public class LogroService {
         return usuarioLogroDAO.findByUsuario(usuario);
     }
 
+    /**
+     * Otorga el logro con ese código si el usuario aún no lo tiene.
+     * Devuelve true solo si se ha otorgado ahora (false si ya lo tenía o si
+     * el código no existe en el catálogo).
+     */
+    public boolean otorgarSiNoTiene(Usuario usuario, String codigo) {
+        Logro logro = buscarPorCodigo(codigo);
+        if (logro != null) {
+            return otorgarLogro(usuario, logro.getLogroId());
+        }
+        return false;
+    }
+
     public boolean otorgarLogro(Usuario usuario, int logroId) {
         if (usuarioLogroDAO.existePorUsuarioYLogro(usuario.getUsuarioId(), logroId)) {
             return false; // Ya lo tiene, no se duplica

@@ -5,7 +5,7 @@ import com.norday.repository.IHabitoDAO;
 import com.norday.repository.IRachaDAO;
 import com.norday.repository.IRegistroDAO;
 import com.norday.service.HabitoService;
-import com.norday.service.MotorLogrosService;
+import com.norday.service.LogrosHabitosService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class HabitoServiceTest {
     private IRegistroDAO registroDAO;
 
     @Mock
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     @InjectMocks
     private HabitoService habitoService;

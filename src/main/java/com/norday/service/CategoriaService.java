@@ -14,14 +14,14 @@ public class CategoriaService {
     private ICategoriaDAO categoriaDAO;
 
     @Autowired
-    private MotorLogrosService motorLogrosService;
+    private LogrosHabitosService logrosHabitosService;
 
     public void crearCategoria(Categoria categoria) {
         categoriaDAO.save(categoria);
 
         if (categoria.getCreador() != null) {
             List<Categoria> categoriasDelUsuario = categoriaDAO.findByCreador(categoria.getCreador());
-            motorLogrosService.evaluarTrasCrearCategoria(categoria.getCreador(), categoriasDelUsuario);
+            logrosHabitosService.evaluarTrasCrearCategoria(categoria.getCreador(), categoriasDelUsuario);
         }
     }
 
