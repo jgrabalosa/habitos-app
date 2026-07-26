@@ -1,17 +1,8 @@
 package com.norday.service;
 
-import com.norday.model.Categoria;
-import com.norday.model.Habito;
 import com.norday.model.Usuario;
 import com.norday.model.dto.ResultadoLoginGoogle;
-import com.norday.repository.ICategoriaDAO;
-import com.norday.repository.IHabitoDAO;
-import com.norday.repository.IRachaDAO;
-import com.norday.repository.IRegistroDAO;
 import com.norday.repository.IUsuarioDAO;
-import com.norday.repository.IUsuarioLogroDAO;
-import com.norday.repository.IUsuarioMonedaDAO;
-import com.norday.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,31 +27,11 @@ public class UsuarioService {
     private ProductoService productoService;
 
     @Autowired
-    private IHabitoDAO habitoDAO;
-
-    @Autowired
-    private IRegistroDAO registroDAO;
-
-    @Autowired
-    private IRachaDAO rachaDAO;
-
-    @Autowired
-    private ICategoriaDAO categoriaDAO;
-
-    @Autowired
     private MotorLogrosService motorLogrosService;
 
+    /** Spring recolecta aquí todas las implementaciones registradas. */
     @Autowired
-    private IUsuarioLogroDAO usuarioLogroDAO;
-
-    @Autowired
-    private IUsuarioMonedaDAO usuarioMonedaDAO;
-
-    @Autowired
-    private IUsuarioProductoDAO usuarioProductoDAO;
-
-    @Autowired
-    private com.norday.repository.IMascotaDAO mascotaDAO;
+    private List<LimpiadorDatosUsuario> limpiadores;
 
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
@@ -199,33 +170,13 @@ public class UsuarioService {
             throw new RuntimeException("Usuario no encontrado");
         }
 
-        // 1. Borrar registros y rachas de todos sus hábitos
-        List<Habito> habitos = habitoDAO.findByPropietario(usuario);
-        for (Habito habito : habitos) {
-            registroDAO.deleteByHabito(habito.getHabitoId());
-            rachaDAO.deleteByHabito(habito.getHabitoId());
+        // Cada módulo borra lo suyo. El orden entre limpiadores da igual (son
+        // árboles de FK independientes que solo apuntan a Usuario); lo que
+        // importa es que todos terminen antes de borrar el propio Usuario.
+        for (LimpiadorDatosUsuario limpiador : limpiadores) {
+            limpiador.limpiar(usuario);
         }
 
-        // 2. Borrar los hábitos
-        for (Habito habito : habitos) {
-            habitoDAO.delete(habito.getHabitoId());
-        }
-
-        // 3. Borrar categorías personalizadas del usuario
-        List<Categoria> categorias = categoriaDAO.findByCreador(usuario);
-        for (Categoria categoria : categorias) {
-            categoriaDAO.delete(categoria.getCategoriaId());
-        }
-
-        // 4. Borrar datos de gamificación del usuario
-        usuarioLogroDAO.deleteByUsuario(id);
-        usuarioMonedaDAO.deleteByUsuario(id);
-        usuarioProductoDAO.deleteByUsuario(id);
-
-        // 4b. Borrar la mascota del usuario (FK hacia Usuario)
-        mascotaDAO.deleteByUsuario(id);
-
-        // 5. Borrar el usuario
         usuarioDAO.delete(id);
     }
 }
