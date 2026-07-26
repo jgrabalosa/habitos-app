@@ -1,0 +1,20 @@
+package com.norday.habitos.model.dto;
+
+import com.norday.habitos.model.Habito;
+
+public class HabitoResumenDTO {
+
+    private Habito habito;
+    private int totalCompletados;
+
+    public HabitoResumenDTO(Habito habito, int totalCompletados) {
+        this.habito = habito;
+        this.totalCompletados = totalCompletados;
+    }
+
+    public Habito getHabito() { return habito; }
+    public void setHabito(Habito habito) { this.habito = habito; }
+
+    public int getTotalCompletados() { return totalCompletados; }
+    public void setTotalCompletados(int totalCompletados) { this.totalCompletados = totalCompletados; }
+}
