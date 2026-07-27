@@ -27,6 +27,9 @@ public class UsuarioService {
     private EmailService emailService;
 
     @Autowired
+    private TextosService textosService;
+
+    @Autowired
     private ProductoService productoService;
 
     @Autowired
@@ -48,17 +51,24 @@ public class UsuarioService {
         usuarioDAO.save(usuario);
         productoService.otorgarTemasBasicosGratis(usuario);
 
-        enviarBienvenidaSilenciosa(usuario.getEmail(), usuario.getNombre());
+        enviarBienvenidaSilenciosa(usuario);
     }
 
     // Envía el email de bienvenida sin bloquear el flujo si falla (SMTP caído,
     // credenciales mal configuradas, etc.). El fallo queda registrado como
     // advertencia para poder detectar problemas sistemáticos de envío.
-    private void enviarBienvenidaSilenciosa(String email, String nombre) {
+    private void enviarBienvenidaSilenciosa(Usuario usuario) {
         try {
-            emailService.enviarEmailBienvenida(email, nombre);
+            // El motor dispara el envío; el texto lo pone el bundle de la app
+            // (mensajes/habitos), no esta clase.
+            emailService.enviarEmail(
+                    usuario.getEmail(),
+                    "email.bienvenida.asunto",
+                    "email.bienvenida.cuerpo",
+                    textosService.localeDe(usuario),
+                    usuario.getNombre());
         } catch (Exception e) {
-            log.warn("Error al enviar email de bienvenida a {}: {}", email, e.getMessage());
+            log.warn("Error al enviar email de bienvenida a {}: {}", usuario.getEmail(), e.getMessage());
         }
     }
 
@@ -98,7 +108,7 @@ public class UsuarioService {
         usuarioDAO.save(nuevoUsuario);
         productoService.otorgarTemasBasicosGratis(nuevoUsuario);
 
-        enviarBienvenidaSilenciosa(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
+        enviarBienvenidaSilenciosa(nuevoUsuario);
 
         motorLogrosService.evaluarTrasLoginGoogle(nuevoUsuario);
         return new ResultadoLoginGoogle(nuevoUsuario, true);

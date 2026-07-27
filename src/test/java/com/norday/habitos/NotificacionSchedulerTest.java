@@ -3,6 +3,7 @@ package com.norday.habitos;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.NotificacionService;
+import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -48,6 +49,9 @@ class NotificacionSchedulerTest {
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
 
+    @Mock
+    private TextosService textosService;
+
     @InjectMocks
     private NotificacionScheduler notificacionScheduler;
 
@@ -78,6 +82,8 @@ class NotificacionSchedulerTest {
         when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(SAO_PAULO);
         when(registroDAO.findByFecha(any())).thenReturn(new ArrayList<>());
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
+        when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
         notificacionScheduler.enviarRecordatorios();
 

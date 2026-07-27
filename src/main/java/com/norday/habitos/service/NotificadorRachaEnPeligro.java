@@ -2,6 +2,7 @@ package com.norday.habitos.service;
 
 import com.norday.core.model.Usuario;
 import com.norday.core.service.NotificacionService;
+import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
@@ -46,6 +47,9 @@ public class NotificadorRachaEnPeligro {
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
 
+    @Autowired
+    private TextosService textosService;
+
     /**
      * Barrido horario. No lleva zona: cada usuario se evalúa contra su propia
      * hora local, y solo se le avisa cuando en su reloj son las 21:00.
@@ -78,8 +82,8 @@ public class NotificadorRachaEnPeligro {
 
             notificacionService.enviarNotificacion(
                     fcmToken,
-                    "Tu racha de " + racha.getRachaActual() + " está en juego 🔥",
-                    "Aún puedes completar \"" + habito.getNombre() + "\" hoy."
+                    textosService.texto("push.racha.titulo", propietario, racha.getRachaActual()),
+                    textosService.texto("push.racha.cuerpo", propietario, habito.getNombre())
             );
             avisados++;
         }

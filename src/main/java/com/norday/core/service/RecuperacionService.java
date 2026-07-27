@@ -28,6 +28,9 @@ public class RecuperacionService {
     private EmailService emailService;
 
     @Autowired
+    private TextosService textosService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     /**
@@ -57,17 +60,22 @@ public class RecuperacionService {
         );
         codigoRecuperacionDAO.save(registro);
 
-        enviarCodigoSilencioso(usuario.getEmail(), codigo);
+        enviarCodigoSilencioso(usuario, codigo);
     }
 
     // Envía el email de recuperación sin bloquear el flujo si falla (SMTP caído,
     // credenciales mal configuradas, etc.). El fallo queda registrado como
     // advertencia para poder detectar problemas sistemáticos de envío.
-    private void enviarCodigoSilencioso(String email, String codigo) {
+    private void enviarCodigoSilencioso(Usuario usuario, String codigo) {
         try {
-            emailService.enviarEmailRecuperacion(email, codigo);
+            emailService.enviarEmail(
+                    usuario.getEmail(),
+                    "email.recuperacion.asunto",
+                    "email.recuperacion.cuerpo",
+                    textosService.localeDe(usuario),
+                    codigo, MINUTOS_EXPIRACION);
         } catch (Exception e) {
-            log.warn("Error al enviar email de recuperación a {}: {}", email, e.getMessage());
+            log.warn("Error al enviar email de recuperación a {}: {}", usuario.getEmail(), e.getMessage());
         }
     }
 

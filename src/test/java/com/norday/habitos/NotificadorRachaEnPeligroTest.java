@@ -2,6 +2,7 @@ package com.norday.habitos;
 
 import com.norday.core.model.Usuario;
 import com.norday.core.service.NotificacionService;
+import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -32,6 +33,9 @@ class NotificadorRachaEnPeligroTest {
     @Mock private IRachaDAO rachaDAO;
     @Mock private NotificacionService notificacionService;
     @Mock private ZonaUsuarioService zonaUsuarioService;
+
+    @Mock
+    private TextosService textosService;
 
     @InjectMocks
     private NotificadorRachaEnPeligro notificador;
@@ -71,6 +75,7 @@ class NotificadorRachaEnPeligroTest {
 
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(zona);
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
 
         notificador.avisarRachasEnPeligro();
 

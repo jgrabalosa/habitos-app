@@ -3,6 +3,7 @@ package com.norday.habitos.service;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.NotificacionService;
+import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -43,6 +44,9 @@ public class NotificacionScheduler {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Autowired
+    private TextosService textosService;
 
     /**
      * Barrido cada 5 minutos: notifica los hábitos con recordatorio activo
@@ -106,8 +110,8 @@ public class NotificacionScheduler {
             }
             boolean tokenInvalido = notificacionService.enviarNotificacion(
                     fcmToken,
-                    "¡No olvides \"" + habito.getNombre() + "\"! 🎯",
-                    "Tómate un momento para completarlo hoy."
+                    textosService.texto("push.recordatorio.titulo", propietario, habito.getNombre()),
+                    textosService.texto("push.recordatorio.cuerpo", propietario)
             );
             if (tokenInvalido) {
                 // Token dado de baja en FCM: lo borramos para no reintentar indefinidamente.

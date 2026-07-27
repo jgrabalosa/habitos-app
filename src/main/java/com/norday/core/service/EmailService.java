@@ -5,40 +5,37 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
+/**
+ * Envía emails. El motor pone el mecanismo; el texto viene siempre del
+ * bundle del módulo que corresponda, resuelto en el idioma del destinatario.
+ *
+ * Esta clase no contiene ni una frase de cara al usuario a propósito: antes
+ * el email de bienvenida hablaba de "construir mejores hábitos" desde dentro
+ * del motor, que es contenido de una app concreta colado en código que
+ * comparte todo el ecosistema.
+ */
 @Service
 public class EmailService {
 
     @Autowired
     private JavaMailSender mailSender;
 
-    public void enviarEmailBienvenida(String destinatario, String nombre) {
-        SimpleMailMessage mensaje = new SimpleMailMessage();
-        mensaje.setTo(destinatario);
-        mensaje.setSubject("¡Bienvenido a Norday! 🎉");
-        mensaje.setText(
-                "Hola " + nombre + ",\n\n" +
-                        "¡Gracias por unirte a Norday! Estamos encantados de acompañarte " +
-                        "en tu camino para construir mejores hábitos.\n\n" +
-                        "Empieza creando tu primer hábito y da el primer paso hacia una mejor versión de ti mismo.\n\n" +
-                        "Un saludo,\n" +
-                        "El equipo de Norday"
-        );
-        mailSender.send(mensaje);
-    }
+    @Autowired
+    private TextosService textosService;
 
-    public void enviarEmailRecuperacion(String destinatario, String codigo) {
+    /**
+     * @param claveAsunto clave del bundle para el asunto
+     * @param claveCuerpo clave del bundle para el cuerpo
+     * @param args        parámetros del cuerpo, en orden ({0}, {1}...)
+     */
+    public void enviarEmail(String destinatario, String claveAsunto, String claveCuerpo,
+                            Locale locale, Object... args) {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(destinatario);
-        mensaje.setSubject("Tu código de recuperación de Norday");
-        mensaje.setText(
-                "Hola,\n\n" +
-                        "Hemos recibido una solicitud para restablecer tu contraseña.\n\n" +
-                        "Tu código de recuperación es: " + codigo + "\n\n" +
-                        "Este código caduca en 15 minutos. Si no has solicitado este cambio, " +
-                        "puedes ignorar este mensaje: tu contraseña seguirá siendo la misma.\n\n" +
-                        "Un saludo,\n" +
-                        "El equipo de Norday"
-        );
+        mensaje.setSubject(textosService.texto(claveAsunto, locale));
+        mensaje.setText(textosService.texto(claveCuerpo, locale, args));
         mailSender.send(mensaje);
     }
 }
