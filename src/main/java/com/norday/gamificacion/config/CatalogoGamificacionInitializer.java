@@ -57,6 +57,11 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "Avatar", "EQUIPABLE", "500"},
             {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "Avatar", "EQUIPABLE", "500"},
             {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_PERRO", "Perro", "Avatar ilustrado de perro", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_CONEJO", "Conejo", "Avatar ilustrado de conejo", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_KOALA", "Koala", "Avatar ilustrado de koala", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_PINGUINO", "Pingüino", "Avatar ilustrado de pingüino", "Avatar", "EQUIPABLE", "500"},
+            {"AVATAR_LEON", "León", "Avatar ilustrado de león", "Avatar", "EQUIPABLE", "500"},
             // placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
             {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "50"},
     };
