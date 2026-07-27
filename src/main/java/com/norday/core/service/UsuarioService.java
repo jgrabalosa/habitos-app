@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UsuarioService {
@@ -178,6 +179,7 @@ public class UsuarioService {
         usuarioDAO.update(usuario);
     }
 
+    @Transactional
     public void eliminarCuenta(int id) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {
