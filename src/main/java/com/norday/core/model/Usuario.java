@@ -42,6 +42,21 @@ public class Usuario {
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
 
+    // Preferencias. Idioma y zona son independientes a propósito: un brasileño
+    // y un portugués hablan lo mismo y están a cuatro horas.
+    // columnDefinition con DEFAULT: así ddl-auto=update puede añadir la
+    // columna NOT NULL aunque la tabla ya tuviera filas.
+    @Column(name = "idioma", nullable = false, length = 10,
+            columnDefinition = "varchar(10) default 'es'")
+    private String idioma = IDIOMA_POR_DEFECTO;
+
+    @Column(name = "zona_horaria", nullable = false, length = 64,
+            columnDefinition = "varchar(64) default 'Europe/Madrid'")
+    private String zonaHoraria = ZONA_POR_DEFECTO;
+
+    public static final String IDIOMA_POR_DEFECTO = "es";
+    public static final String ZONA_POR_DEFECTO = "Europe/Madrid";
+
     // Constructor vacío — obligatorio para JPA
     public Usuario() {}
 
@@ -77,6 +92,12 @@ public class Usuario {
 
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
+
+    public String getIdioma() { return idioma; }
+    public void setIdioma(String idioma) { this.idioma = idioma; }
+
+    public String getZonaHoraria() { return zonaHoraria; }
+    public void setZonaHoraria(String zonaHoraria) { this.zonaHoraria = zonaHoraria; }
 
     @Override
     public String toString() {

@@ -3,6 +3,7 @@ package com.norday.core.controller;
 import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.security.JwtUtil;
+import com.norday.core.service.PreferenciasService;
 import com.norday.core.service.RecuperacionService;
 import com.norday.core.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class UsuarioController {
     @Autowired
     private RecuperacionService recuperacionService;
 
+    @Autowired
+    private PreferenciasService preferenciasService;
+
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
                                        BindingResult result) {
@@ -58,14 +62,7 @@ public class UsuarioController {
             Usuario encontrado = usuarioService.login(
                     usuario.getEmail(), usuario.getContrasena());
             String token = jwtUtil.generateToken(encontrado.getEmail());
-            return ResponseEntity.ok(Map.of(
-                    "token", token,
-                    "usuarioId", encontrado.getUsuarioId(),
-                    "nombre", encontrado.getNombre(),
-                    "username", encontrado.getUsername(),
-                    "email", encontrado.getEmail(),
-                    "proveedorAuth", encontrado.getProveedorAuth()
-            ));
+            return ResponseEntity.ok(payloadSesion(encontrado, token, null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(e.getMessage());
@@ -96,15 +93,7 @@ public class UsuarioController {
             Usuario usuario = resultado.usuario();
             String token = jwtUtil.generateToken(usuario.getEmail());
 
-            return ResponseEntity.ok(Map.of(
-                    "token", token,
-                    "usuarioId", usuario.getUsuarioId(),
-                    "nombre", usuario.getNombre(),
-                    "username", usuario.getUsername(),
-                    "email", usuario.getEmail(),
-                    "proveedorAuth", usuario.getProveedorAuth(),
-                    "esNuevo", resultado.esNuevo()
-            ));
+            return ResponseEntity.ok(payloadSesion(usuario, token, resultado.esNuevo()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error al verificar token de Google");
         }
@@ -147,8 +136,61 @@ public class UsuarioController {
                 "usuarioId", usuario.getUsuarioId(),
                 "nombre", usuario.getNombre(),
                 "username", usuario.getUsername(),
-                "email", usuario.getEmail()
+                "email", usuario.getEmail(),
+                "idioma", usuario.getIdioma(),
+                "zonaHoraria", usuario.getZonaHoraria()
         ));
+    }
+
+    // ── Preferencias: idioma y zona horaria ────────────────
+    @GetMapping("/{id}/preferencias")
+    public ResponseEntity<?> obtenerPreferencias(@PathVariable int id) {
+        Usuario usuario = usuarioService.buscarPorId(id);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        return ResponseEntity.ok(Map.of(
+                "idioma", usuario.getIdioma(),
+                "zonaHoraria", usuario.getZonaHoraria()
+        ));
+    }
+
+    /** Cada campo es opcional: se envía solo el que se quiere cambiar. */
+    @PutMapping("/{id}/preferencias")
+    public ResponseEntity<?> actualizarPreferencias(@PathVariable int id,
+                                                    @RequestBody Map<String, String> body) {
+        try {
+            Usuario usuario = preferenciasService.actualizar(
+                    id, body.get("idioma"), body.get("zonaHoraria"));
+            return ResponseEntity.ok(Map.of(
+                    "idioma", usuario.getIdioma(),
+                    "zonaHoraria", usuario.getZonaHoraria()
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Payload común de sesión (login normal y Google). esNuevo solo viaja
+     * cuando el llamador lo aporta: el login normal no lo incluye.
+     */
+    private Map<String, Object> payloadSesion(Usuario usuario, String token, Boolean esNuevo) {
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("token", token);
+        payload.put("usuarioId", usuario.getUsuarioId());
+        payload.put("nombre", usuario.getNombre());
+        payload.put("username", usuario.getUsername());
+        payload.put("email", usuario.getEmail());
+        payload.put("proveedorAuth", usuario.getProveedorAuth());
+        payload.put("idioma", usuario.getIdioma());
+        payload.put("zonaHoraria", usuario.getZonaHoraria());
+        if (esNuevo != null) {
+            payload.put("esNuevo", esNuevo);
+        }
+        return payload;
     }
 
     @PutMapping("/{id}")

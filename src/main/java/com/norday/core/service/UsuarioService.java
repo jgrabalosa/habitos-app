@@ -114,8 +114,9 @@ public class UsuarioService {
         }
 
         // Solo se actualizan los campos editables del perfil.
-        // El resto (contrasena, proveedorAuth, fcmToken, fechaRegistro...)
-        // se conservan tal cual están en la BD.
+        // El resto (contrasena, proveedorAuth, fcmToken, fechaRegistro,
+        // idioma, zonaHoraria...) se conservan tal cual están en la BD;
+        // las preferencias tienen su propio endpoint.
         if (usuario.getNombre() != null) {
             existente.setNombre(usuario.getNombre());
         }
