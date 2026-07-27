@@ -17,6 +17,10 @@ public class CategoriaService {
     private LogrosHabitosService logrosHabitosService;
 
     public void crearCategoria(Categoria categoria) {
+        // El código pertenece al catálogo global: lo pone la siembra, nunca el
+        // cliente. Una categoría del usuario no se traduce, se muestra tal cual.
+        categoria.setCodigo(null);
+        categoria.setEsGlobal(false);
         categoriaDAO.save(categoria);
 
         if (categoria.getCreador() != null) {

@@ -27,6 +27,14 @@ public class CategoriaDAO implements ICategoriaDAO {
     }
 
     @Override
+    public Categoria findByCodigo(String codigo) {
+        return em.createQuery(
+                        "SELECT c FROM Categoria c WHERE c.codigo = :codigo", Categoria.class)
+                .setParameter("codigo", codigo)
+                .getResultStream().findFirst().orElse(null);
+    }
+
+    @Override
     public List<Categoria> findGlobales() {
         return em.createQuery(
                         "SELECT c FROM Categoria c WHERE c.esGlobal = true ORDER BY c.orden", Categoria.class)

@@ -12,6 +12,16 @@ public class Categoria {
     @Column(name = "categoria_id")
     private int categoriaId;
 
+    /**
+     * Código estable del catálogo, para que el cliente pueda traducir la
+     * categoría sin depender del texto que manda el servidor.
+     *
+     * Solo lo tienen las categorías globales. Las que crea el usuario van con
+     * null: su nombre lo ha escrito él y no hay nada que traducir.
+     */
+    @Column(name = "codigo", unique = true, length = 50)
+    private String codigo;
+
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
@@ -38,7 +48,8 @@ public class Categoria {
     public Categoria() {}
 
     // Constructor con parámetros
-    public Categoria(String nombre, String descripcion, String color, String icono, boolean esGlobal, int orden, Usuario creador) {
+    public Categoria(String codigo, String nombre, String descripcion, String color, String icono, boolean esGlobal, int orden, Usuario creador) {
+        this.codigo = codigo;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.color = color;
@@ -47,6 +58,9 @@ public class Categoria {
         this.orden = orden;
         this.creador = creador;
     }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
 
     public int getCategoriaId() { return categoriaId; }
     public void setCategoriaId(int categoriaId) { this.categoriaId = categoriaId; }
