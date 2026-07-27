@@ -21,7 +21,8 @@ public class Mascota {
     @Column(name = "experiencia", nullable = false)
     private int experiencia;
 
-    @Column(name = "nombre", nullable = false)
+    /** Null mientras el usuario no le haya puesto nombre: es dato suyo. */
+    @Column(name = "nombre")
     private String nombre;
 
     @Column(name = "fecha_ultima_comida")
@@ -34,7 +35,9 @@ public class Mascota {
     public Mascota(Usuario usuario) {
         this.usuario = usuario;
         this.experiencia = 0;
-        this.nombre = "Huevo";
+        // El nombre es dato del usuario: no debe nacer en un idioma concreto.
+        // Mientras esté a null, el cliente muestra la fase localizada.
+        this.nombre = null;
         this.fechaUltimaComida = null;
     }
 

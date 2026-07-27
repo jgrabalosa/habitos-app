@@ -46,10 +46,14 @@ public class MascotaService {
         return nivel;
     }
 
+    /**
+     * Devuelve un código, no un texto: el cliente lo traduce, igual que hace
+     * con categorías, logros y productos. El servidor no elige idioma.
+     */
     private String calcularFase(int nivel) {
-        if (nivel <= 2) return "Huevo";
-        if (nivel <= 9) return "Cria";
-        return "Adulto";
+        if (nivel <= 2) return "HUEVO";
+        if (nivel <= 9) return "CRIA";
+        return "ADULTO";
     }
 
     private String calcularEstado(LocalDate fechaUltimaComida, ZoneId zona) {
