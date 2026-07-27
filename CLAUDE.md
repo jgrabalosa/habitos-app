@@ -90,6 +90,37 @@ pertenecen (campo `app`) cuando se construya/amplíe la tienda. El saldo
 de puntos (UsuarioMoneda) es único y compartido entre todas las apps del
 ecosistema — no crear muros entre apps.
 
+## Zona horaria y locale
+
+Ningún cálculo de "hoy" de cara al usuario puede usar `LocalDate.now()` sin
+zona. La zona sale siempre del usuario, vía `ZonaUsuarioService`. Los sellos
+de auditoría (`fechaRegistro`, `UsuarioLogro`, `UsuarioMoneda`,
+`UsuarioProducto`) van en UTC explícito: no son días de usuario. Las
+caducidades absolutas (código de recuperación) son instantes, no días, y no
+se tocan.
+
+La JVM **no** fija zona por defecto — se eliminó el `TimeZone.setDefault`.
+La fija el contenedor a UTC (`ENV TZ=UTC` en el `Dockerfile`).
+
+La racha no depende de ningún cron: `Racha` guarda `periodoMetaAlcanzada`
+(el inicio del periodo en que se cumplió la meta) y el sello se autocaduca
+al cambiar de periodo. La rotura es perezosa y se normaliza al leer, en
+`RachaService.rachaActualVigente`. Ningún barrido decide sobre rachas; el
+scheduler solo avisa.
+
+## Textos
+
+El motor no contiene texto de cara al usuario específico de una app. Cada
+módulo aporta su propio bundle en `src/main/resources/mensajes/` y lo
+registra implementando `ProveedorMensajes`; `MensajesConfig` los recolecta.
+`EmailService` solo recibe claves, nunca frases.
+
+El fichero base (sin sufijo de idioma) va en español, que es la caída
+acordada. Idiomas soportados: `es`, `en`, `pt`.
+
+Los catálogos viajan por `codigo`; el nombre en BD es solo caída para el
+cliente, que traduce por código.
+
 ## Estilo de trabajo con el usuario
 
 - Un paso a la vez, confirmar que compila antes de seguir.
