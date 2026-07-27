@@ -3,6 +3,7 @@ package com.norday.habitos.service;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.NotificacionService;
+import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
@@ -14,9 +15,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,8 +28,6 @@ import java.util.stream.Collectors;
 public class NotificacionScheduler {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NotificacionScheduler.class);
-
-    private static final ZoneId ZONA = ZoneId.of("Europe/Madrid");
 
     @Autowired
     private IHabitoDAO habitoDAO;
@@ -39,38 +41,62 @@ public class NotificacionScheduler {
     @Autowired
     private NotificacionService notificacionService;
 
+    @Autowired
+    private ZonaUsuarioService zonaUsuarioService;
+
     /**
      * Barrido cada 5 minutos: notifica los hábitos con recordatorio activo
      * cuya hora elegida cae en esta ventana, que tocan hoy y siguen pendientes.
+     *
+     * La hora del hábito se compara contra la hora local del DUEÑO, no contra
+     * la del servidor: alguien en Sao Paulo con recordatorio a las 08:00 lo
+     * recibe a sus 08:00. El cron no lleva zona porque cada 5 minutos es cada
+     * 5 minutos en cualquier zona; quien decide es la comparación de dentro.
      */
-    @Scheduled(cron = "0 0/5 * * * *", zone = "Europe/Madrid")
+    @Scheduled(cron = "0 0/5 * * * *")
     public void enviarRecordatorios() {
-        LocalTime ahora = LocalTime.now(ZONA).withSecond(0).withNano(0);
-        LocalDate hoy = LocalDate.now(ZONA);
-        int diaIsoHoy = hoy.getDayOfWeek().getValue(); // 1=lunes..7=domingo
-
         List<Habito> activos = habitoDAO.findTodosActivos();
 
-        List<Habito> candidatos = activos.stream()
-                .filter(h -> h.isRecordatorioActivo() && h.getRecordatorioHora() != null)
-                .filter(h -> redondearArriba5Min(h.getRecordatorioHora()).equals(ahora))
-                .filter(h -> tocaHoy(h, diaIsoHoy))
-                .collect(Collectors.toList());
+        // Candidatos: la hora del recordatorio cae en la ventana actual del
+        // propio usuario y el hábito toca hoy según SU calendario.
+        List<Habito> candidatos = new ArrayList<>();
+        Map<Integer, LocalDate> hoyPorHabito = new HashMap<>();
+
+        for (Habito habito : activos) {
+            if (!habito.isRecordatorioActivo() || habito.getRecordatorioHora() == null) {
+                continue;
+            }
+            ZoneId zona = zonaUsuarioService.zonaDe(habito.getPropietario());
+            if (!redondearArriba5Min(habito.getRecordatorioHora()).equals(ventanaActual(zona))) {
+                continue;
+            }
+            LocalDate hoyUsuario = LocalDate.now(zona);
+            if (!tocaHoy(habito, hoyUsuario.getDayOfWeek().getValue())) {
+                continue;
+            }
+            candidatos.add(habito);
+            hoyPorHabito.put(habito.getHabitoId(), hoyUsuario);
+        }
 
         if (candidatos.isEmpty()) {
             return;
         }
 
-        // Una sola consulta para saber qué hábitos ya están completados hoy,
-        // en vez de una consulta por hábito (evita N+1).
-        Set<Integer> completadosHoy = registroDAO.findByFecha(hoy).stream()
-                .filter(Registro::isCompletado)
-                .map(r -> r.getHabito().getHabitoId())
-                .collect(Collectors.toCollection(HashSet::new));
+        // Sigue evitándose el N+1: una consulta por FECHA distinta, no por
+        // hábito. En cualquier instante hay como mucho tres fechas locales
+        // distintas en el mundo.
+        Map<LocalDate, Set<Integer>> completadosPorFecha = new HashMap<>();
+        for (LocalDate fecha : new HashSet<>(hoyPorHabito.values())) {
+            completadosPorFecha.put(fecha, registroDAO.findByFecha(fecha).stream()
+                    .filter(Registro::isCompletado)
+                    .map(r -> r.getHabito().getHabitoId())
+                    .collect(Collectors.toCollection(HashSet::new)));
+        }
 
         int enviados = 0;
         for (Habito habito : candidatos) {
-            if (completadosHoy.contains(habito.getHabitoId())) {
+            LocalDate hoyUsuario = hoyPorHabito.get(habito.getHabitoId());
+            if (completadosPorFecha.get(hoyUsuario).contains(habito.getHabitoId())) {
                 continue; // ya completado hoy, no está pendiente
             }
             Usuario propietario = habito.getPropietario();
@@ -93,8 +119,21 @@ public class NotificacionScheduler {
         }
 
         if (enviados > 0) {
-            log.info("Recordatorios enviados: {} (ventana {})", enviados, ahora);
+            log.info("Recordatorios enviados: {}", enviados);
         }
+    }
+
+    /**
+     * Ventana de 5 minutos en curso para esa zona, anclada hacia ABAJO.
+     *
+     * No se compara contra el minuto exacto: si la ejecución se retrasa unos
+     * segundos por encima del minuto (GC, arranque en frío, cola del
+     * scheduler), comparar el minuto exacto haría perder en silencio todos
+     * los recordatorios de esa ventana.
+     */
+    private LocalTime ventanaActual(ZoneId zona) {
+        LocalTime ahora = LocalTime.now(zona).withSecond(0).withNano(0);
+        return ahora.withMinute((ahora.getMinute() / 5) * 5);
     }
 
     /** Redondea hacia ARRIBA al siguiente múltiplo de 5 minutos (nunca antes de la hora elegida). */
