@@ -2,6 +2,7 @@ package com.norday.habitos.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "racha")
@@ -21,8 +22,16 @@ public class Racha {
     @Column(name = "ultima_fecha", nullable = false)
     private LocalDate ultimaFecha;
 
-    @Column(name = "meta_alcanzada_periodo_actual", nullable = false)
-    private boolean metaAlcanzadaPeriodoActual = false;
+    /**
+     * Inicio del periodo en el que se alcanzó la meta por última vez.
+     *
+     * Sustituye al antiguo booleano metaAlcanzadaPeriodoActual, que no sabía
+     * a qué periodo pertenecía y dependía de que un cron lo limpiase a las
+     * 00:05 de Madrid. Este sello se autocaduca: cuando cambia el periodo,
+     * la comparación falla sola y nadie tiene que limpiar nada.
+     */
+    @Column(name = "periodo_meta_alcanzada")
+    private LocalDate periodoMetaAlcanzada;
 
     @OneToOne
     @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_racha_habito"))
@@ -32,11 +41,11 @@ public class Racha {
     public Racha() {}
 
     // Constructor con parámetros
-    public Racha(Habito habito) {
+    public Racha(Habito habito, LocalDate hoy) {
         this.habito = habito;
         this.rachaActual = 0;
         this.rachaMaxima = 0;
-        this.ultimaFecha = LocalDate.now();
+        this.ultimaFecha = hoy;
     }
 
     public int getRachaId() { return rachaId; }
@@ -54,8 +63,27 @@ public class Racha {
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }
 
-    public boolean isMetaAlcanzadaPeriodoActual() { return metaAlcanzadaPeriodoActual; }
-    public void setMetaAlcanzadaPeriodoActual(boolean metaAlcanzadaPeriodoActual) { this.metaAlcanzadaPeriodoActual = metaAlcanzadaPeriodoActual; }
+    public LocalDate getPeriodoMetaAlcanzada() { return periodoMetaAlcanzada; }
+    public void setPeriodoMetaAlcanzada(LocalDate periodoMetaAlcanzada) { this.periodoMetaAlcanzada = periodoMetaAlcanzada; }
+
+    /**
+     * ¿Ya se cumplió la meta en el periodo que corre ahora para este usuario?
+     * Guardián para no subir la racha dos veces en el mismo periodo.
+     */
+    public boolean metaAlcanzadaEnPeriodoActual(ZoneId zona) {
+        return periodoMetaAlcanzada != null
+                && periodoMetaAlcanzada.equals(habito.getFrecuencia().rangoPeriodoActual(zona)[0]);
+    }
+
+    /**
+     * ¿Sigue viva la racha? Lo está si la meta se cumplió en el periodo
+     * actual o en el inmediatamente anterior. Si el último sello es más
+     * antiguo, se saltó un periodo entero y la racha está rota.
+     */
+    public boolean sigueViva(ZoneId zona) {
+        return periodoMetaAlcanzada != null
+                && !periodoMetaAlcanzada.isBefore(habito.getFrecuencia().inicioPeriodoAnterior(zona));
+    }
 
     @Override
     public String toString() {

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -42,7 +43,7 @@ public class UsuarioService {
         if (usuarioDAO.findByUsername(usuario.getUsername()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese username");
         }
-        usuario.setFechaRegistro(LocalDateTime.now());
+        usuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
         usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
         usuarioDAO.save(usuario);
         productoService.otorgarTemasBasicosGratis(usuario);
@@ -93,7 +94,7 @@ public class UsuarioService {
 
         Usuario nuevoUsuario = new Usuario(nombre, username, email, contrasenaAleatoria);
         nuevoUsuario.setProveedorAuth("GOOGLE");
-        nuevoUsuario.setFechaRegistro(java.time.LocalDateTime.now());
+        nuevoUsuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
         usuarioDAO.save(nuevoUsuario);
         productoService.otorgarTemasBasicosGratis(nuevoUsuario);
 

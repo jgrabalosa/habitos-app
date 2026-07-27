@@ -15,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,6 +24,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class LogrosHabitosServiceTest {
+
+    private static final LocalDate HOY = LocalDate.now(ZoneId.of("Europe/Madrid"));
 
     @Mock
     private LogroService logroService;
@@ -56,7 +60,7 @@ class LogrosHabitosServiceTest {
 
     @Test
     void alAlcanzarRacha3PorPrimeraVez_seOtorgaRACHA_3() {
-        Racha racha = new Racha(habito);
+        Racha racha = new Racha(habito, HOY);
         racha.setRachaActual(3);
         racha.setRachaMaxima(3); // primera vez que llega, nunca bajó de ahí
 
@@ -71,7 +75,7 @@ class LogrosHabitosServiceTest {
 
     @Test
     void alRomperYVolverAAlcanzarRacha3_seOtorgaRACHA_RECUPERADA() {
-        Racha racha = new Racha(habito);
+        Racha racha = new Racha(habito, HOY);
         racha.setRachaActual(3);
         racha.setRachaMaxima(10); // ya tuvo una racha más alta antes, esta vez volvió a 3
 
@@ -87,7 +91,7 @@ class LogrosHabitosServiceTest {
 
     @Test
     void alAlcanzarRacha3SinHaberRotoAntes_noSeOtorgaRACHA_RECUPERADA() {
-        Racha racha = new Racha(habito);
+        Racha racha = new Racha(habito, HOY);
         racha.setRachaActual(3);
         racha.setRachaMaxima(3); // nunca bajó, es su récord actual
 
@@ -102,7 +106,7 @@ class LogrosHabitosServiceTest {
 
     @Test
     void alOtorgarUnLogroYaConseguido_noSeDuplica() {
-        Racha racha = new Racha(habito);
+        Racha racha = new Racha(habito, HOY);
         racha.setRachaActual(3);
         racha.setRachaMaxima(3);
 

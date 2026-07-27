@@ -11,6 +11,7 @@ import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -27,6 +30,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RegistroServiceTest {
+
+    private static final ZoneId ZONA = ZoneId.of("Europe/Madrid");
+    private static final LocalDate HOY = LocalDate.now(ZONA);
 
     @Mock
     private IRegistroDAO registroDAO;
@@ -42,6 +48,9 @@ class RegistroServiceTest {
 
     @Mock
     private MascotaService mascotaService;
+
+    @Mock
+    private RachaService rachaService;
 
     @InjectMocks
     private RegistroService registroService;
@@ -62,7 +71,9 @@ class RegistroServiceTest {
         habito.setMeta(1);
         habito.setPropietario(usuario);
 
-        racha = new Racha(habito);
+        racha = new Racha(habito, HOY);
+
+        lenient().when(rachaService.zonaDe(any(Habito.class))).thenReturn(ZONA);
     }
 
     @Test
@@ -81,7 +92,7 @@ class RegistroServiceTest {
 
         // Assert: la racha subió a 1 y el flag quedó marcado
         assertEquals(1, racha.getRachaActual());
-        assertTrue(racha.isMetaAlcanzadaPeriodoActual());
+        assertTrue(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
 
@@ -89,7 +100,7 @@ class RegistroServiceTest {
     void alCompletarHabitoDiarioMetaMultiple_laRachaNoSubeHastaAlcanzarLaMeta() {
         // Arrange: hábito diario con meta 3, ya hay 1 completado antes (en el rango de hoy)
         habito.setMeta(3);
-        List<Registro> registrosPrevios = List.of(new Registro(habito, true, ""));
+        List<Registro> registrosPrevios = List.of(new Registro(habito, true, "", HOY));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
@@ -102,7 +113,7 @@ class RegistroServiceTest {
 
         // Assert: la racha sigue en 0, el flag sigue en false
         assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.isMetaAlcanzadaPeriodoActual());
+        assertFalse(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
     @Test
@@ -110,8 +121,8 @@ class RegistroServiceTest {
         // Arrange: hábito diario con meta 3, ya hay 2 completados antes
         habito.setMeta(3);
         List<Registro> registrosPrevios = List.of(
-                new Registro(habito, true, ""),
-                new Registro(habito, true, "")
+                new Registro(habito, true, "", HOY),
+                new Registro(habito, true, "", HOY)
         );
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
@@ -127,14 +138,14 @@ class RegistroServiceTest {
 
         // Assert: la racha sube a 1 y el flag queda marcado
         assertEquals(1, racha.getRachaActual());
-        assertTrue(racha.isMetaAlcanzadaPeriodoActual());
+        assertTrue(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
     @Test
     void alCompletarMasVecesQueLaMeta_noSeOtorganPuntosExtra() {
         // Arrange: hábito diario con meta 1, YA completado hoy (1 registro previo)
         habito.setMeta(1);
-        List<Registro> registrosPrevios = List.of(new Registro(habito, true, ""));
+        List<Registro> registrosPrevios = List.of(new Registro(habito, true, "", HOY));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
@@ -155,7 +166,7 @@ class RegistroServiceTest {
     void alCompletarHabitoSemanal_laRachaNoSubeSiNoSeAlcanzaLaMeta() {
         habito.setFrecuencia(Frecuencia.SEMANAL);
         habito.setMeta(3);
-        List<Registro> registrosPrevios = List.of(new Registro(habito, true, ""));
+        List<Registro> registrosPrevios = List.of(new Registro(habito, true, "", HOY));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
@@ -166,7 +177,7 @@ class RegistroServiceTest {
         registroService.completarHabito(habito, "");
 
         assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.isMetaAlcanzadaPeriodoActual());
+        assertFalse(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
     @Test
@@ -174,8 +185,8 @@ class RegistroServiceTest {
         habito.setFrecuencia(Frecuencia.SEMANAL);
         habito.setMeta(3);
         List<Registro> registrosPrevios = List.of(
-                new Registro(habito, true, ""),
-                new Registro(habito, true, "")
+                new Registro(habito, true, "", HOY),
+                new Registro(habito, true, "", HOY)
         );
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
@@ -189,19 +200,19 @@ class RegistroServiceTest {
         registroService.completarHabito(habito, "");
 
         assertEquals(1, racha.getRachaActual());
-        assertTrue(racha.isMetaAlcanzadaPeriodoActual());
+        assertTrue(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
     @Test
     void alCompletarDosVecesTrasAlcanzarLaMeta_laRachaNoSubeDeNuevo() {
         habito.setMeta(3);
         racha.setRachaActual(1);
-        racha.setMetaAlcanzadaPeriodoActual(true); // ya se alcanzó este periodo
+        racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().rangoPeriodoActual(ZONA)[0]); // ya se alcanzó este periodo
 
         List<Registro> registrosPrevios = List.of(
-                new Registro(habito, true, ""),
-                new Registro(habito, true, ""),
-                new Registro(habito, true, "")
+                new Registro(habito, true, "", HOY),
+                new Registro(habito, true, "", HOY),
+                new Registro(habito, true, "", HOY)
         );
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
@@ -220,6 +231,8 @@ class RegistroServiceTest {
         habito.setMeta(1);
         racha.setRachaActual(2); // al subir a 3, debe activar el hito de puntos
         racha.setRachaMaxima(2);
+        // La racha viene viva: se cumplió en el periodo anterior (ayer)
+        racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().inicioPeriodoAnterior(ZONA));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
@@ -240,7 +253,7 @@ class RegistroServiceTest {
     @Test
     void alNoAlcanzarLaMetaAun_noSeOtorganPuntosPorHitoDeRacha() {
         habito.setMeta(3);
-        List<Registro> registrosPrevios = List.of(new Registro(habito, true, ""));
+        List<Registro> registrosPrevios = List.of(new Registro(habito, true, "", HOY));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);

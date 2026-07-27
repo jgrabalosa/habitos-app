@@ -8,19 +8,26 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.HabitoService;
+import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.RachaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 
 @ExtendWith(MockitoExtension.class)
 class HabitoServiceTest {
+
+    private static final ZoneId ZONA = ZoneId.of("Europe/Madrid");
+    private static final LocalDate HOY = LocalDate.now(ZONA);
 
     @Mock
     private IHabitoDAO habitoDAO;
@@ -33,6 +40,12 @@ class HabitoServiceTest {
 
     @Mock
     private LogrosHabitosService logrosHabitosService;
+
+    @Mock
+    private RachaService rachaService;
+
+    @Mock
+    private ZonaUsuarioService zonaUsuarioService;
 
     @InjectMocks
     private HabitoService habitoService;
@@ -53,10 +66,10 @@ class HabitoServiceTest {
         existente.setMeta(1);
         existente.setPropietario(usuario);
 
-        racha = new Racha(existente);
+        racha = new Racha(existente, HOY);
         racha.setRachaActual(5);
         racha.setRachaMaxima(5);
-        racha.setMetaAlcanzadaPeriodoActual(true);
+        racha.setPeriodoMetaAlcanzada(existente.getFrecuencia().rangoPeriodoActual(ZONA)[0]);
     }
 
     @Test
@@ -77,7 +90,7 @@ class HabitoServiceTest {
 
         // Assert: la racha se resetea, pero la racha máxima NO se toca
         assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.isMetaAlcanzadaPeriodoActual());
+        assertNull(racha.getPeriodoMetaAlcanzada());
         assertEquals(5, racha.getRachaMaxima());
     }
 

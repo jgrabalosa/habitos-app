@@ -3,6 +3,7 @@ package com.norday.gamificacion.model;
 import com.norday.core.model.Usuario;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "usuario_producto")
@@ -40,7 +41,7 @@ public class UsuarioProducto {
         this.usuario = usuario;
         this.producto = producto;
         this.cantidad = cantidad;
-        this.fechaAdquirido = LocalDateTime.now();
+        this.fechaAdquirido = LocalDateTime.now(ZoneOffset.UTC);
         this.equipado = false;
     }
 

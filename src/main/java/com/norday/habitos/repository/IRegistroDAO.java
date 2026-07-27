@@ -12,7 +12,7 @@ public interface IRegistroDAO {
     List<Registro> findByHabito(Habito habito);
     Registro findByHabitoAndFecha(Habito habito, LocalDate fecha);
     List<Registro> findByFecha(LocalDate fecha);
-    boolean existeRegistroHoy(Habito habito);
+    boolean existeRegistroEnFecha(Habito habito, LocalDate fecha);
     void delete(int id);
     void deleteByHabito(int habitoId);
     List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta);

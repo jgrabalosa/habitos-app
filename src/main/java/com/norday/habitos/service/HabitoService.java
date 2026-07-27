@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +38,12 @@ public class HabitoService {
     @Autowired
     private LogrosHabitosService logrosHabitosService;
 
+    @Autowired
+    private RachaService rachaService;
+
+    @Autowired
+    private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
+
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
      *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos. */
     private void normalizarPlanificacion(Habito habito) {
@@ -53,10 +60,11 @@ public class HabitoService {
 
     public List<String> crearHabito(Habito habito) {
         normalizarPlanificacion(habito);
-        habito.setFechaInicio(LocalDate.now());
+        LocalDate hoy = LocalDate.now(rachaService.zonaDe(habito));
+        habito.setFechaInicio(hoy);
         habito.setActivo(true);
         habitoDAO.save(habito);
-        Racha racha = new Racha(habito);
+        Racha racha = new Racha(habito, hoy);
         rachaDAO.save(racha);
 
         return logrosHabitosService.evaluarTrasCrearHabito(habito.getPropietario());
@@ -107,7 +115,7 @@ public class HabitoService {
             Racha racha = rachaDAO.findByHabito(habito);
             if (racha != null) {
                 racha.setRachaActual(0);
-                racha.setMetaAlcanzadaPeriodoActual(false);
+                racha.setPeriodoMetaAlcanzada(null);
                 rachaDAO.update(racha);
             }
         }
@@ -142,9 +150,10 @@ public class HabitoService {
         }
 
         if (mes == null) {
-            mes = YearMonth.now();
+            mes = YearMonth.now(rachaService.zonaDe(habito));
         }
 
+        ZoneId zona = rachaService.zonaDe(habito);
         Racha racha = rachaDAO.findByHabito(habito);
         List<Registro> todosRegistros = registroDAO.findByHabito(habito);
 
@@ -169,12 +178,13 @@ public class HabitoService {
                 .distinct()
                 .count();
 
+        YearMonth mesActual = YearMonth.now(zona);
         Double porcentaje = null;
         if (habito.getFrecuencia().name().equals("DIARIO")) {
-            int diasTranscurridos = Math.min(LocalDate.now().getDayOfMonth(), mes.lengthOfMonth());
-            if (mes.equals(YearMonth.now()) && diasTranscurridos > 0) {
+            int diasTranscurridos = Math.min(LocalDate.now(zona).getDayOfMonth(), mes.lengthOfMonth());
+            if (mes.equals(mesActual) && diasTranscurridos > 0) {
                 porcentaje = (completadosMesActual * 100.0) / diasTranscurridos;
-            } else if (!mes.equals(YearMonth.now())) {
+            } else if (!mes.equals(mesActual)) {
                 porcentaje = (completadosMesActual * 100.0) / mes.lengthOfMonth();
             }
         }
@@ -193,7 +203,7 @@ public class HabitoService {
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
         dto.setNombre(habito.getNombre());
-        dto.setRachaActual(racha != null ? racha.getRachaActual() : 0);
+        dto.setRachaActual(rachaService.rachaActualVigente(racha));
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
         dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
         dto.setMeta(habito.getMeta());
@@ -212,7 +222,8 @@ public class HabitoService {
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();
-        LocalDate hoy = LocalDate.now();
+        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
+        LocalDate hoy = LocalDate.now(zona);
 
         // Ventana: los 10 días de la mini-heatmap, extendida hacia atrás hasta
         // el lunes de la semana del día más antiguo (para calcular "semana
@@ -226,7 +237,7 @@ public class HabitoService {
             List<Registro> registrosVentana =
                     registroDAO.findByHabitoAndRango(habito, inicioVentana, hoy);
 
-            LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
+            LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
 
             int completadosPeriodo = (int) registrosVentana.stream()
                     .filter(r -> !r.getFecha().isBefore(periodo[0]) && !r.getFecha().isAfter(periodo[1]))

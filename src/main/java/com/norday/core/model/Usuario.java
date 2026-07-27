@@ -3,6 +3,7 @@ package com.norday.core.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "usuario")
@@ -66,7 +67,7 @@ public class Usuario {
         this.username = username;
         this.email = email;
         this.contrasena = contrasena;
-        this.fechaRegistro = LocalDateTime.now();
+        this.fechaRegistro = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public int getUsuarioId() { return usuarioId; }

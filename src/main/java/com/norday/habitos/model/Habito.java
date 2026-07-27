@@ -64,15 +64,17 @@ public class Habito {
     // Constructor vacío — obligatorio para JPA
     public Habito() {}
 
-    // Constructor con parámetros
-    public Habito(String nombre, String descripcion, Frecuencia frecuencia, int meta, Usuario propietario, Categoria tipo) {
+    // Constructor con parámetros. La fecha de inicio la aporta quien crea el
+    // hábito: es el "hoy" del usuario en su zona, no el del servidor.
+    public Habito(String nombre, String descripcion, Frecuencia frecuencia, int meta,
+                  Usuario propietario, Categoria tipo, LocalDate fechaInicio) {
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.frecuencia = frecuencia;
         this.meta = meta;
         this.propietario = propietario;
         this.tipo = tipo;
-        this.fechaInicio = LocalDate.now();
+        this.fechaInicio = fechaInicio;
         this.activo = true;
     }
 

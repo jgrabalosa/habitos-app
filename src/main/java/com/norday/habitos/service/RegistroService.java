@@ -13,6 +13,7 @@ import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -34,22 +35,29 @@ public class RegistroService {
     @Autowired
     private MascotaService mascotaService;
 
+    @Autowired
+    private RachaService rachaService;
+
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
     private static final int XP_POR_DIA_COMPLETADO = 5;
 
     public Map<String, Object> completarHabito(Habito habito, String nota) {
+        ZoneId zona = rachaService.zonaDe(habito);
+        LocalDate hoy = LocalDate.now(zona);
+
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
-        if (habito.getFrecuencia() == Frecuencia.SEMANAL && registroDAO.existeRegistroHoy(habito)) {
+        if (habito.getFrecuencia() == Frecuencia.SEMANAL
+                && registroDAO.existeRegistroEnFecha(habito, hoy)) {
             throw new RuntimeException("Este hábito ya se ha completado hoy");
         }
 
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
         int meta = habito.getMeta();
 
-        Registro registro = new Registro(habito, true, nota);
+        Registro registro = new Registro(habito, true, nota, hoy);
         registroDAO.save(registro);
 
         Usuario usuario = habito.getPropietario();
@@ -72,11 +80,14 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta);
+        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, zona, hoy);
         if (metaAlcanzadaAhora) {
             puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
         }
 
+        // Los logros de racha leen rachaActual/rachaMaxima en crudo, pero aquí
+        // ya es seguro: actualizarRacha acaba de normalizarla en esta misma
+        // llamada, así que no puede haber valores rancios.
         List<String> logros = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
@@ -95,7 +106,7 @@ public class RegistroService {
     }
 
     public int contarCompletadosPeriodoActual(Habito habito) {
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual();
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(rachaService.zonaDe(habito));
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 
@@ -103,21 +114,25 @@ public class RegistroService {
      * Actualiza la racha SOLO si se alcanza la meta del periodo por primera vez en ese periodo.
      * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
      */
-    private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta) {
+    private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta,
+                                    ZoneId zona, LocalDate hoy) {
         Racha racha = rachaDAO.findByHabito(habito);
         if (racha == null) return false;
 
-        if (racha.isMetaAlcanzadaPeriodoActual()) {
+        if (racha.metaAlcanzadaEnPeriodoActual(zona)) {
             return false; // ya subió este periodo, completar de más no hace nada
         }
 
         if (completadosEnPeriodo >= meta) {
-            racha.setRachaActual(racha.getRachaActual() + 1);
+            // Rotura perezosa: si se saltó un periodo entero, la racha no
+            // continúa desde el valor viejo — vuelve a empezar en 1.
+            int base = racha.sigueViva(zona) ? racha.getRachaActual() : 0;
+            racha.setRachaActual(base + 1);
             if (racha.getRachaActual() > racha.getRachaMaxima()) {
                 racha.setRachaMaxima(racha.getRachaActual());
             }
-            racha.setMetaAlcanzadaPeriodoActual(true);
-            racha.setUltimaFecha(LocalDate.now());
+            racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().rangoPeriodoActual(zona)[0]);
+            racha.setUltimaFecha(hoy);
             rachaDAO.update(racha);
             return true;
         }
@@ -149,7 +164,7 @@ public class RegistroService {
     }
 
     public boolean estaCompletadoHoy(Habito habito) {
-        return registroDAO.existeRegistroHoy(habito);
+        return registroDAO.existeRegistroEnFecha(habito, LocalDate.now(rachaService.zonaDe(habito)));
     }
 
     public List<Registro> obtenerRegistros(Habito habito) {

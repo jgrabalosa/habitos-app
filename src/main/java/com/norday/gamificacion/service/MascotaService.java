@@ -2,6 +2,7 @@ package com.norday.gamificacion.service;
 
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
+import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
@@ -9,6 +10,7 @@ import com.norday.gamificacion.repository.IMascotaDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 @Service
@@ -19,6 +21,9 @@ public class MascotaService {
 
     @Autowired
     private IUsuarioDAO usuarioDAO;
+
+    @Autowired
+    private ZonaUsuarioService zonaUsuarioService;
 
     /** Curva provisional: subir a nivel N cuesta 20 + 10×(N-1) XP (afinar más adelante). */
     private int costoNivel(int nivel) {
@@ -47,12 +52,17 @@ public class MascotaService {
         return "Adulto";
     }
 
-    private String calcularEstado(LocalDate fechaUltimaComida) {
+    private String calcularEstado(LocalDate fechaUltimaComida, ZoneId zona) {
         if (fechaUltimaComida == null) return "dormida";
-        long dias = ChronoUnit.DAYS.between(fechaUltimaComida, LocalDate.now());
+        long dias = ChronoUnit.DAYS.between(fechaUltimaComida, LocalDate.now(zona));
         if (dias == 0) return "feliz";
         if (dias < 3) return "neutral";
         return "dormida";
+    }
+
+    /** La zona del dueño de la mascota: su "hoy" no es el del servidor. */
+    private ZoneId zonaDeMascota(Mascota mascota) {
+        return zonaUsuarioService.zonaDe(mascota != null ? mascota.getUsuario() : null);
     }
 
     /** Fila creada perezosamente al primer acceso. */
@@ -76,7 +86,7 @@ public class MascotaService {
                 mascota.getExperiencia() - xpInicioNivel,
                 costoNivel(nivel + 1),
                 calcularFase(nivel),
-                calcularEstado(mascota.getFechaUltimaComida()),
+                calcularEstado(mascota.getFechaUltimaComida(), zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
     }
@@ -107,7 +117,7 @@ public class MascotaService {
 
     public void registrarComida(int usuarioId) {
         Mascota mascota = obtenerOCrear(usuarioId);
-        mascota.setFechaUltimaComida(LocalDate.now());
+        mascota.setFechaUltimaComida(LocalDate.now(zonaDeMascota(mascota)));
         mascotaDAO.update(mascota);
     }
 }

@@ -31,12 +31,13 @@ public class Registro {
     // Constructor vacío — obligatorio para JPA
     public Registro() {}
 
-    // Constructor con parámetros
-    public Registro(Habito habito, boolean completado, String nota) {
+    // Constructor con parámetros. La fecha la aporta quien crea el registro:
+    // es el "hoy" del usuario en su zona, no el del servidor.
+    public Registro(Habito habito, boolean completado, String nota, LocalDate fecha) {
         this.habito = habito;
         this.completado = completado;
         this.nota = nota;
-        this.fecha = LocalDate.now();
+        this.fecha = fecha;
     }
 
     public int getRegistroId() { return registroId; }

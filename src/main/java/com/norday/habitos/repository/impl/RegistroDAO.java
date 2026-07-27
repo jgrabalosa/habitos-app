@@ -57,8 +57,8 @@ public class RegistroDAO implements IRegistroDAO {
     }
 
     @Override
-    public boolean existeRegistroHoy(Habito habito) {
-        return findByHabitoAndFecha(habito, LocalDate.now()) != null;
+    public boolean existeRegistroEnFecha(Habito habito, LocalDate fecha) {
+        return findByHabitoAndFecha(habito, fecha) != null;
     }
 
     @Override
