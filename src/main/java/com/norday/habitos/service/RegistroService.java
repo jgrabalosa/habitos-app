@@ -38,6 +38,9 @@ public class RegistroService {
     @Autowired
     private RachaService rachaService;
 
+    @Autowired
+    private HabitoService habitoService;
+
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
@@ -83,6 +86,13 @@ public class RegistroService {
         boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, zona, hoy);
         if (metaAlcanzadaAhora) {
             puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
+        }
+
+        // Con este registro puede haberse cerrado el día entero. Va después de
+        // guardar el Registro a propósito: la consulta de esDiaCompleto es JPQL,
+        // así que Hibernate hace flush antes y el registro recién creado cuenta.
+        if (habitoService.esDiaCompleto(usuario)) {
+            mascotaService.registrarDiaCompleto(usuario.getUsuarioId());
         }
 
         // Los logros de racha leen rachaActual/rachaMaxima en crudo, pero aquí

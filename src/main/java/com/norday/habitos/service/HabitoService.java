@@ -219,6 +219,29 @@ public class HabitoService {
         return dto;
     }
 
+    /**
+     * ¿Ha cumplido hoy el usuario todo lo que tenía comprometido?
+     *
+     * Un hábito está hecho si lleva completados >= meta en su periodo actual,
+     * y eso vale igual para DIARIO que para SEMANAL: la meta ya está expresada
+     * en las unidades de su propia frecuencia, no hay que tratarlas distinto.
+     *
+     * Sin hábitos activos no hay día completo: no había nada que cumplir.
+     */
+    public boolean esDiaCompleto(Usuario usuario) {
+        List<Habito> activos = habitoDAO.findActivos(usuario);
+        if (activos.isEmpty()) return false;
+
+        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
+        for (Habito habito : activos) {
+            LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
+            int completadosPeriodo =
+                    registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+            if (completadosPeriodo < habito.getMeta()) return false;
+        }
+        return true;
+    }
+
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();

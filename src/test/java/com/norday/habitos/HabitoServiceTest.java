@@ -4,6 +4,7 @@ import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -19,6 +20,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -112,5 +115,82 @@ class HabitoServiceTest {
         // Assert: nunca se llama a rachaDAO.findByHabito ni a update sobre la racha
         verify(rachaDAO, never()).findByHabito(any());
         assertEquals(5, racha.getRachaActual()); // sigue como estaba
+    }
+
+    // ── esDiaCompleto ────────────────────────────────────────────────────
+    // "Hecho" = completadosPeriodo >= meta, y esa regla vale igual para
+    // DIARIO que para SEMANAL: la meta ya viene en las unidades de su propia
+    // frecuencia. El bug que tiene hoy el cliente Flutter con los semanales
+    // no se replica aqui.
+
+    private Habito habito(int id, Frecuencia frecuencia, int meta) {
+        Habito h = new Habito();
+        h.setHabitoId(id);
+        h.setNombre("H" + id);
+        h.setFrecuencia(frecuencia);
+        h.setMeta(meta);
+        h.setPropietario(usuario);
+        return h;
+    }
+
+    /** Deja al habito con `completados` registros dentro de su periodo actual. */
+    private void conCompletados(Habito h, int completados) {
+        LocalDate[] periodo = h.getFrecuencia().rangoPeriodoActual(ZONA);
+        List<Registro> registros = new ArrayList<>();
+        for (int i = 0; i < completados; i++) {
+            registros.add(new Registro(h, true, null, periodo[0]));
+        }
+        when(registroDAO.findByHabitoAndRango(h, periodo[0], periodo[1])).thenReturn(registros);
+    }
+
+    @Test
+    void sinHabitosActivosNoHayDiaCompleto_noHabiaNadaQueCumplir() {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of());
+
+        assertFalse(habitoService.esDiaCompleto(usuario));
+    }
+
+    @Test
+    void conTodosLosHabitosEnSuMetaElDiaEstaCompleto() {
+        Habito diario = habito(1, Frecuencia.DIARIO, 2);
+        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario, semanal));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conCompletados(diario, 2);
+        conCompletados(semanal, 3);
+
+        assertTrue(habitoService.esDiaCompleto(usuario));
+    }
+
+    @Test
+    void siUnSoloHabitoSeQuedaCortoElDiaNoEstaCompleto() {
+        Habito diario = habito(1, Frecuencia.DIARIO, 2);
+        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario, semanal));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conCompletados(diario, 2);
+        conCompletados(semanal, 2); // le falta uno
+
+        assertFalse(habitoService.esDiaCompleto(usuario));
+    }
+
+    @Test
+    void unSemanalCuentaComoHechoAlLlegarASuMeta_aunqueHoyNoSeHayaTocado() {
+        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(semanal));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conCompletados(semanal, 3);
+
+        assertTrue(habitoService.esDiaCompleto(usuario));
+    }
+
+    @Test
+    void pasarseDeLaMetaSigueContandoComoHecho() {
+        Habito diario = habito(1, Frecuencia.DIARIO, 2);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conCompletados(diario, 5);
+
+        assertTrue(habitoService.esDiaCompleto(usuario));
     }
 }

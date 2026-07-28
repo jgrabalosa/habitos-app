@@ -28,6 +28,13 @@ public class Mascota {
     @Column(name = "fecha_ultima_comida")
     private LocalDate fechaUltimaComida;
 
+    /**
+     * Último día en que el usuario cumplió todo lo que tenía comprometido.
+     * Null mientras no haya habido ninguno. De aquí sale el estado de ánimo.
+     */
+    @Column(name = "fecha_ultimo_dia_completo")
+    private LocalDate fechaUltimoDiaCompleto;
+
     // Constructor vacío — obligatorio para JPA
     public Mascota() {}
 
@@ -39,6 +46,7 @@ public class Mascota {
         // Mientras esté a null, el cliente muestra la fase localizada.
         this.nombre = null;
         this.fechaUltimaComida = null;
+        this.fechaUltimoDiaCompleto = null;
     }
 
     public int getMascotaId() { return mascotaId; }
@@ -55,6 +63,9 @@ public class Mascota {
 
     public LocalDate getFechaUltimaComida() { return fechaUltimaComida; }
     public void setFechaUltimaComida(LocalDate fechaUltimaComida) { this.fechaUltimaComida = fechaUltimaComida; }
+
+    public LocalDate getFechaUltimoDiaCompleto() { return fechaUltimoDiaCompleto; }
+    public void setFechaUltimoDiaCompleto(LocalDate fechaUltimoDiaCompleto) { this.fechaUltimoDiaCompleto = fechaUltimoDiaCompleto; }
 
     @Override
     public String toString() {

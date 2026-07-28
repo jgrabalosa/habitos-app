@@ -10,6 +10,7 @@ import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
@@ -51,6 +52,9 @@ class RegistroServiceTest {
 
     @Mock
     private RachaService rachaService;
+
+    @Mock
+    private HabitoService habitoService;
 
     @InjectMocks
     private RegistroService registroService;

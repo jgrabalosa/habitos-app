@@ -25,9 +25,9 @@ public class MascotaService {
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
 
-    /** Curva provisional: subir a nivel N cuesta 20 + 10×(N-1) XP (afinar más adelante). */
+    /** Subir a nivel N cuesta 15×(N-1) XP. */
     private int costoNivel(int nivel) {
-        return 20 + 10 * (nivel - 1);
+        return 15 * (nivel - 1);
     }
 
     private int xpAcumuladoInicioNivel(int nivel) {
@@ -56,12 +56,16 @@ public class MascotaService {
         return "ADULTO";
     }
 
-    private String calcularEstado(LocalDate fechaUltimaComida, ZoneId zona) {
-        if (fechaUltimaComida == null) return "dormida";
-        long dias = ChronoUnit.DAYS.between(fechaUltimaComida, LocalDate.now(zona));
+    /**
+     * El ánimo sale de cuánto hace que el usuario cumplió todo lo del día.
+     * Código, no texto: el cliente lo traduce.
+     */
+    private String calcularEstado(LocalDate fechaUltimoDiaCompleto, ZoneId zona) {
+        if (fechaUltimoDiaCompleto == null) return "triste";
+        long dias = ChronoUnit.DAYS.between(fechaUltimoDiaCompleto, LocalDate.now(zona));
         if (dias == 0) return "feliz";
-        if (dias < 3) return "neutral";
-        return "dormida";
+        if (dias < 3) return "dormida";
+        return "triste";
     }
 
     /** La zona del dueño de la mascota: su "hoy" no es el del servidor. */
@@ -90,7 +94,7 @@ public class MascotaService {
                 mascota.getExperiencia() - xpInicioNivel,
                 costoNivel(nivel + 1),
                 calcularFase(nivel),
-                calcularEstado(mascota.getFechaUltimaComida(), zonaDeMascota(mascota)),
+                calcularEstado(mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
     }
@@ -116,6 +120,19 @@ public class MascotaService {
     public void ponerNombre(int usuarioId, String nuevoNombre) {
         Mascota mascota = obtenerOCrear(usuarioId);
         mascota.setNombre(nuevoNombre);
+        mascotaDAO.update(mascota);
+    }
+
+    /**
+     * Marca hoy como día cumplido. Genérico a propósito: el motor no sabe qué
+     * hace falta cumplir —eso lo decide cada app—, solo que se ha cumplido.
+     * Idempotente: si ya estaba marcado hoy, no toca la BD.
+     */
+    public void registrarDiaCompleto(int usuarioId) {
+        Mascota mascota = obtenerOCrear(usuarioId);
+        LocalDate hoy = LocalDate.now(zonaDeMascota(mascota));
+        if (hoy.equals(mascota.getFechaUltimoDiaCompleto())) return;
+        mascota.setFechaUltimoDiaCompleto(hoy);
         mascotaDAO.update(mascota);
     }
 
