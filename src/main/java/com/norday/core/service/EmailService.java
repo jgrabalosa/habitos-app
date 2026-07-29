@@ -1,6 +1,7 @@
 package com.norday.core.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,14 @@ public class EmailService {
     private TextosService textosService;
 
     /**
+     * Remitente visible del ecosistema. No tiene por qué coincidir con la
+     * cuenta SMTP que autentica el envío: basta con que esté verificada en
+     * ella como alias "Enviar como".
+     */
+    @Value("${norday.mail.from}")
+    private String remitente;
+
+    /**
      * @param claveAsunto clave del bundle para el asunto
      * @param claveCuerpo clave del bundle para el cuerpo
      * @param args        parámetros del cuerpo, en orden ({0}, {1}...)
@@ -33,6 +42,7 @@ public class EmailService {
     public void enviarEmail(String destinatario, String claveAsunto, String claveCuerpo,
                             Locale locale, Object... args) {
         SimpleMailMessage mensaje = new SimpleMailMessage();
+        mensaje.setFrom(remitente);
         mensaje.setTo(destinatario);
         mensaje.setSubject(textosService.texto(claveAsunto, locale));
         mensaje.setText(textosService.texto(claveCuerpo, locale, args));
