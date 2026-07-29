@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/favicon.ico",
                                 "/habito-detalle.html",
                                 "/logros.html",
+                                "/eliminar-cuenta.html",
                                 "/api/usuarios/recuperar",
                                 "/api/usuarios/restablecer"
                         ).permitAll()
