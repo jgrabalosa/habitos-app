@@ -53,6 +53,7 @@ public class SecurityConfig {
                                 "/habito-detalle.html",
                                 "/logros.html",
                                 "/eliminar-cuenta.html",
+                                "/privacidad.html",
                                 "/api/usuarios/recuperar",
                                 "/api/usuarios/restablecer"
                         ).permitAll()

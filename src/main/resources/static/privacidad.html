@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad de Norday Hábitos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul-noche: #0A1628;
+            --azul-acero: #23395D;
+            --gris-muy-claro: #EEF2F6;
+            --verde-esmeralda: #27C76F;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 32px 20px 64px;
+            background: var(--azul-noche);
+            color: var(--gris-muy-claro);
+            /* Si Manrope no carga, la página se lee igual */
+            font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            font-size: 17px;
+            line-height: 1.65;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        main {
+            /* Algo más ancho que eliminar-cuenta.html (600px): el documento es
+               más largo y lleva tabla */
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            line-height: 1.25;
+            margin: 0 0 8px;
+        }
+
+        h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin: 36px 0 8px;
+        }
+
+        p { margin: 0 0 20px; }
+
+        a {
+            color: var(--verde-esmeralda);
+            font-weight: 600;
+            /* Palabra larga en pantalla estrecha: que parta en vez de desbordar */
+            word-break: break-word;
+        }
+
+        ul {
+            margin: 0 0 20px;
+            padding-left: 22px;
+        }
+
+        li { margin-bottom: 6px; }
+
+        strong { font-weight: 600; }
+
+        .actualizado {
+            margin: 0 0 32px;
+            font-size: 0.92rem;
+            opacity: 0.7;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 20px;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            vertical-align: top;
+            border-bottom: 1px solid rgba(238, 242, 246, 0.15);
+        }
+
+        th {
+            font-weight: 600;
+            border-bottom-color: rgba(238, 242, 246, 0.35);
+        }
+
+        /* En móvil la tabla de 3 columnas no cabe: cada fila pasa a ser una
+           ficha y el encabezado de columna se repite delante de cada celda
+           (data-label), así se lee sin scroll horizontal ni JS. */
+        @media (max-width: 560px) {
+            table, thead, tbody, tr, th, td { display: block; }
+
+            thead {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip: rect(0 0 0 0);
+                white-space: nowrap;
+            }
+
+            tr {
+                margin-bottom: 14px;
+                padding: 6px 0;
+                border: 1px solid rgba(238, 242, 246, 0.15);
+                border-radius: 10px;
+                background: rgba(35, 57, 93, 0.35);
+            }
+
+            td {
+                padding: 8px 14px;
+                border-bottom: none;
+            }
+
+            td::before {
+                content: attr(data-label);
+                display: block;
+                margin-bottom: 2px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: var(--verde-esmeralda);
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Política de Privacidad de Norday Hábitos</h1>
+    <p class="actualizado">Última actualización: 29 de julio de 2026</p>
+
+    <h2>1. Responsable del tratamiento</h2>
+    <p>
+        Joaquim Grabalosa, como persona física y desarrollador de Norday Hábitos.
+        Contacto: <a href="mailto:hola@norday.app">hola@norday.app</a>
+    </p>
+
+    <h2>2. Qué datos recogemos y para qué</h2>
+
+    <table>
+        <thead>
+        <tr>
+            <th>Dato</th>
+            <th>Finalidad</th>
+            <th>Base legal</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td data-label="Dato">Email y nombre de usuario</td>
+            <td data-label="Finalidad">Crear y gestionar tu cuenta</td>
+            <td data-label="Base legal">Ejecución del contrato de uso</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Interacciones en la app (pantallas, acciones)</td>
+            <td data-label="Finalidad">Analítica de uso, mejora de la app</td>
+            <td data-label="Base legal">Interés legítimo</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Hábitos, registros, historial y rachas</td>
+            <td data-label="Finalidad">Ofrecer la funcionalidad principal de la app</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Categorías personalizadas</td>
+            <td data-label="Finalidad">Ofrecer la funcionalidad principal de la app</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Mascota y su progreso (nivel, XP)</td>
+            <td data-label="Finalidad">Funcionalidad de gamificación de la app</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Saldo de puntos y avatares/productos obtenidos</td>
+            <td data-label="Finalidad">Funcionalidad de gamificación de la app</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Notas de hábitos que escribas</td>
+            <td data-label="Finalidad">Funcionalidad de la app (opcional, tú decides si las escribes)</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Informes de fallos y diagnósticos</td>
+            <td data-label="Finalidad">Detectar y corregir errores</td>
+            <td data-label="Base legal">Interés legítimo</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Identificador de instalación y token de notificaciones</td>
+            <td data-label="Finalidad">Enviarte notificaciones push</td>
+            <td data-label="Base legal">Ejecución del contrato</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Identificador de publicidad (Advertising ID)</td>
+            <td data-label="Finalidad">Analítica (no mostramos anuncios)</td>
+            <td data-label="Base legal">Interés legítimo</td>
+        </tr>
+        <tr>
+            <td data-label="Dato">Ubicación aproximada (a partir de tu IP)</td>
+            <td data-label="Finalidad">Analítica agregada de uso por región</td>
+            <td data-label="Base legal">Interés legítimo</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <p>
+        No recogemos datos de salud, información financiera, contactos, fotos,
+        mensajes ni ningún dato de navegación web.
+    </p>
+
+    <h2>3. Con quién compartimos tus datos</h2>
+    <p>
+        Usamos servicios de Google/Firebase (Analytics, Crashlytics, Cloud Messaging,
+        Authentication) como encargados del tratamiento: procesan los datos en nuestro
+        nombre, no los usan para sus propios fines, y pueden alojarse en servidores
+        fuera del Espacio Económico Europeo, amparados por las cláusulas contractuales
+        tipo de Google. No compartimos tus datos con nadie más, y no vendemos datos a
+        terceros.
+    </p>
+
+    <h2>4. Cuánto tiempo conservamos tus datos</h2>
+    <p>
+        Mientras tu cuenta esté activa. Si eliminas tu cuenta (desde Perfil →
+        Eliminar cuenta, o escribiendo a
+        <a href="mailto:hola@norday.app">hola@norday.app</a>), todos tus datos
+        personales se eliminan de forma inmediata y permanente, sin periodo de
+        retención adicional.
+    </p>
+
+    <h2>5. Tus derechos</h2>
+    <p>
+        Puedes solicitar acceder a, rectificar, eliminar, limitar o pedir la
+        portabilidad de tus datos, y oponerte a su tratamiento, escribiendo a
+        <a href="mailto:hola@norday.app">hola@norday.app</a>. Responderemos en el
+        plazo legal aplicable (máximo 30 días).
+    </p>
+
+    <h2>6. Menores de edad</h2>
+    <p>
+        Norday Hábitos está dirigida a personas de 13 años o más. No recogemos
+        conscientemente datos de menores de 13 años.
+    </p>
+
+    <h2>7. Seguridad</h2>
+    <p>
+        Todos los datos se transmiten cifrados (HTTPS/TLS) entre la app y nuestros
+        servidores.
+    </p>
+
+    <h2>8. Cambios en esta política</h2>
+    <p>
+        Si actualizamos esta política de forma sustancial, lo indicaremos en la app
+        o por email.
+    </p>
+</main>
+</body>
+</html>
