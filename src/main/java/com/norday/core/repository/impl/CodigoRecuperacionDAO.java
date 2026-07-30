@@ -48,4 +48,14 @@ public class CodigoRecuperacionDAO implements ICodigoRecuperacionDAO {
                 .setParameter("email", email)
                 .executeUpdate();
     }
+
+    @Override
+    public void deleteByEmail(String email) {
+        // Todas las filas del email, usadas o no: al eliminar la cuenta no
+        // debe quedar ningún rastro del email en esta tabla.
+        em.createQuery(
+                        "DELETE FROM CodigoRecuperacion c WHERE c.email = :email")
+                .setParameter("email", email)
+                .executeUpdate();
+    }
 }

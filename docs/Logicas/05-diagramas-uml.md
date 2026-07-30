@@ -88,11 +88,6 @@ classDiagram
         -int usuarioId
     }
 
-    class PerfilGamificacion {
-        -int perfilGamificacionId
-        -Usuario usuario
-    }
-
     class Logro {
         -int logroId
         -String codigo
@@ -142,13 +137,14 @@ classDiagram
         -boolean equipado
     }
 
-    Usuario "1" --> "0..1" PerfilGamificacion
     Usuario "1" --> "0..*" UsuarioLogro
     Logro "1" --> "0..*" UsuarioLogro
     Usuario "1" --> "0..*" UsuarioMoneda
     Usuario "1" --> "0..*" UsuarioProducto
     Producto "1" --> "0..*" UsuarioProducto
 ```
+
+> `PerfilGamificacion` aparecía aquí como clase colgando de `Usuario` con relación `0..1`. Se eliminó: nunca la usó ningún DAO, servicio ni controller, era código muerto. Lo que iba a guardar lo cubren `UsuarioMoneda`, `UsuarioProducto`, `UsuarioLogro` y `Mascota` — esta última con el nivel y la XP que eran el motivo original de reservarla. Ver la nota en [04-modelo-entidad-relacion.md](04-modelo-entidad-relacion.md).
 
 ---
 

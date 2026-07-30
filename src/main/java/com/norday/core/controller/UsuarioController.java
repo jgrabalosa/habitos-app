@@ -3,12 +3,14 @@ package com.norday.core.controller;
 import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.security.JwtUtil;
+import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.PreferenciasService;
 import com.norday.core.service.RecuperacionService;
 import com.norday.core.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import jakarta.validation.Valid;
@@ -61,7 +63,8 @@ public class UsuarioController {
         try {
             Usuario encontrado = usuarioService.login(
                     usuario.getEmail(), usuario.getContrasena());
-            String token = jwtUtil.generateToken(encontrado.getEmail());
+            String token = jwtUtil.generateToken(
+                    encontrado.getUsuarioId(), encontrado.getEmail());
             return ResponseEntity.ok(payloadSesion(encontrado, token, null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -91,7 +94,8 @@ public class UsuarioController {
 
             ResultadoLoginGoogle resultado = usuarioService.loginConGoogle(email, nombre);
             Usuario usuario = resultado.usuario();
-            String token = jwtUtil.generateToken(usuario.getEmail());
+            String token = jwtUtil.generateToken(
+                    usuario.getUsuarioId(), usuario.getEmail());
 
             return ResponseEntity.ok(payloadSesion(usuario, token, resultado.esNuevo()));
         } catch (Exception e) {
@@ -126,7 +130,11 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable int id) {
+    public ResponseEntity<?> buscarPorId(@PathVariable int id,
+                                         Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(id);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -144,7 +152,11 @@ public class UsuarioController {
 
     // ── Preferencias: idioma y zona horaria ────────────────
     @GetMapping("/{id}/preferencias")
-    public ResponseEntity<?> obtenerPreferencias(@PathVariable int id) {
+    public ResponseEntity<?> obtenerPreferencias(@PathVariable int id,
+                                                 Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(id);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -158,7 +170,11 @@ public class UsuarioController {
     /** Cada campo es opcional: se envía solo el que se quiere cambiar. */
     @PutMapping("/{id}/preferencias")
     public ResponseEntity<?> actualizarPreferencias(@PathVariable int id,
-                                                    @RequestBody Map<String, String> body) {
+                                                    @RequestBody Map<String, String> body,
+                                                    Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         try {
             Usuario usuario = preferenciasService.actualizar(
                     id, body.get("idioma"), body.get("zonaHoraria"));
@@ -195,7 +211,11 @@ public class UsuarioController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable int id,
-                                        @RequestBody Usuario usuario) {
+                                        @RequestBody Usuario usuario,
+                                        Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         try {
             usuario.setUsuarioId(id);
             usuarioService.actualizarPerfil(usuario);
@@ -208,7 +228,11 @@ public class UsuarioController {
 
     @PutMapping("/{id}/contrasena")
     public ResponseEntity<?> cambiarContrasena(@PathVariable int id,
-                                               @RequestBody Map<String, String> body) {
+                                               @RequestBody Map<String, String> body,
+                                               Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         try {
             usuarioService.cambiarContrasena(id,
                     body.get("contrasenaActual"),
@@ -222,7 +246,11 @@ public class UsuarioController {
 
     @PutMapping("/{id}/fcm-token")
     public ResponseEntity<?> actualizarFcmToken(@PathVariable int id,
-                                                @RequestBody Map<String, String> body) {
+                                                @RequestBody Map<String, String> body,
+                                                Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
         try {
             String fcmToken = body.get("fcmToken");
             usuarioService.actualizarFcmToken(id, fcmToken);
@@ -234,7 +262,15 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable int id) {
+    public ResponseEntity<?> eliminar(@PathVariable int id,
+                                      Authentication authentication) {
+        // El {id} de la URL lo elige el cliente: no prueba nada. Quien eres lo
+        // dice el token y solo el token. Sin esta comprobación, cualquier
+        // usuario con sesión válida podía borrar otra cuenta cambiando el número.
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("No puedes eliminar la cuenta de otro usuario");
+        }
         try {
             usuarioService.eliminarCuenta(id);
             return ResponseEntity.ok("Usuario eliminado correctamente");
@@ -242,5 +278,27 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(e.getMessage());
         }
+    }
+
+    // ── Autorización ───────────────────────────────────────
+    // Todos los endpoints con {id} son de uso exclusivo del propio usuario:
+    // no existe rol de administrador en el proyecto (el token no lleva
+    // authorities y Usuario no tiene campo de rol), así que nadie tiene
+    // motivo legítimo para operar sobre el {id} de otro.
+
+    private ResponseEntity<?> prohibido() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Solo puedes operar sobre tu propia cuenta");
+    }
+
+    /**
+     * ¿El {id} de la URL es el del usuario que trae el token? El id viene
+     * firmado dentro del JWT, así que basta comparar enteros: ni consulta a
+     * BD, ni depender del email (que el usuario puede cambiar).
+     */
+    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
+        return authentication != null
+                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                && autenticado.usuarioId() == idUrl;
     }
 }

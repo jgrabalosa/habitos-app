@@ -8,7 +8,6 @@
 erDiagram
     USUARIO ||--o{ HABITO : "propietario"
     USUARIO ||--o{ CATEGORIA : "creador (personalizadas)"
-    USUARIO ||--o| PERFIL_GAMIFICACION : "tiene"
     USUARIO ||--o{ USUARIO_LOGRO : "consigue"
     USUARIO ||--o{ USUARIO_MONEDA : "genera movimientos"
     USUARIO ||--o{ USUARIO_PRODUCTO : "posee"
@@ -68,11 +67,6 @@ erDiagram
         int habito_id FK
     }
 
-    PERFIL_GAMIFICACION {
-        int perfilGamificacionId PK
-        int usuario_id FK "unique, relacion 1 a 1"
-    }
-
     LOGRO {
         int logroId PK
         string codigo "unique, identificador tecnico estable"
@@ -128,4 +122,4 @@ erDiagram
 - **Usuario → Categoria (creador):** solo las categorías personalizadas por un usuario tienen `creador_id` relleno. Las 10 categorías globales (sembradas por `DataInitializer`) tienen `creador_id = null`.
 - **Habito → Racha:** relación 1 a 1 real — cada hábito tiene exactamente una fila de racha asociada, creada automáticamente al crear el hábito.
 - **UsuarioMoneda → referenciaId:** es un campo genérico sin FK estricta a nivel de base de datos. Según el valor de `origen`, apunta a un `habito_id`, `logro_id` o `producto_id` distinto. Decisión de diseño para evitar tres columnas FK casi siempre en null.
-- **PerfilGamificacion:** hoy casi vacía (solo la relación con Usuario), preparada para futuros campos de V2 (niveles, XP) sin necesitar una migración.
+- **PerfilGamificacion (eliminada):** existió como tabla casi vacía (solo la relación con Usuario), reservada para futuros campos de V2 (niveles, XP). Nunca llegó a usarse — ningún DAO, servicio ni controller la leía — y se eliminó como código muerto. Su función quedó cubierta por las cuatro tablas que ya cuelgan de Usuario y que sí se usan: `USUARIO_MONEDA` (saldo y movimientos de puntos), `USUARIO_PRODUCTO` (productos y avatares poseídos), `USUARIO_LOGRO` (logros conseguidos) y `MASCOTA` (nivel y XP, que era justo el hueco que PerfilGamificacion pretendía llenar). Si en el futuro hace falta un campo de gamificación que no encaje en ninguna de ellas, se añade donde corresponda en lugar de resucitar una tabla intermedia vacía.

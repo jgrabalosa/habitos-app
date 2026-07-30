@@ -31,16 +31,23 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             if (jwtUtil.isTokenValid(token)) {
-                String email = jwtUtil.extractEmail(token);
+                // Sin el claim del id no se autentica: son tokens de antes de
+                // que el id viajara en el JWT. Quedan invalidados a propósito.
+                Integer usuarioId = jwtUtil.extractUsuarioId(token);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                email, null, new ArrayList<>());
+                if (usuarioId != null) {
+                    UsuarioAutenticado principal = new UsuarioAutenticado(
+                            usuarioId, jwtUtil.extractEmail(token));
 
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    principal, null, new ArrayList<>());
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
 
