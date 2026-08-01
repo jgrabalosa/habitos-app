@@ -222,18 +222,26 @@ public class HabitoService {
     /**
      * ¿Ha cumplido hoy el usuario todo lo que tenía comprometido?
      *
-     * Un hábito está hecho si lleva completados >= meta en su periodo actual,
-     * y eso vale igual para DIARIO que para SEMANAL: la meta ya está expresada
-     * en las unidades de su propia frecuencia, no hay que tratarlas distinto.
+     * Solo miran los DIARIO. Un SEMANAL no tiene un día en el que "toque" —su
+     * meta es flexible dentro de la semana—, así que uno a medias no significa
+     * que hoy quede algo pendiente. Contarlo bloqueaba el día completo los
+     * siete días de la semana aunque los diarios estuvieran todos hechos.
      *
      * Sin hábitos activos no hay día completo: no había nada que cumplir.
+     * Tener solo semanales es distinto: hoy no había nada que cumplir, y eso
+     * sí cuenta como cumplido.
      */
     public boolean esDiaCompleto(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         if (activos.isEmpty()) return false;
 
+        List<Habito> diarios = activos.stream()
+                .filter(h -> h.getFrecuencia() == Frecuencia.DIARIO)
+                .toList();
+        if (diarios.isEmpty()) return true;
+
         ZoneId zona = zonaUsuarioService.zonaDe(usuario);
-        for (Habito habito : activos) {
+        for (Habito habito : diarios) {
             LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
             int completadosPeriodo =
                     registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();

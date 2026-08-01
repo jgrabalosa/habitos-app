@@ -118,10 +118,9 @@ class HabitoServiceTest {
     }
 
     // ── esDiaCompleto ────────────────────────────────────────────────────
-    // "Hecho" = completadosPeriodo >= meta, y esa regla vale igual para
-    // DIARIO que para SEMANAL: la meta ya viene en las unidades de su propia
-    // frecuencia. El bug que tiene hoy el cliente Flutter con los semanales
-    // no se replica aqui.
+    // Solo cuentan los DIARIO: "hecho" = completadosPeriodo >= meta. Los
+    // SEMANAL se ignoran, porque no tienen un dia en el que toquen y uno a
+    // medias bloqueaba el animo de la mascota los siete dias de la semana.
 
     private Habito habito(int id, Frecuencia frecuencia, int meta) {
         Habito h = new Habito();
@@ -151,37 +150,49 @@ class HabitoServiceTest {
     }
 
     @Test
-    void conTodosLosHabitosEnSuMetaElDiaEstaCompleto() {
-        Habito diario = habito(1, Frecuencia.DIARIO, 2);
-        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
-        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario, semanal));
+    void conTodosLosHabitosDiariosEnSuMetaElDiaEstaCompleto() {
+        Habito madrugar = habito(1, Frecuencia.DIARIO, 2);
+        Habito leer = habito(2, Frecuencia.DIARIO, 1);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(madrugar, leer));
         when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
-        conCompletados(diario, 2);
-        conCompletados(semanal, 3);
+        conCompletados(madrugar, 2);
+        conCompletados(leer, 1);
 
         assertTrue(habitoService.esDiaCompleto(usuario));
     }
 
     @Test
-    void siUnSoloHabitoSeQuedaCortoElDiaNoEstaCompleto() {
+    void unSemanalAMediasNoBloqueaElDia_siLosDiariosEstanHechos() {
         Habito diario = habito(1, Frecuencia.DIARIO, 2);
-        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
+        Habito semanal = habito(2, Frecuencia.SEMANAL, 3); // va 1 de 3 esta semana
         when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario, semanal));
         when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
         conCompletados(diario, 2);
-        conCompletados(semanal, 2); // le falta uno
+
+        assertTrue(habitoService.esDiaCompleto(usuario));
+        // Ni siquiera se le pregunta al semanal: no entra en el calculo.
+        verify(registroDAO, never()).findByHabitoAndRango(eq(semanal), any(), any());
+    }
+
+    @Test
+    void soloConSemanales_elDiaEstaCompleto_hoyNoHabiaNadaQueCumplir() {
+        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
+        Habito otroSemanal = habito(3, Frecuencia.SEMANAL, 1);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(semanal, otroSemanal));
+        // Sin ninguno completado y sin mirar registros: la lista de diarios
+        // queda vacia y eso ya es dia cumplido.
+
+        assertTrue(habitoService.esDiaCompleto(usuario));
+    }
+
+    @Test
+    void siUnHabitoDiarioSeQuedaCortoElDiaNoEstaCompleto() {
+        Habito diario = habito(1, Frecuencia.DIARIO, 2);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conCompletados(diario, 1); // le falta uno
 
         assertFalse(habitoService.esDiaCompleto(usuario));
-    }
-
-    @Test
-    void unSemanalCuentaComoHechoAlLlegarASuMeta_aunqueHoyNoSeHayaTocado() {
-        Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
-        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(semanal));
-        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
-        conCompletados(semanal, 3);
-
-        assertTrue(habitoService.esDiaCompleto(usuario));
     }
 
     @Test
