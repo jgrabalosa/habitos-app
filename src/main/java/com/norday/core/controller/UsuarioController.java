@@ -80,7 +80,7 @@ public class UsuarioController {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(), GsonFactory.getDefaultInstance())
                     .setAudience(Collections.singletonList(
-                            "177339814167-fdtmn2i1s6aeg1agrqtikq066opib8ce.apps.googleusercontent.com"))
+                            "1086143132391-vprrrjr7s3u12q544flm2tclllj61ami.apps.googleusercontent.com"))
                     .build();
 
             GoogleIdToken idToken = verifier.verify(idTokenString);
