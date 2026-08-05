@@ -44,6 +44,9 @@ public class SecurityConfig {
                                 "/api/usuarios/login-google",
                                 "/",
                                 "/index.html",
+                                // El dashboard web antiguo, congelado pero
+                                // disponible: /index.html ya es la landing.
+                                "/app.html",
                                 "/login.html",
                                 "/habito.html",
                                 "/css/**",

@@ -18,7 +18,7 @@ const params = new URLSearchParams(window.location.search);
 const habitoId = params.get('id');
 
 if (!habitoId) {
-    window.location.href = '/index.html';
+    window.location.href = '/app.html';
 }
 
 // ── Estado del mes mostrado ───────────────────────────
@@ -45,7 +45,7 @@ async function cargarDetalle() {
         if (!response.ok) {
             const mensaje = await response.text();
             alert(mensaje);
-            window.location.href = '/index.html';
+            window.location.href = '/app.html';
             return;
         }
 

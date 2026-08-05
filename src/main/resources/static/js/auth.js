@@ -18,7 +18,7 @@ document.getElementById('registroTab').addEventListener('click', () => {
 // ── Comprobar si ya hay sesión activa ─────────────────
 const token = localStorage.getItem('token');
 if (token) {
-    window.location.href = '/index.html';
+    window.location.href = '/app.html';
 }
 
 // ── Login ─────────────────────────────────────────────
@@ -48,7 +48,7 @@ async function login() {
                 username: data.username,
                 email: data.email
             }));
-            window.location.href = '/index.html';
+            window.location.href = '/app.html';
         } else {
             const mensaje = await response.text();
             mostrarError(errorDiv, mensaje);
@@ -133,7 +133,7 @@ async function manejarRespuestaGoogle(response) {
                 username: data.username,
                 email: data.email
             }));
-            window.location.href = '/index.html';
+            window.location.href = '/app.html';
         } else {
             const mensaje = await resp.text();
             alert(mensaje);

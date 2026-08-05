@@ -123,7 +123,7 @@ async function guardarHabito() {
             okDiv.textContent = esEdicion ? '¡Hábito actualizado!' : '¡Hábito creado correctamente!';
             okDiv.classList.remove('d-none');
             setTimeout(() => {
-                window.location.href = '/index.html';
+                window.location.href = '/app.html';
             }, 1500);
         } else {
             const mensaje = await response.text();
@@ -149,7 +149,7 @@ async function eliminarHabito() {
         });
 
         if (response.ok) {
-            window.location.href = '/index.html';
+            window.location.href = '/app.html';
         } else {
             const mensaje = await response.text();
             document.getElementById('errorMsg').textContent = mensaje;
