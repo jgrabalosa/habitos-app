@@ -148,14 +148,15 @@ módulo aporta su propio bundle y lo registra implementando
 `ProveedorMensajes`; `MensajesConfig` los recolecta. `EmailService` solo
 recibe claves, nunca frases.
 
-Los ficheros `.properties` viven hoy todos juntos en
-`norday-server/src/main/resources/mensajes/`. En ejecución da igual (el
-jar los une en un único classpath), pero **queda pendiente decidir** si
-cada bundle debe mudarse al módulo que lo aporta —`core*` a
-`norday-motor`, `habitos*` a `habitos`— para que la propiedad "cada
-módulo aporta lo suyo" también se cumpla en el árbol de ficheros.
-Mientras estén en `norday-server`, `BundlesMensajesTest` no los ve desde
-`norday-motor`.
+Los ficheros `.properties` viven todos juntos en
+`norday-server/src/main/resources/mensajes/`, aunque cada uno lo aporte
+conceptualmente su módulo. En ejecución da igual: el jar los une en un
+único classpath.
+
+De ahí que `BundlesMensajesTest` viva en `norday-server` y no en
+`norday-motor`: compara el bundle de `core` contra el de `habitos`, y
+`norday-server` es el único módulo que ve los dos. Un test que cruce
+módulos pertenece al módulo que los reúne.
 
 El fichero base (sin sufijo de idioma) va en español, que es la caída
 acordada. Idiomas soportados: `es`, `en`, `pt`.

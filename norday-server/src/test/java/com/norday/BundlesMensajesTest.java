@@ -1,4 +1,4 @@
-package com.norday.core;
+package com.norday;
 
 import org.junit.jupiter.api.Test;
 
