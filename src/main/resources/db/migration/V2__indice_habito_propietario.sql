@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_habito_propietario ON habito (propietario_id);
