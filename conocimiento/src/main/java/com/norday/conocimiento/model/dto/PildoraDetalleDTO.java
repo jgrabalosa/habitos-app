@@ -12,6 +12,7 @@ public class PildoraDetalleDTO {
     private List<String> categorias; // nombres, no códigos
     private String estado;           // VISTA o GUARDADA
     private Integer valoracionUsuario; // null si aún no ha valorado
+    private String notaPersonalUsuario; // null si no valoró o no escribió nota
 
     public int getPildoraId() { return pildoraId; }
     public void setPildoraId(int pildoraId) { this.pildoraId = pildoraId; }
@@ -36,4 +37,7 @@ public class PildoraDetalleDTO {
 
     public Integer getValoracionUsuario() { return valoracionUsuario; }
     public void setValoracionUsuario(Integer valoracionUsuario) { this.valoracionUsuario = valoracionUsuario; }
+
+    public String getNotaPersonalUsuario() { return notaPersonalUsuario; }
+    public void setNotaPersonalUsuario(String notaPersonalUsuario) { this.notaPersonalUsuario = notaPersonalUsuario; }
 }
