@@ -20,6 +20,7 @@
     <modules>
         <module>norday-motor</module>
         <module>habitos</module>
+        <module>conocimiento</module>
         <module>norday-server</module>
     </modules>
 </project>
