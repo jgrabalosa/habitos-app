@@ -8,6 +8,7 @@ public interface ILogroDAO {
     Logro findById(int id);
     List<Logro> findAll();
     List<Logro> findActivos();
+    List<Logro> findActivosParaApp(String appId);
     void update(Logro logro);
     void delete(int id);
     Logro findByCodigo(String codigo);

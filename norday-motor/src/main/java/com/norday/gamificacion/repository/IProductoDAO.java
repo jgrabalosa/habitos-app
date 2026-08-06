@@ -9,6 +9,7 @@ public interface IProductoDAO {
     Producto findByCodigo(String codigo);
     List<Producto> findAll();
     List<Producto> findActivos();
+    List<Producto> findActivosParaApp(String appId);
     void update(Producto producto);
     void delete(int id);
 }

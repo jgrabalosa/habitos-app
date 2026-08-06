@@ -32,6 +32,20 @@ public class ProductoService {
         return productoDAO.findActivos();
     }
 
+    /**
+     * Catálogo visible para una app: lo compartido más lo suyo.
+     *
+     * Sin [appId] devuelve el catálogo entero, que es lo que hacía antes de
+     * que existiera el alcance. Así una app que todavía no manda la cabecera
+     * —la que está en test cerrado— sigue viendo lo mismo que veía.
+     */
+    public List<Producto> catalogoActivo(String appId) {
+        if (appId == null || appId.isBlank()) {
+            return catalogoActivo();
+        }
+        return productoDAO.findActivosParaApp(appId);
+    }
+
     public List<UsuarioProducto> inventarioDeUsuario(Usuario usuario) {
         return usuarioProductoDAO.findByUsuario(usuario);
     }

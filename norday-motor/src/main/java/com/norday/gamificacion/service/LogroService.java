@@ -25,6 +25,20 @@ public class LogroService {
         return logroDAO.findActivos();
     }
 
+    /**
+     * Catálogo visible para una app: lo compartido más lo suyo.
+     *
+     * Sin [appId] devuelve el catálogo entero, que es lo que hacía antes de
+     * que existiera el alcance. Así una app que todavía no manda la cabecera
+     * —la que está en test cerrado— sigue viendo lo mismo que veía.
+     */
+    public List<Logro> catalogoActivo(String appId) {
+        if (appId == null || appId.isBlank()) {
+            return catalogoActivo();
+        }
+        return logroDAO.findActivosParaApp(appId);
+    }
+
     public Logro buscarPorCodigo(String codigo) {
         return logroDAO.findByCodigo(codigo);
     }

@@ -47,6 +47,18 @@ public class ProductoDAO implements IProductoDAO {
                 .getResultList();
     }
 
+    /**
+     * Lo compartido (origenApp NULL) más lo exclusivo de esa app. Un producto
+     * de otra app queda fuera.
+     */
+    @Override
+    public List<Producto> findActivosParaApp(String appId) {
+        return em.createQuery(
+                        "SELECT p FROM Producto p WHERE p.activo = true AND (p.origenApp IS NULL OR p.origenApp = :appId) ORDER BY p.categoria, p.nombre", Producto.class)
+                .setParameter("appId", appId)
+                .getResultList();
+    }
+
     @Override
     public void update(Producto producto) {
         em.merge(producto);

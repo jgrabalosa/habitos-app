@@ -37,12 +37,26 @@ public class Logro {
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
 
+    /**
+     * De qué app del ecosistema es este logro. NULL significa compartido:
+     * lo ven todas. Nullable a propósito — el catálogo que ya existe es de
+     * todos y no hay que migrar ni una fila.
+     */
+    @Column(name = "origen_app", length = 30)
+    private String origenApp;
+
     // Constructor vacío — obligatorio para JPA
     public Logro() {}
 
-    // Constructor con parámetros
+    // Constructor con parámetros — logro compartido por todo el ecosistema
     public Logro(String codigo, String nombre, String descripcion, String categoria,
                  String nivel, int puntos, String icono) {
+        this(codigo, nombre, descripcion, categoria, nivel, puntos, icono, null);
+    }
+
+    // Igual, pero exclusivo de una app
+    public Logro(String codigo, String nombre, String descripcion, String categoria,
+                 String nivel, int puntos, String icono, String origenApp) {
         this.codigo = codigo;
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -50,6 +64,7 @@ public class Logro {
         this.nivel = nivel;
         this.puntos = puntos;
         this.icono = icono;
+        this.origenApp = origenApp;
         this.activo = true;
     }
 
@@ -79,6 +94,9 @@ public class Logro {
 
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+
+    public String getOrigenApp() { return origenApp; }
+    public void setOrigenApp(String origenApp) { this.origenApp = origenApp; }
 
     @Override
     public String toString() {
