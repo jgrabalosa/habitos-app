@@ -185,6 +185,10 @@ public class PildoraService {
         ValoracionPildora valoracion =
                 valoracionDAO.findByUsuarioYPildora(usuario, pildora.getPildoraId());
         dto.setValoracionUsuario(valoracion != null ? valoracion.getPuntuacion() : null);
+        // La nota vuelve al cliente para que pueda precargarla al reabrir el
+        // diálogo de valoración: `valorar()` sobrescribe con lo que reciba, así
+        // que sin esto cambiar solo la puntuación borraría la nota ya escrita.
+        dto.setNotaPersonalUsuario(valoracion != null ? valoracion.getNotaPersonal() : null);
 
         return dto;
     }
