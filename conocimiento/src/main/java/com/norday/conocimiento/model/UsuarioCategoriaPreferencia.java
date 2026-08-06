@@ -34,15 +34,25 @@ public class UsuarioCategoriaPreferencia {
     @Column(name = "fecha", nullable = false)
     private LocalDateTime fecha;
 
+    /**
+     * Afinidad acumulada con esta categoría. Solo sube: match, guardado y
+     * valoración alta la empujan; el descarte no la baja y quitar un guardado
+     * tampoco retira lo ya ganado.
+     */
+    @Column(name = "puntuacion_afinidad", nullable = false)
+    private double puntuacionAfinidad;
+
     // Constructor vacío — obligatorio para JPA
     public UsuarioCategoriaPreferencia() {}
 
-    // Constructor con parámetros
+    // Constructor con parámetros. La afinidad arranca siempre a cero: se gana
+    // interactuando, no se declara al elegir la categoría.
     public UsuarioCategoriaPreferencia(Usuario usuario, Categoria categoria, EstadoPreferenciaCategoria estado, LocalDateTime fecha) {
         this.usuario = usuario;
         this.categoria = categoria;
         this.estado = estado;
         this.fecha = fecha;
+        this.puntuacionAfinidad = 0;
     }
 
     public int getId() { return id; }
@@ -60,9 +70,13 @@ public class UsuarioCategoriaPreferencia {
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
 
+    public double getPuntuacionAfinidad() { return puntuacionAfinidad; }
+    public void setPuntuacionAfinidad(double puntuacionAfinidad) { this.puntuacionAfinidad = puntuacionAfinidad; }
+
     @Override
     public String toString() {
-        return "UsuarioCategoriaPreferencia{id=" + id + ", estado=" + estado + "}";
+        return "UsuarioCategoriaPreferencia{id=" + id + ", estado=" + estado
+                + ", puntuacionAfinidad=" + puntuacionAfinidad + "}";
     }
 
     @Override
