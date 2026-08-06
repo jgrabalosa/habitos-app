@@ -9,6 +9,7 @@
     <meta property="og:description" content="Crea los hábitos que quieres, cuida a Nori y convierte tu constancia en progreso.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://norday.app/">
+    <meta property="og:image" content="https://api.norday.app/img/screenshots/mascota.png">
     <meta name="theme-color" content="#0A1628">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,13 +91,19 @@
             text-decoration: none;
         }
 
+        /* El compás tiene facetas y detalle fino que a 32px se leían como una
+           mancha. Más tamaño y un disco detrás para que el símbolo respire. */
         .marca__icono {
             position: relative;
             overflow: hidden;
-            width: 32px;
-            height: 32px;
+            width: 42px;
+            height: 42px;
+            padding: 5px;
             flex: none;
-            display: block;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--azul-acero);
         }
 
         .marca__icono img, .marca__icono svg { width: 100%; height: 100%; display: block; }
@@ -104,7 +111,7 @@
         .nav__enlaces {
             display: flex;
             align-items: center;
-            gap: 28px;
+            gap: 24px;
         }
 
         .nav__enlaces a {
@@ -115,6 +122,21 @@
         }
 
         .nav__enlaces a:hover { color: var(--claro); }
+
+        /* El CTA de testers vive en el nav para estar a la vista durante todo
+           el scroll, no solo mientras se ve el hero. */
+        .nav__enlaces a.nav__cta {
+            padding: 8px 15px;
+            border-radius: 10px;
+            background: var(--verde-esmeralda);
+            color: var(--verde-tinta);
+            font-size: 0.9rem;
+            font-weight: 800;
+            white-space: nowrap;
+            transition: background 0.15s ease;
+        }
+
+        .nav__enlaces a.nav__cta:hover { background: var(--verde-oscuro); color: var(--verde-tinta); }
 
         /* ── Hero ── */
 
@@ -145,7 +167,7 @@
         }
 
         .hero h1 {
-            margin: 26px auto 0;
+            margin: 0 auto;
             max-width: 15ch;
             font-size: clamp(2.1rem, 6.2vw, 3.5rem);
             font-weight: 800;
@@ -173,11 +195,23 @@
             font-size: 1.06rem;
         }
 
+        .hero__acciones {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 32px;
+        }
+
+        /* El badge deja de ser lo primero que se ve: ahora es la nota al pie
+           del CTA, no el protagonista del hero. */
+        .hero__apoyo { margin: 18px 0 0; }
+
         .cta {
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            margin-top: 32px;
             padding: 15px 28px;
             border: none;
             border-radius: 14px;
@@ -186,14 +220,31 @@
             font-family: inherit;
             font-size: 1rem;
             font-weight: 800;
+            text-decoration: none;
             cursor: pointer;
             transition: transform 0.12s ease, background 0.15s ease;
         }
 
-        .cta:hover { background: var(--verde-oscuro); transform: translateY(-1px); }
+        .cta:hover { background: var(--verde-oscuro); color: var(--verde-tinta); transform: translateY(-1px); }
         .cta:active { transform: translateY(0); }
 
-        .cta svg { width: 20px; height: 20px; }
+        .cta svg { width: 20px; height: 20px; flex: none; }
+
+        .cta--grande { padding: 17px 32px; font-size: 1.06rem; }
+
+        /* Google Play todavía no lleva a ningún sitio real, así que deja de
+           competir con el CTA que sí funciona. */
+        .cta--fantasma {
+            background: transparent;
+            border: 1px solid var(--borde);
+            color: var(--muted);
+        }
+
+        .cta--fantasma:hover {
+            background: rgba(159, 176, 196, 0.08);
+            color: var(--claro);
+            border-color: rgba(159, 176, 196, 0.35);
+        }
 
         /* El aviso reserva su hueco desde el principio: al aparecer no empuja
            nada de lo que hay debajo. */
@@ -210,11 +261,18 @@
 
         .aviso.visible { opacity: 1; transform: none; }
 
+        /* ── Escena del hero: teléfono + Nori ── */
+
+        .hero__escena {
+            position: relative;
+            width: max-content;
+            margin: 56px auto 0;
+        }
+
         /* ── Mockup de teléfono (CSS puro, sin imagen) ── */
 
         .telefono {
             width: 268px;
-            margin: 64px auto 0;
             padding: 12px;
             border-radius: 38px;
             background: linear-gradient(160deg, #2E4670, #16243C);
@@ -271,6 +329,21 @@
             background: var(--superficie);
             font-size: 0.85rem;
             font-weight: 600;
+            /* Entrada escalonada: las cuatro filas caen una detrás de otra.
+               Empiezan invisibles, así que si se desactiva la animación hay
+               que devolverles la opacidad a mano (ver prefers-reduced-motion). */
+            opacity: 0;
+            transform: translateY(10px);
+            animation: entrar 0.55s ease-out forwards;
+        }
+
+        .pantalla__lista .habito:nth-child(1) { animation-delay: 0.25s; }
+        .pantalla__lista .habito:nth-child(2) { animation-delay: 0.40s; }
+        .pantalla__lista .habito:nth-child(3) { animation-delay: 0.55s; }
+        .pantalla__lista .habito:nth-child(4) { animation-delay: 0.70s; }
+
+        @keyframes entrar {
+            to { opacity: 1; transform: none; }
         }
 
         .habito__check {
@@ -325,6 +398,26 @@
 
         .pantalla__barra span:first-child { background: var(--verde-esmeralda); }
 
+        /* ── Nori ── */
+
+        .nori {
+            position: absolute;
+            right: -118px;
+            bottom: 4px;
+            width: 138px;
+            height: auto;
+            /* Respiración: sube y baja, se hincha un poco y se balancea ±2°.
+               Ciclo largo para que se lea como que está viva, no como un
+               elemento animándose. */
+            animation: respirar 4.2s ease-in-out infinite;
+            filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
+        }
+
+        @keyframes respirar {
+            0%, 100% { transform: translateY(0) scale(1) rotate(-2deg); }
+            50%      { transform: translateY(-12px) scale(1.04) rotate(2deg); }
+        }
+
         /* ── Secciones ── */
 
         .seccion { padding: 88px 0; }
@@ -353,10 +446,21 @@
         }
 
         .tarjeta {
+            position: relative;
             padding: 30px 26px;
             border-radius: 20px;
             background: var(--superficie);
             border: 1px solid var(--borde);
+        }
+
+        /* Las tres tarjetas no son una lista suelta: son el bucle real de la
+           app en orden —marcas un hábito, crece tu racha, crece Nori—, así que
+           van numeradas y unidas por una línea. */
+        .tarjeta__cabecera {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
         }
 
         .tarjeta__icono {
@@ -365,17 +469,45 @@
             justify-content: center;
             width: 46px;
             height: 46px;
-            margin-bottom: 18px;
             border-radius: 14px;
             background: rgba(39, 199, 111, 0.14);
             color: var(--verde-esmeralda);
+            overflow: hidden;
         }
 
         .tarjeta__icono svg { width: 24px; height: 24px; }
 
+        .tarjeta__icono img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+        .tarjeta__paso {
+            display: grid;
+            place-items: center;
+            width: 28px;
+            height: 28px;
+            flex: none;
+            border-radius: 50%;
+            border: 1.5px solid rgba(39, 199, 111, 0.45);
+            color: var(--verde-esmeralda);
+            font-size: 0.85rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
         .tarjeta h3 { font-size: 1.12rem; font-weight: 700; }
 
         .tarjeta p { margin: 8px 0 0; color: var(--muted); font-size: 0.97rem; }
+
+        /* El conector salta justo el hueco de la rejilla (20px), así que va
+           pegado de tarjeta a tarjeta sin importar cuánto midan. */
+        .rejilla .tarjeta:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            background: linear-gradient(90deg, rgba(39, 199, 111, 0.55), rgba(39, 199, 111, 0.12));
+            top: 53px;
+            right: -20px;
+            width: 20px;
+            height: 2px;
+        }
 
         /* ── Capturas ── */
 
@@ -388,12 +520,22 @@
 
         .captura { margin: 0; }
 
-        .captura img {
-            display: block;
-            width: 100%;
-            height: auto;
+        /* Encuadre más corto que la pantalla real: en las cuatro capturas todo
+           lo que interesa está arriba, y así el hueco vacío del final de
+           `habitos.png` queda fuera sin tratarla distinto a las demás. */
+        .captura__marco {
+            aspect-ratio: 9 / 15;
+            overflow: hidden;
             border-radius: 18px;
             border: 1px solid var(--borde);
+        }
+
+        .captura__marco img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
         }
 
         .captura figcaption {
@@ -407,12 +549,14 @@
         /* PLACEHOLDER: mientras el PNG no exista, la figura enseña su propia
            ruta en un hueco punteado. Al soltar el archivo en esa ruta
            desaparece solo, sin tocar el HTML. */
+        .captura.pendiente .captura__marco { display: none; }
+
         .captura.pendiente::before {
             content: 'Falta ' attr(data-archivo);
             display: flex;
             align-items: center;
             justify-content: center;
-            aspect-ratio: 9 / 19.5;
+            aspect-ratio: 9 / 15;
             padding: 16px;
             border-radius: 18px;
             border: 2px dashed var(--borde);
@@ -420,6 +564,32 @@
             font-size: 0.78rem;
             text-align: center;
             word-break: break-word;
+        }
+
+        /* ── Franja de cierre ── */
+
+        /* Tercera y última aparición del CTA: quien ha leído hasta abajo no
+           debería tener que volver arriba para apuntarse. */
+        .franja {
+            padding: 34px 0;
+            background: rgba(39, 199, 111, 0.08);
+            border-top: 1px solid rgba(39, 199, 111, 0.22);
+            border-bottom: 1px solid rgba(39, 199, 111, 0.22);
+        }
+
+        .franja__interior {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 16px 28px;
+            text-align: center;
+        }
+
+        .franja__texto {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
         }
 
         /* ── Footer ── */
@@ -445,21 +615,51 @@
 
         @media (max-width: 900px) {
             .rejilla { grid-template-columns: 1fr; max-width: 460px; margin-inline: auto; }
+            /* En una sola columna el conector pasa a ser vertical */
+            .rejilla .tarjeta:not(:last-child)::after {
+                top: auto;
+                right: auto;
+                left: 50%;
+                bottom: -20px;
+                width: 2px;
+                height: 20px;
+                background: linear-gradient(180deg, rgba(39, 199, 111, 0.55), rgba(39, 199, 111, 0.12));
+            }
             .capturas { grid-template-columns: repeat(2, 1fr); max-width: 520px; margin-inline: auto; }
         }
 
         @media (max-width: 620px) {
-            /* Sin hamburguesa en esta version: los enlaces se van y la marca
-               se queda, que es lo unico imprescindible arriba. */
-            .nav__enlaces { display: none; }
+            /* Sin hamburguesa: se van solo los saltos a secciones de esta
+               misma página. Privacidad y el CTA de testers se quedan, que son
+               los dos que no tienen otra puerta de entrada. */
+            .nav__enlaces a[href^="#"] { display: none; }
+            .nav__enlaces { gap: 14px; }
+            .nav__enlaces a { font-size: 0.88rem; }
+            .nav__enlaces a.nav__cta { padding: 8px 13px; font-size: 0.85rem; }
+            .marca { font-size: 1.05rem; gap: 8px; }
+            .marca__icono { width: 38px; height: 38px; }
+
             body { font-size: 16px; }
             .seccion { padding: 64px 0; }
             .hero { padding-top: calc(var(--nav-alto) + 48px); padding-bottom: 64px; }
+            .hero__acciones { gap: 12px; }
+            .cta, .cta--grande { width: 100%; justify-content: center; }
+
+            /* Nori se recoge para no salirse de la pantalla */
+            .nori { right: -26px; bottom: -14px; width: 96px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
             html { scroll-behavior: auto; }
-            * { transition: none !important; }
+            *, *::before, *::after {
+                transition: none !important;
+                animation: none !important;
+            }
+            /* Las dos animaciones arrancan desde un estado oculto o desplazado:
+               al desactivarlas hay que dejarlas en su estado final a mano, o se
+               quedarían invisibles para siempre. */
+            .habito { opacity: 1; transform: none; }
+            .nori { transform: none; }
         }
     </style>
     <script>
@@ -497,14 +697,13 @@
             <a href="#caracteristicas">Características</a>
             <a href="#capturas">Capturas</a>
             <a href="/privacidad.html">Privacidad</a>
+            <a class="nav__cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">Sé tester</a>
         </div>
     </div>
 </nav>
 
 <header class="hero">
     <div class="contenedor">
-        <span class="badge"><span class="badge__punto"></span>Próximamente en Google Play</span>
-
         <h1>Los hábitos que quieres, <em>un día a la vez</em></h1>
         <p class="tagline">Habits · Focus · Growth</p>
         <p class="hero__texto">
@@ -512,45 +711,61 @@
             crezca contigo. Sin ruido y sin culpa: solo el día de hoy.
         </p>
 
-        <button class="cta" type="button" id="btnDescarga">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M3.6 2.3c-.3.3-.5.7-.5 1.3v16.8c0 .6.2 1 .5 1.3l.1.1 9.4-9.4v-.2L3.7 2.2l-.1.1zm12.6 6.3L5.9 2.7l-.2-.1c-.5-.3-1-.3-1.4-.1l11.9 6zM4.3 21.5c.4.2.9.2 1.4-.1l10.5-6-2.7-2.7-9.2 8.8zM20.4 10.4l-2.9-1.6-3 3 3 3 2.9-1.6c.9-.5.9-2.3 0-2.8z"/>
-            </svg>
-            Descargar en Google Play
-        </button>
+        <div class="hero__acciones">
+            <a class="cta cta--grande" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">
+                Únete al test cerrado
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+            <button class="cta cta--fantasma" type="button" id="btnDescarga">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3.6 2.3c-.3.3-.5.7-.5 1.3v16.8c0 .6.2 1 .5 1.3l.1.1 9.4-9.4v-.2L3.7 2.2l-.1.1zm12.6 6.3L5.9 2.7l-.2-.1c-.5-.3-1-.3-1.4-.1l11.9 6zM4.3 21.5c.4.2.9.2 1.4-.1l10.5-6-2.7-2.7-9.2 8.8zM20.4 10.4l-2.9-1.6-3 3 3 3 2.9-1.6c.9-.5.9-2.3 0-2.8z"/>
+                </svg>
+                Descargar en Google Play
+            </button>
+        </div>
+
+        <p class="hero__apoyo"><span class="badge"><span class="badge__punto"></span>Próximamente en Google Play</span></p>
         <p class="aviso" id="aviso" role="status" aria-live="polite"></p>
 
-        <!-- Referencia visual, no una captura: el teléfono entero es CSS -->
-        <div class="telefono" aria-hidden="true">
-            <div class="telefono__pantalla">
-                <span class="telefono__muesca"></span>
-                <div class="pantalla__cabecera">
-                    <span class="pantalla__titulo">Hoy</span>
-                    <span class="pastilla">◆ 240</span>
-                </div>
+        <div class="hero__escena">
+            <!-- Referencia visual, no una captura: el teléfono entero es CSS -->
+            <div class="telefono" aria-hidden="true">
+                <div class="telefono__pantalla">
+                    <span class="telefono__muesca"></span>
+                    <div class="pantalla__cabecera">
+                        <span class="pantalla__titulo">Hoy</span>
+                        <span class="pastilla">◆ 240</span>
+                    </div>
 
-                <div class="habito habito--hecho">
-                    <span class="habito__check"></span>
-                    <span class="habito__nombre">Beber agua</span>
-                    <span class="habito__racha">12</span>
-                </div>
-                <div class="habito habito--hecho">
-                    <span class="habito__check"></span>
-                    <span class="habito__nombre">Leer 20 minutos</span>
-                    <span class="habito__racha">5</span>
-                </div>
-                <div class="habito">
-                    <span class="habito__check"></span>
-                    <span class="habito__nombre">Salir a correr</span>
-                    <span class="habito__racha">3</span>
-                </div>
-                <div class="habito">
-                    <span class="habito__check"></span>
-                    <span class="habito__nombre">Meditar</span>
-                </div>
+                    <div class="pantalla__lista">
+                        <div class="habito habito--hecho">
+                            <span class="habito__check"></span>
+                            <span class="habito__nombre">Beber agua</span>
+                            <span class="habito__racha">12</span>
+                        </div>
+                        <div class="habito habito--hecho">
+                            <span class="habito__check"></span>
+                            <span class="habito__nombre">Leer 20 minutos</span>
+                            <span class="habito__racha">5</span>
+                        </div>
+                        <div class="habito">
+                            <span class="habito__check"></span>
+                            <span class="habito__nombre">Salir a correr</span>
+                            <span class="habito__racha">3</span>
+                        </div>
+                        <div class="habito">
+                            <span class="habito__check"></span>
+                            <span class="habito__nombre">Meditar</span>
+                        </div>
+                    </div>
 
-                <div class="pantalla__barra"><span></span><span></span><span></span></div>
+                    <div class="pantalla__barra"><span></span><span></span><span></span></div>
+                </div>
             </div>
+
+            <img class="nori" src="/img/nori.png" alt="Nori, la mascota de Norday" width="138" height="138" decoding="async">
         </div>
     </div>
 </header>
@@ -566,35 +781,40 @@
 
             <div class="rejilla">
                 <article class="tarjeta">
-                    <div class="tarjeta__icono">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m3 7 2 2 4-4"/><path d="m3 17 2 2 4-4"/>
-                            <path d="M13 7h8"/><path d="M13 17h8"/>
-                        </svg>
+                    <div class="tarjeta__cabecera">
+                        <div class="tarjeta__icono">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m3 7 2 2 4-4"/><path d="m3 17 2 2 4-4"/>
+                                <path d="M13 7h8"/><path d="M13 17h8"/>
+                            </svg>
+                        </div>
+                        <span class="tarjeta__paso" aria-hidden="true">1</span>
                     </div>
                     <h3>Hábitos a tu medida</h3>
                     <p>Diarios, semanales o los días que tú elijas, con su categoría y su recordatorio.</p>
                 </article>
 
                 <article class="tarjeta">
-                    <div class="tarjeta__icono">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="7" cy="8" r="2.2"/><circle cx="12" cy="5.5" r="2.2"/>
-                            <circle cx="17" cy="8" r="2.2"/>
-                            <path d="M12 11c-2.6 0-4.6 2-4.6 4.4 0 1.9 1.3 3.1 3 3.1h3.2c1.7 0 3-1.2 3-3.1C16.6 13 14.6 11 12 11z"/>
-                        </svg>
+                    <div class="tarjeta__cabecera">
+                        <div class="tarjeta__icono">
+                            <img src="/img/nori.png" alt="" width="46" height="46" decoding="async">
+                        </div>
+                        <span class="tarjeta__paso" aria-hidden="true">2</span>
                     </div>
                     <h3>Nori crece contigo</h3>
                     <p>Tu mascota sube de nivel con cada hábito completado. Cuídala y mira cómo evoluciona.</p>
                 </article>
 
                 <article class="tarjeta">
-                    <div class="tarjeta__icono">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M7 4h10v6a5 5 0 0 1-10 0z"/>
-                            <path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/>
-                            <path d="M12 15v3"/><path d="M9 21h6"/><path d="M10 18h4l.6 3H9.4z"/>
-                        </svg>
+                    <div class="tarjeta__cabecera">
+                        <div class="tarjeta__icono">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M7 4h10v6a5 5 0 0 1-10 0z"/>
+                                <path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/>
+                                <path d="M12 15v3"/><path d="M9 21h6"/><path d="M10 18h4l.6 3H9.4z"/>
+                            </svg>
+                        </div>
+                        <span class="tarjeta__paso" aria-hidden="true">3</span>
                     </div>
                     <h3>Progresa jugando</h3>
                     <p>Puntos, rachas y logros que canjeas por avatares y temas en la tienda.</p>
@@ -610,25 +830,45 @@
 
             <div class="capturas">
                 <figure class="captura" data-archivo="/img/screenshots/hoy.png">
-                    <img src="/img/screenshots/hoy.png" alt="Pantalla Hoy: los hábitos del día con sus rachas" onerror="marcarPendiente(this)">
+                    <div class="captura__marco">
+                        <img src="/img/screenshots/hoy.png" alt="Pantalla Hoy: los hábitos del día con sus rachas" onerror="marcarPendiente(this)">
+                    </div>
                     <figcaption>Hoy</figcaption>
                 </figure>
                 <figure class="captura" data-archivo="/img/screenshots/habitos.png">
-                    <img src="/img/screenshots/habitos.png" alt="Pantalla de hábitos: la lista completa por categorías" onerror="marcarPendiente(this)">
+                    <div class="captura__marco">
+                        <img src="/img/screenshots/habitos.png" alt="Pantalla de hábitos: la lista completa por categorías" onerror="marcarPendiente(this)">
+                    </div>
                     <figcaption>Hábitos</figcaption>
                 </figure>
                 <figure class="captura" data-archivo="/img/screenshots/mascota.png">
-                    <img src="/img/screenshots/mascota.png" alt="Pantalla de la mascota Nori y su nivel" onerror="marcarPendiente(this)">
+                    <div class="captura__marco">
+                        <img src="/img/screenshots/mascota.png" alt="Pantalla de la mascota Nori y su nivel" onerror="marcarPendiente(this)">
+                    </div>
                     <figcaption>Nori</figcaption>
                 </figure>
                 <figure class="captura" data-archivo="/img/screenshots/tienda.png">
-                    <img src="/img/screenshots/tienda.png" alt="Pantalla de la tienda con avatares y temas" onerror="marcarPendiente(this)">
+                    <div class="captura__marco">
+                        <img src="/img/screenshots/tienda.png" alt="Pantalla de la tienda con avatares y temas" onerror="marcarPendiente(this)">
+                    </div>
                     <figcaption>Tienda</figcaption>
                 </figure>
             </div>
         </div>
     </section>
 </main>
+
+<section class="franja">
+    <div class="contenedor franja__interior">
+        <p class="franja__texto">El test cerrado de Norday Hábitos ya está abierto.</p>
+        <a class="cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">
+            Únete al test cerrado
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+</section>
 
 <footer>
     <div class="contenedor">
