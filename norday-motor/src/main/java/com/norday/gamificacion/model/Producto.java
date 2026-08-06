@@ -37,12 +37,26 @@ public class Producto {
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
 
+    /**
+     * De qué app del ecosistema es este producto. NULL significa compartido:
+     * lo ven todas. Nullable a propósito — el catálogo que ya existe es de
+     * todos y no hay que migrar ni una fila.
+     */
+    @Column(name = "origen_app", length = 30)
+    private String origenApp;
+
     // Constructor vacío — obligatorio para JPA
     public Producto() {}
 
-    // Constructor con parámetros
+    // Constructor con parámetros — producto compartido por todo el ecosistema
     public Producto(String codigo, String nombre, String descripcion, String categoria,
                     String tipo, int precio, String icono) {
+        this(codigo, nombre, descripcion, categoria, tipo, precio, icono, null);
+    }
+
+    // Igual, pero exclusivo de una app
+    public Producto(String codigo, String nombre, String descripcion, String categoria,
+                    String tipo, int precio, String icono, String origenApp) {
         this.codigo = codigo;
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -50,6 +64,7 @@ public class Producto {
         this.tipo = tipo;
         this.precio = precio;
         this.icono = icono;
+        this.origenApp = origenApp;
         this.activo = true;
     }
 
@@ -79,6 +94,9 @@ public class Producto {
 
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+
+    public String getOrigenApp() { return origenApp; }
+    public void setOrigenApp(String origenApp) { this.origenApp = origenApp; }
 
     @Override
     public String toString() {

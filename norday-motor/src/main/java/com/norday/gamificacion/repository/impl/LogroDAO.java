@@ -38,6 +38,18 @@ public class LogroDAO implements ILogroDAO {
                 .getResultList();
     }
 
+    /**
+     * Lo compartido (origenApp NULL) más lo exclusivo de esa app. Un logro de
+     * otra app queda fuera.
+     */
+    @Override
+    public List<Logro> findActivosParaApp(String appId) {
+        return em.createQuery(
+                        "SELECT l FROM Logro l WHERE l.activo = true AND (l.origenApp IS NULL OR l.origenApp = :appId) ORDER BY l.categoria, l.nivel", Logro.class)
+                .setParameter("appId", appId)
+                .getResultList();
+    }
+
     @Override
     public void update(Logro logro) {
         em.merge(logro);

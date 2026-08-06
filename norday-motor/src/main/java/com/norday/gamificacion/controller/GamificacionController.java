@@ -42,9 +42,15 @@ public class GamificacionController {
         return ResponseEntity.ok(Map.of("saldo", saldo));
     }
 
+    /**
+     * La cabecera es opcional a propósito: si falta, catálogo completo. La app
+     * que está en test cerrado todavía no la manda y no puede quedarse sin
+     * logros por eso.
+     */
     @GetMapping("/logros/catalogo")
-    public ResponseEntity<List<Logro>> catalogoLogros() {
-        return ResponseEntity.ok(logroService.catalogoActivo());
+    public ResponseEntity<List<Logro>> catalogoLogros(
+            @RequestHeader(value = "X-Norday-App", required = false) String appId) {
+        return ResponseEntity.ok(logroService.catalogoActivo(appId));
     }
 
     @GetMapping("/logros/usuario/{usuarioId}")
@@ -57,9 +63,11 @@ public class GamificacionController {
         return ResponseEntity.ok(logros);
     }
 
+    /** Misma cabecera opcional que en el catálogo de logros. */
     @GetMapping("/productos/catalogo")
-    public ResponseEntity<List<Producto>> catalogoProductos() {
-        return ResponseEntity.ok(productoService.catalogoActivo());
+    public ResponseEntity<List<Producto>> catalogoProductos(
+            @RequestHeader(value = "X-Norday-App", required = false) String appId) {
+        return ResponseEntity.ok(productoService.catalogoActivo(appId));
     }
 
     @GetMapping("/productos/usuario/{usuarioId}")
