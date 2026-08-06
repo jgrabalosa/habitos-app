@@ -51,6 +51,62 @@ class PreferenciaCategoriaServiceTest {
         verify(preferenciaDAO, never()).update(any());
     }
 
+    /**
+     * El estado malo va el último a propósito: si la validación se hiciera
+     * dentro del bucle de guardado, la primera categoría ya estaría escrita
+     * cuando reventara la segunda. Cada DAO es su propia transacción, así que
+     * eso quedaría guardado a medias sin rollback que lo recoja.
+     */
+    @Test
+    void unEstadoInvalidoAlFinalNoDejaNadaGuardado() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(1);
+
+        Categoria categoria = new Categoria();
+        categoria.setCategoriaId(1);
+
+        UsuarioCategoriaPreferencia existente = new UsuarioCategoriaPreferencia(
+                usuario, categoria, EstadoPreferenciaCategoria.NEUTRAL, LocalDateTime.now());
+        lenient().when(preferenciaDAO.findByUsuarioYCategoria(usuario, 1)).thenReturn(existente);
+
+        List<PreferenciaCategoriaDTO> conBasuraAlFinal = List.of(
+                dto(1, "QUIERE"),
+                dto(2, "ME_DA_IGUAL"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> preferenciaService.actualizarPreferencias(usuario, conBasuraAlFinal));
+
+        verify(preferenciaDAO, never()).save(any());
+        verify(preferenciaDAO, never()).update(any());
+        assertEquals(EstadoPreferenciaCategoria.NEUTRAL, existente.getEstado());
+    }
+
+    /** Mismo motivo, con una categoría que no existe en vez de un estado malo. */
+    @Test
+    void unaCategoriaInexistenteAlFinalNoDejaNadaGuardado() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(1);
+
+        Categoria categoria = new Categoria();
+        categoria.setCategoriaId(1);
+
+        UsuarioCategoriaPreferencia existente = new UsuarioCategoriaPreferencia(
+                usuario, categoria, EstadoPreferenciaCategoria.NEUTRAL, LocalDateTime.now());
+        when(preferenciaDAO.findByUsuarioYCategoria(usuario, 1)).thenReturn(existente);
+        when(preferenciaDAO.findByUsuarioYCategoria(usuario, 999)).thenReturn(null);
+        when(categoriaDAO.findById(999)).thenReturn(null);
+
+        List<PreferenciaCategoriaDTO> conCategoriaFantasma = List.of(
+                dto(1, "QUIERE"),
+                dto(999, "NEUTRAL"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> preferenciaService.actualizarPreferencias(usuario, conCategoriaFantasma));
+
+        verify(preferenciaDAO, never()).save(any());
+        verify(preferenciaDAO, never()).update(any());
+    }
+
     @Test
     void cambiarDeGustosNoBorraLaAfinidadYaGanada() {
         Usuario usuario = new Usuario();

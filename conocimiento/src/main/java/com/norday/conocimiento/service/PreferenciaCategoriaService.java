@@ -54,46 +54,65 @@ public class PreferenciaCategoriaService {
     /**
      * Recibe el estado deseado de TODAS las categorías, no un parche.
      *
-     * La validación va entera antes de tocar nada: si el usuario se queda sin
-     * ninguna categoría en QUIERE, el bucle no tendría de dónde servir y la app
-     * quedaría vacía. Mejor rechazar la petición que dejarla a medias.
+     * Va en dos pasadas, y el orden importa: primero se valida y se resuelve
+     * la lista entera, y solo si todo cuadra se empieza a escribir. Cada DAO
+     * es su propia transacción, así que no hay rollback que recoja los platos
+     * si algo revienta a mitad del bucle — un estado inválido en la última
+     * categoría dejaría guardadas las anteriores.
+     *
+     * Lo que se valida: que haya al menos una en QUIERE (sin eso el bucle no
+     * tiene de dónde servir y la app queda vacía), que todos los estados sean
+     * del enum, y que todas las categorías existan.
      */
     public void actualizarPreferencias(Usuario usuario, List<PreferenciaCategoriaDTO> nuevas) {
         if (nuevas == null || nuevas.isEmpty()) {
             throw new IllegalArgumentException("Debes elegir al menos una categoría que te interese");
         }
 
+        // Traducir los estados y comprobar el mínimo es gratis, así que va
+        // primero: si el usuario no ha elegido nada, se entera de eso y no de
+        // que además la categoría 7 no existe.
+        List<EstadoPreferenciaCategoria> estados = new ArrayList<>();
         boolean hayAlgunaQuiere = false;
         for (PreferenciaCategoriaDTO dto : nuevas) {
-            if (EstadoPreferenciaCategoria.QUIERE.name().equals(dto.getEstado())) {
-                hayAlgunaQuiere = true;
-                break;
-            }
+            EstadoPreferenciaCategoria estado = aEstado(dto.getEstado());
+            hayAlgunaQuiere |= estado == EstadoPreferenciaCategoria.QUIERE;
+            estados.add(estado);
         }
         if (!hayAlgunaQuiere) {
             throw new IllegalArgumentException("Debes elegir al menos una categoría que te interese");
         }
 
-        LocalDateTime ahora = LocalDateTime.now();
-        for (PreferenciaCategoriaDTO dto : nuevas) {
-            EstadoPreferenciaCategoria estado = aEstado(dto.getEstado());
+        List<CambioPreferencia> cambios = new ArrayList<>();
+        for (int i = 0; i < nuevas.size(); i++) {
+            PreferenciaCategoriaDTO dto = nuevas.get(i);
 
             UsuarioCategoriaPreferencia existente =
                     preferenciaDAO.findByUsuarioYCategoria(usuario, dto.getCategoriaId());
 
-            if (existente != null) {
-                // Solo cambia lo que el usuario ha elegido. La afinidad es
-                // historial ganado interactuando: reordenar gustos no lo borra.
-                existente.setEstado(estado);
-                existente.setFecha(ahora);
-                preferenciaDAO.update(existente);
-            } else {
-                Categoria categoria = categoriaDAO.findById(dto.getCategoriaId());
+            Categoria categoria = null;
+            if (existente == null) {
+                categoria = categoriaDAO.findById(dto.getCategoriaId());
                 if (categoria == null) {
                     throw new IllegalArgumentException(
                             "La categoría " + dto.getCategoriaId() + " no existe");
                 }
-                preferenciaDAO.save(new UsuarioCategoriaPreferencia(usuario, categoria, estado, ahora));
+            }
+
+            cambios.add(new CambioPreferencia(existente, categoria, estados.get(i)));
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        for (CambioPreferencia cambio : cambios) {
+            if (cambio.existente != null) {
+                // Solo cambia lo que el usuario ha elegido. La afinidad es
+                // historial ganado interactuando: reordenar gustos no lo borra.
+                cambio.existente.setEstado(cambio.estado);
+                cambio.existente.setFecha(ahora);
+                preferenciaDAO.update(cambio.existente);
+            } else {
+                preferenciaDAO.save(new UsuarioCategoriaPreferencia(
+                        usuario, cambio.categoria, cambio.estado, ahora));
             }
         }
     }
@@ -118,6 +137,20 @@ public class PreferenciaCategoriaService {
             return EstadoPreferenciaCategoria.valueOf(estado);
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new IllegalArgumentException("Estado de preferencia no válido: " + estado);
+        }
+    }
+
+    /** Una fila ya resuelta y validada, lista para escribir sin más consultas. */
+    private static class CambioPreferencia {
+        private final UsuarioCategoriaPreferencia existente; // null si hay que crearla
+        private final Categoria categoria;                   // solo se usa al crear
+        private final EstadoPreferenciaCategoria estado;
+
+        CambioPreferencia(UsuarioCategoriaPreferencia existente, Categoria categoria,
+                          EstadoPreferenciaCategoria estado) {
+            this.existente = existente;
+            this.categoria = categoria;
+            this.estado = estado;
         }
     }
 }
