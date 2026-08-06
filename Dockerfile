@@ -3,9 +3,11 @@ WORKDIR /app
 COPY pom.xml .
 COPY norday-motor/pom.xml  norday-motor/pom.xml
 COPY habitos/pom.xml       habitos/pom.xml
+COPY conocimiento/pom.xml  conocimiento/pom.xml
 COPY norday-server/pom.xml norday-server/pom.xml
 COPY norday-motor/src  norday-motor/src
 COPY habitos/src       habitos/src
+COPY conocimiento/src  conocimiento/src
 COPY norday-server/src norday-server/src
 RUN apk add --no-cache maven && mvn clean package -DskipTests
 
