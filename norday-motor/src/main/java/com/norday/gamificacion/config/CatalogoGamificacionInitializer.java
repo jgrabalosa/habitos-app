@@ -41,16 +41,20 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
     // aquí la crea en el próximo arranque aunque la tabla ya tenga datos.
     private static final String[][] PRODUCTOS = {
             {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
-            // Regalo de bienvenida: todo usuario los posee desde el registro (ver ProductoService.otorgarTemasBasicosGratis).
-            // Precio 0: nunca se compran, solo se equipan/desequipan como cualquier otro tema.
-            {"TEMA_BASICO_CLARO", "Básico Claro", "El tema claro de serie de Norday", "Tema", "EQUIPABLE", "0"},
-            {"TEMA_BASICO_OSCURO", "Básico Oscuro", "El tema oscuro de serie de Norday", "Tema", "EQUIPABLE", "0"},
-            // precio provisional, se reajustará en el punto 7 de la Fase 2
-            {"TEMA_CALIDEZ", "Calidez", "Un tema premium con tonos cálidos y acogedores", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_NEOTOKYO", "Neo-Tokyo", "Un tema premium inspirado en la estética anime y neón", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_OCEANO", "Océano", "Un tema premium con tonos azules y frescos del mar", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_BOSQUE", "Bosque", "Un tema premium con tonos verdes y naturales", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_COBRE", "Cobre Nocturno", "Un tema premium elegante en azul noche y cobre", "Tema", "EQUIPABLE", "1000"},
+            // Las cuatro identidades. Sustituyen a las siete paletas antiguas, que
+            // sólo se diferenciaban en color; éstas cambian además letra, forma y
+            // radio. El código tiene que coincidir letra por letra con las claves de
+            // `catalogoIdentidades` (norday_flutter_core, theme/identidades_paleta.dart)
+            // o el cliente no sabe qué identidad aplicar al equipar.
+            //
+            // Mismo precio las cuatro y ninguna gratis aquí: que el usuario nuevo se
+            // lleve una sin pagar es un mecanismo de onboarding aparte, no del
+            // catálogo. Precio provisional heredado de los temas premium antiguos, se
+            // reajustará en el punto 7 de la Fase 2.
+            {"TEMA_PROFUNDIDAD", "Profundidad", "Azul noche y cristal esmerilado, de calma sobria", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1000"},
             // placeholder hasta que revises los DiceBear reales
             {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
             {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "Avatar", "EQUIPABLE", "500"},
