@@ -250,6 +250,31 @@ public class HabitoService {
         return true;
     }
 
+    /**
+     * ¿Le toca a {@code habito} el día {@code fecha}?
+     *
+     * DIARIO siempre toca. SEMANAL sin días fijos (diasSemana null o en
+     * blanco) es "semanal flexible": toca cualquier día, igual que un hábito
+     * sin planificación concreta. SEMANAL con días fijos solo toca si el día
+     * ISO de {@code fecha} (1=lunes...7=domingo, ver
+     * {@link LocalDate#getDayOfWeek()} y el comentario de
+     * {@link Habito#getDiasSemana()}) está en la lista separada por comas.
+     * Cada trozo se recorta antes de comparar, así que " 2, 4 " vale igual
+     * que "2,4".
+     */
+    private boolean estaProgramadoPara(Habito habito, LocalDate fecha) {
+        if (habito.getFrecuencia() != Frecuencia.SEMANAL) return true;
+
+        String dias = habito.getDiasSemana();
+        if (dias == null || dias.isBlank()) return true;
+
+        String diaIso = String.valueOf(fecha.getDayOfWeek().getValue());
+        for (String trozo : dias.split(",")) {
+            if (trozo.trim().equals(diaIso)) return true;
+        }
+        return false;
+    }
+
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         List<DashboardHabitoDTO> dashboard = new ArrayList<>();
@@ -264,6 +289,8 @@ public class HabitoService {
                 baseVentana.minusDays(baseVentana.getDayOfWeek().getValue() - 1L);
 
         for (Habito habito : activos) {
+            if (!estaProgramadoPara(habito, hoy)) continue;
+
             // Una sola consulta acotada por hábito
             List<Registro> registrosVentana =
                     registroDAO.findByHabitoAndRango(habito, inicioVentana, hoy);
