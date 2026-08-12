@@ -10,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -62,6 +64,23 @@ public class HabitoController {
                     .body("Usuario no encontrado");
         }
         return ResponseEntity.ok(habitoService.obtenerDashboard(usuario));
+    }
+
+    @GetMapping("/usuario/{usuarioId}/semana")
+    public ResponseEntity<?> obtenerSemana(@PathVariable int usuarioId,
+                                           @RequestParam(required = false) String desde) {
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Usuario no encontrado");
+        }
+        try {
+            LocalDate fechaDesde = (desde != null && !desde.isBlank()) ? LocalDate.parse(desde) : null;
+            return ResponseEntity.ok(habitoService.obtenerSemana(usuario, fechaDesde));
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Formato de fecha inválido, se espera YYYY-MM-DD");
+        }
     }
 
     @GetMapping("/{id}")

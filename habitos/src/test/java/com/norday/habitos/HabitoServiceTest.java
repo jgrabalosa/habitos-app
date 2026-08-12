@@ -6,6 +6,10 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
+import com.norday.habitos.model.dto.DiaSemanaDTO;
+import com.norday.habitos.model.dto.HabitoDiaDTO;
+import com.norday.habitos.model.dto.HabitoFlexibleDTO;
+import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -19,10 +23,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -279,5 +285,92 @@ class HabitoServiceTest {
         h.setDiasSemana(diasConEspacios);
 
         assertTrue(apareceEnDashboard(h));
+    }
+
+    // ── obtenerSemana ────────────────────────────────────────────────────
+    // Mismo enfoque relativo-a-HOY que arriba: diaIso(offset) da el ISO de
+    // hoy+offset, y como dias[0] es siempre lunes (ISO 1), el indice de un
+    // dia ISO concreto dentro de la lista de 7 es simplemente (iso - 1).
+
+    private void conRegistrosSemana(Habito h, List<Registro> registros) {
+        when(registroDAO.findByHabitoAndRango(eq(h), any(), any())).thenReturn(registros);
+    }
+
+    @Test
+    void unDiario_apareceEnLos7DiasDeLaSemana() {
+        Habito diario = habito(30, Frecuencia.DIARIO, 1);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conRegistrosSemana(diario, List.of());
+
+        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, null);
+
+        assertEquals(7, semana.getDias().size());
+        for (DiaSemanaDTO dia : semana.getDias()) {
+            assertTrue(dia.getHabitos().stream().anyMatch(h -> h.getHabito().equals(diario)));
+        }
+        assertTrue(semana.getFlexibles().isEmpty());
+    }
+
+    @Test
+    void unSemanalConDiasFijos_soloApareceEnEsos2DiasDeLos7() {
+        int d1 = diaIso(0);
+        int d2 = diaIso(2);
+        Set<Integer> diasQueTocan = Set.of(d1, d2);
+
+        Habito semanal = habito(31, Frecuencia.SEMANAL, 2);
+        semanal.setDiasSemana(d1 + "," + d2);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(semanal));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conRegistrosSemana(semanal, List.of());
+
+        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, null);
+
+        for (int i = 0; i < 7; i++) {
+            boolean presente = semana.getDias().get(i).getHabitos().stream()
+                    .anyMatch(h -> h.getHabito().equals(semanal));
+            boolean deberiaEstar = diasQueTocan.contains(i + 1); // dias[i] es el ISO (i+1)
+            assertEquals(deberiaEstar, presente, "dia ISO " + (i + 1));
+        }
+        assertTrue(semana.getFlexibles().isEmpty());
+    }
+
+    @Test
+    void unSemanalFlexible_noApareceEnNingunDiaPeroSiEnFlexiblesConSuConteo() {
+        Habito flexible = habito(32, Frecuencia.SEMANAL, 3); // diasSemana null -> flexible
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(flexible));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+
+        LocalDate lunes = HOY.with(DayOfWeek.MONDAY);
+        conRegistrosSemana(flexible, List.of(
+                new Registro(flexible, true, null, lunes),
+                new Registro(flexible, true, null, lunes.plusDays(2)),
+                new Registro(flexible, false, null, lunes.plusDays(3)) // no completado, no cuenta
+        ));
+
+        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, null);
+
+        for (DiaSemanaDTO dia : semana.getDias()) {
+            assertTrue(dia.getHabitos().isEmpty(), "un flexible no va metido en ningun dia");
+        }
+        assertEquals(1, semana.getFlexibles().size());
+        HabitoFlexibleDTO dto = semana.getFlexibles().get(0);
+        assertEquals(flexible, dto.getHabito());
+        assertEquals(2, dto.getCompletadosSemana());
+        assertEquals(3, dto.getMeta());
+    }
+
+    @Test
+    void los7DiasDeLaSemana_vienenEnOrdenLunesADomingo() {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of());
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+
+        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, HOY);
+
+        LocalDate lunes = HOY.with(DayOfWeek.MONDAY);
+        assertEquals(7, semana.getDias().size());
+        for (int i = 0; i < 7; i++) {
+            assertEquals(lunes.plusDays(i).toString(), semana.getDias().get(i).getFecha());
+        }
     }
 }
