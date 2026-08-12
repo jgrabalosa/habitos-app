@@ -5,6 +5,7 @@ import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -203,5 +204,80 @@ class HabitoServiceTest {
         conCompletados(diario, 5);
 
         assertTrue(habitoService.esDiaCompleto(usuario));
+    }
+
+    // ── obtenerDashboard: filtrado por diasSemana ───────────────────────
+    // estaProgramadoPara() es privado, así que se comprueba a través del
+    // propio dashboard. El día en que corran los tests puede ser cualquiera,
+    // así que en vez de días ISO fijos (ej. "hoy es martes") se construye
+    // diasSemana a partir de HOY con un desfase: diaIso(0) es siempre el día
+    // de hoy, diaIso(2) y diaIso(4) son otros dos días distintos de la
+    // semana. Así la regla queda probada sin importar qué día sea hoy.
+
+    /** Día ISO (1=lunes...7=domingo) que cae {@code offsetDesdeHoy} días después de HOY. */
+    private int diaIso(int offsetDesdeHoy) {
+        int hoyIso = HOY.getDayOfWeek().getValue();
+        return ((hoyIso - 1 + offsetDesdeHoy) % 7) + 1;
+    }
+
+    /**
+     * El hábito no tiene registros en la ventana del dashboard: no afecta al
+     * filtrado. `lenient` porque un hábito que no le toca a `hoy` ni siquiera
+     * llega a preguntar por registros (el bug que se arregla aquí es
+     * justo ese "continue" temprano), así que el stub queda sin usar en esos
+     * casos.
+     */
+    private void conVentanaVacia(Habito h) {
+        lenient().when(registroDAO.findByHabitoAndRango(eq(h), any(), any())).thenReturn(List.of());
+    }
+
+    private boolean apareceEnDashboard(Habito h) {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(h));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conVentanaVacia(h);
+
+        List<DashboardHabitoDTO> dashboard = habitoService.obtenerDashboard(usuario);
+        return dashboard.stream().anyMatch(dto -> dto.getHabito().equals(h));
+    }
+
+    @Test
+    void unHabitoDiario_apareceEnElDashboardSiempre() {
+        Habito diario = habito(10, Frecuencia.DIARIO, 1);
+
+        assertTrue(apareceEnDashboard(diario));
+    }
+
+    @Test
+    void unSemanalSinDiasSemana_apareceEnElDashboardSiempre() {
+        Habito semanal = habito(11, Frecuencia.SEMANAL, 1); // diasSemana null por defecto
+        assertTrue(apareceEnDashboard(semanal));
+
+        Habito semanalEnBlanco = habito(12, Frecuencia.SEMANAL, 1);
+        semanalEnBlanco.setDiasSemana("   ");
+        assertTrue(apareceEnDashboard(semanalEnBlanco));
+    }
+
+    @Test
+    void unSemanalConDiasFijos_soloApareceLosDiasQueLeTocan() {
+        String diasQueIncluyenHoy = diaIso(0) + "," + diaIso(2) + "," + diaIso(4);
+        String diasQueNoIncluyenHoy = diaIso(1) + "," + diaIso(3) + "," + diaIso(5);
+
+        Habito leTocaHoy = habito(13, Frecuencia.SEMANAL, 1);
+        leTocaHoy.setDiasSemana(diasQueIncluyenHoy);
+        assertTrue(apareceEnDashboard(leTocaHoy));
+
+        Habito noLeTocaHoy = habito(14, Frecuencia.SEMANAL, 1);
+        noLeTocaHoy.setDiasSemana(diasQueNoIncluyenHoy);
+        assertFalse(apareceEnDashboard(noLeTocaHoy));
+    }
+
+    @Test
+    void diasSemanaConEspaciosAlrededorDeCadaNumero_seParseaIgualQueSinEllos() {
+        String diasConEspacios = " " + diaIso(0) + " , " + diaIso(2) + " ";
+
+        Habito h = habito(15, Frecuencia.SEMANAL, 1);
+        h.setDiasSemana(diasConEspacios);
+
+        assertTrue(apareceEnDashboard(h));
     }
 }
