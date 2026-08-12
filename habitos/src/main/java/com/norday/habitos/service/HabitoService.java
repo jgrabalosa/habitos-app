@@ -6,15 +6,20 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
+import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
+import com.norday.habitos.model.dto.HabitoDiaDTO;
+import com.norday.habitos.model.dto.HabitoFlexibleDTO;
 import com.norday.habitos.model.dto.HabitoResumenDTO;
 import com.norday.habitos.model.dto.RegistroDiaDTO;
 import com.norday.habitos.model.dto.RegistroResumenDTO;
+import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -312,5 +317,75 @@ public class HabitoService {
             dashboard.add(new DashboardHabitoDTO(habito, completadoHoy, completadosPeriodo, fechasCompletadas));
         }
         return dashboard;
+    }
+
+    /**
+     * Un SEMANAL sin días fijos (diasSemana null o en blanco): su meta es
+     * flexible dentro de la semana, así que no tiene un día concreto que lo
+     * represente en la cuadrícula de {@link #obtenerSemana}.
+     */
+    private boolean esSemanalFlexible(Habito habito) {
+        return habito.getFrecuencia() == Frecuencia.SEMANAL
+                && (habito.getDiasSemana() == null || habito.getDiasSemana().isBlank());
+    }
+
+    /**
+     * La semana completa (lunes a domingo) en una sola consulta de registros
+     * por hábito, para no repetir {@link #obtenerDashboard} siete veces.
+     *
+     * {@code desde} fija la semana a devolver: se toma el lunes de esa
+     * semana con el mismo patrón que ya usa
+     * {@link Frecuencia#rangoPeriodoActual}. Sin {@code desde}, la semana es
+     * la de hoy en la zona del usuario.
+     *
+     * Los SEMANAL flexibles (ver {@link #esSemanalFlexible}) no entran en
+     * ningún día: van aparte, con su progreso agregado de toda la semana.
+     * El resto —DIARIO y SEMANAL con días fijos— usa
+     * {@link #estaProgramadoPara} para decidir en qué días de los siete
+     * aparece, igual que decide qué aparece hoy en el dashboard normal.
+     */
+    public SemanaDashboardDTO obtenerSemana(Usuario usuario, LocalDate desde) {
+        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
+        LocalDate base = desde != null ? desde : LocalDate.now(zona);
+        LocalDate lunes = base.with(DayOfWeek.MONDAY);
+
+        List<Habito> activos = habitoDAO.findActivos(usuario);
+
+        List<List<HabitoDiaDTO>> habitosPorDia = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            habitosPorDia.add(new ArrayList<>());
+        }
+        List<HabitoFlexibleDTO> flexibles = new ArrayList<>();
+
+        for (Habito habito : activos) {
+            // Una sola consulta acotada por hábito, para toda la semana.
+            List<Registro> registrosSemana =
+                    registroDAO.findByHabitoAndRango(habito, lunes, lunes.plusDays(6));
+
+            if (esSemanalFlexible(habito)) {
+                int completadosSemana = (int) registrosSemana.stream()
+                        .filter(Registro::isCompletado)
+                        .count();
+                flexibles.add(new HabitoFlexibleDTO(habito, completadosSemana, habito.getMeta()));
+                continue;
+            }
+
+            for (int i = 0; i < 7; i++) {
+                LocalDate fecha = lunes.plusDays(i);
+                if (!estaProgramadoPara(habito, fecha)) continue;
+
+                boolean completado = registrosSemana.stream()
+                        .anyMatch(r -> r.getFecha().equals(fecha) && r.isCompletado());
+
+                habitosPorDia.get(i).add(new HabitoDiaDTO(habito, completado));
+            }
+        }
+
+        List<DiaSemanaDTO> dias = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            dias.add(new DiaSemanaDTO(lunes.plusDays(i).toString(), habitosPorDia.get(i)));
+        }
+
+        return new SemanaDashboardDTO(dias, flexibles);
     }
 }
