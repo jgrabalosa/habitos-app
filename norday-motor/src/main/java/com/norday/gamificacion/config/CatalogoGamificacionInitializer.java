@@ -33,7 +33,11 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             {"BIENVENIDO", "Bienvenido/a", "Personaliza tu perfil de usuario", "Inicio", "Facil", "100"},
             {"LOGIN_GOOGLE", "Conectado con Google", "Inicia sesión usando tu cuenta de Google", "Inicio", "Facil", "100"},
             // Exploración
-            {"INTERACCION_RESENA", "Tu opinión cuenta", "Interactúa con la valoración de la app en Google Play", "Exploración", "Facil", "100"}
+            // INTERACCION_RESENA desactivado el 24-ago-2026: incentivar la interacción
+            // con el diálogo de reseña de Play va contra la política de Google (ver
+            // migración V7). El diálogo de reseña se sigue mostrando en la app, solo se
+            // retira la recompensa.
+            // {"INTERACCION_RESENA", "Tu opinión cuenta", "Interactúa con la valoración de la app en Google Play", "Exploración", "Facil", "100"},
     };
 
     // {codigo, nombre, descripcion, categoria, tipo, precio}
