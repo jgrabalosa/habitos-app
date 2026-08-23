@@ -40,7 +40,10 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
     // Se comprueba producto a producto por su código: añadir una fila nueva
     // aquí la crea en el próximo arranque aunque la tabla ya tenga datos.
     private static final String[][] PRODUCTOS = {
-            {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
+            // ESCUDO_RACHA desactivado el 24-ago-2026: se vendía sin estar
+            // implementado (ver migración V6). Si se reactiva, quitar el activo=false
+            // de esa migración también, o quedará creado-pero-inactivo para siempre.
+            // {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
             // Las cuatro identidades. Sustituyen a las siete paletas antiguas, que
             // sólo se diferenciaban en color; éstas cambian además letra, forma y
             // radio. El código tiene que coincidir letra por letra con las claves de
