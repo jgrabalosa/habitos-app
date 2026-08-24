@@ -50,6 +50,10 @@ public class ProductoService {
         return usuarioProductoDAO.findByUsuario(usuario);
     }
 
+    public Producto buscarPorId(int productoId) {
+        return productoDAO.findById(productoId);
+    }
+
     public void otorgarTemasBasicosGratis(Usuario usuario) {
         Producto claro = productoDAO.findByCodigo("TEMA_BASICO_CLARO");
         Producto oscuro = productoDAO.findByCodigo("TEMA_BASICO_OSCURO");

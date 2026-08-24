@@ -1,6 +1,7 @@
 package com.norday.gamificacion.controller;
 
 import com.norday.core.model.Usuario;
+import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.model.Producto;
@@ -13,6 +14,7 @@ import com.norday.gamificacion.service.UsuarioMonedaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +39,10 @@ public class GamificacionController {
     private MotorLogrosService motorLogrosService;
 
     @GetMapping("/saldo/{usuarioId}")
-    public ResponseEntity<?> consultarSaldo(@PathVariable int usuarioId) {
+    public ResponseEntity<?> consultarSaldo(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         int saldo = usuarioMonedaService.consultarSaldo(usuarioId);
         return ResponseEntity.ok(Map.of("saldo", saldo));
     }
@@ -54,7 +59,10 @@ public class GamificacionController {
     }
 
     @GetMapping("/logros/usuario/{usuarioId}")
-    public ResponseEntity<?> logrosDeUsuario(@PathVariable int usuarioId) {
+    public ResponseEntity<?> logrosDeUsuario(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -71,7 +79,10 @@ public class GamificacionController {
     }
 
     @GetMapping("/productos/usuario/{usuarioId}")
-    public ResponseEntity<?> inventarioDeUsuario(@PathVariable int usuarioId) {
+    public ResponseEntity<?> inventarioDeUsuario(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -81,7 +92,11 @@ public class GamificacionController {
     }
 
     @PostMapping("/productos/comprar/{usuarioId}/{productoId}")
-    public ResponseEntity<?> comprarProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+    public ResponseEntity<?> comprarProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                             Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -95,10 +110,27 @@ public class GamificacionController {
     }
 
     @PostMapping("/productos/otorgar/{usuarioId}/{productoId}")
-    public ResponseEntity<?> otorgarProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+    public ResponseEntity<?> otorgarProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                             Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        // "Otorgar" es un regalo: a diferencia de comprarProducto, nunca cobra
+        // monedas. El único uso real hoy es SelectorAvatarGratis (elegir un
+        // avatar gratis en el onboarding), así que se restringe a esa
+        // categoría; si no, cualquiera podría autorregalarse cualquier
+        // producto de pago, temas incluidos, sin gastar nada.
+        Producto producto = productoService.buscarPorId(productoId);
+        if (producto == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado");
+        }
+        if (!"Avatar".equals(producto.getCategoria())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Solo los avatares pueden otorgarse gratis por esta vía");
         }
         try {
             productoService.otorgarProducto(usuario, productoId);
@@ -109,7 +141,11 @@ public class GamificacionController {
     }
 
     @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
-    public ResponseEntity<?> equiparProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+    public ResponseEntity<?> equiparProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                             Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -123,7 +159,10 @@ public class GamificacionController {
     }
 
     @PostMapping("/resena/{usuarioId}")
-    public ResponseEntity<?> registrarInteraccionResena(@PathVariable int usuarioId) {
+    public ResponseEntity<?> registrarInteraccionResena(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -133,7 +172,11 @@ public class GamificacionController {
     }
 
     @PostMapping("/productos/desequipar/{usuarioId}/{productoId}")
-    public ResponseEntity<?> desequiparProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+    public ResponseEntity<?> desequiparProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                                Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -147,7 +190,11 @@ public class GamificacionController {
     }
 
     @PostMapping("/productos/usar/{usuarioId}/{productoId}")
-    public ResponseEntity<?> usarProducto(@PathVariable int usuarioId, @PathVariable int productoId) {
+    public ResponseEntity<?> usarProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                          Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
@@ -158,5 +205,16 @@ public class GamificacionController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
+    }
+
+    private ResponseEntity<?> prohibido() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Solo puedes operar sobre tu propia cuenta");
+    }
+
+    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
+        return authentication != null
+                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                && autenticado.usuarioId() == idUrl;
     }
 }
