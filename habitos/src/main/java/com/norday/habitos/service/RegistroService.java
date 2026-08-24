@@ -185,6 +185,10 @@ public class RegistroService {
         return registroDAO.findByHabitoAndFecha(habito, fecha);
     }
 
+    public Registro buscarPorId(int registroId) {
+        return registroDAO.findById(registroId);
+    }
+
     public void actualizarNota(int registroId, String nota) {
         Registro registro = registroDAO.findById(registroId);
         if (registro == null) {

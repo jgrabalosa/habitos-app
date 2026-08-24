@@ -1,5 +1,6 @@
 package com.norday.habitos.controller;
 
+import com.norday.core.security.UsuarioAutenticado;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.service.HabitoService;
@@ -7,6 +8,7 @@ import com.norday.habitos.service.RegistroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -23,13 +25,17 @@ public class RegistroController {
 
     @PostMapping("/completar/{habitoId}")
     public ResponseEntity<?> completar(@PathVariable int habitoId,
-                                       @RequestBody(required = false) Map<String, String> body) {
+                                       @RequestBody(required = false) Map<String, String> body,
+                                       Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(habitoId);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         try {
-            Habito habito = habitoService.buscarPorId(habitoId);
-            if (habito == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("Hábito no encontrado");
-            }
             String nota = body != null ? body.get("nota") : null;
             Map<String, Object> resultado = registroService.completarHabito(habito, nota);
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -49,22 +55,28 @@ public class RegistroController {
     }
 
     @GetMapping("/habito/{habitoId}")
-    public ResponseEntity<?> obtenerRegistros(@PathVariable int habitoId) {
+    public ResponseEntity<?> obtenerRegistros(@PathVariable int habitoId, Authentication authentication) {
         Habito habito = habitoService.buscarPorId(habitoId);
         if (habito == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
         }
         List<Registro> registros = registroService.obtenerRegistros(habito);
         return ResponseEntity.ok(registros);
     }
 
     @GetMapping("/habito/{habitoId}/hoy")
-    public ResponseEntity<?> estaCompletadoHoy(@PathVariable int habitoId) {
+    public ResponseEntity<?> estaCompletadoHoy(@PathVariable int habitoId, Authentication authentication) {
         Habito habito = habitoService.buscarPorId(habitoId);
         if (habito == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
         }
         boolean completado = registroService.estaCompletadoHoy(habito);
         int completadosPeriodo = registroService.contarCompletadosPeriodoActual(habito);
@@ -77,7 +89,15 @@ public class RegistroController {
 
     @PutMapping("/{registroId}/nota")
     public ResponseEntity<?> actualizarNota(@PathVariable int registroId,
-                                            @RequestBody Map<String, String> body) {
+                                            @RequestBody Map<String, String> body,
+                                            Authentication authentication) {
+        Registro registro = registroService.buscarPorId(registroId);
+        if (registro == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Registro no encontrado");
+        }
+        if (!esElPropietario(registro.getHabito(), authentication)) {
+            return prohibido();
+        }
         try {
             String nota = body.get("nota");
             registroService.actualizarNota(registroId, nota);
@@ -89,7 +109,15 @@ public class RegistroController {
 
     @PutMapping("/{registroId}/valoracion")
     public ResponseEntity<?> actualizarValoracion(@PathVariable int registroId,
-                                                  @RequestBody Map<String, Integer> body) {
+                                                  @RequestBody Map<String, Integer> body,
+                                                  Authentication authentication) {
+        Registro registro = registroService.buscarPorId(registroId);
+        if (registro == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Registro no encontrado");
+        }
+        if (!esElPropietario(registro.getHabito(), authentication)) {
+            return prohibido();
+        }
         try {
             Integer valoracion = body.get("valoracion");
             registroService.actualizarValoracion(registroId, valoracion);
@@ -99,5 +127,21 @@ public class RegistroController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
+    }
+
+    // No existe rol de administrador en el proyecto, así que nadie tiene
+    // motivo legítimo para operar sobre registros ajenos.
+
+    private ResponseEntity<?> prohibido() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Solo puedes operar sobre tus propios registros");
+    }
+
+    /** ¿El propietario del hábito de este registro es el usuario que trae el token? */
+    private boolean esElPropietario(Habito habito, Authentication authentication) {
+        return authentication != null
+                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                && habito.getPropietario() != null
+                && habito.getPropietario().getUsuarioId() == autenticado.usuarioId();
     }
 }
