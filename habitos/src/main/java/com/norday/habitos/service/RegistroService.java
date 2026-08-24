@@ -60,6 +60,14 @@ public class RegistroService {
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
         int meta = habito.getMeta();
 
+        // DIARIO: no dejar superar la meta del día. Sin esto, un doble toque o
+        // un reintento por timeout de red crea un registro de más y, si
+        // coincide justo con el punto en que se alcanza la meta, otorga
+        // puntos por partida doble.
+        if (habito.getFrecuencia() == Frecuencia.DIARIO && completadosAntes >= meta) {
+            throw new RuntimeException("Este hábito ya se ha completado hoy");
+        }
+
         Registro registro = new Registro(habito, true, nota, hoy);
         registroDAO.save(registro);
 
