@@ -84,6 +84,18 @@ public class RegistroDAO implements IRegistroDAO {
                 .getResultList();
     }
     @Override
+    public List<Registro> findByHabitosAndRango(List<Habito> habitos, LocalDate desde, LocalDate hasta) {
+        if (habitos.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery(
+                        "SELECT r FROM Registro r WHERE r.habito IN :habitos AND r.fecha BETWEEN :desde AND :hasta ORDER BY r.fecha ASC", Registro.class)
+                .setParameter("habitos", habitos)
+                .setParameter("desde", desde)
+                .setParameter("hasta", hasta)
+                .getResultList();
+    }
+    @Override
     public void update(Registro registro) {
         em.merge(registro);
     }

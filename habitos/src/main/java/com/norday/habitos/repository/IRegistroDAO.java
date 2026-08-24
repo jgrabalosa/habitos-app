@@ -16,6 +16,7 @@ public interface IRegistroDAO {
     void delete(int id);
     void deleteByHabito(int habitoId);
     List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta);
+    List<Registro> findByHabitosAndRango(List<Habito> habitos, LocalDate desde, LocalDate hasta);
     void update(Registro registro);
     int contarPorUsuario(int usuarioId);
     int contarConNotaPorUsuario(int usuarioId);

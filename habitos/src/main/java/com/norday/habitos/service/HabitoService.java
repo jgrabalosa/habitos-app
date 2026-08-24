@@ -282,7 +282,6 @@ public class HabitoService {
 
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
-        List<DashboardHabitoDTO> dashboard = new ArrayList<>();
         ZoneId zona = zonaUsuarioService.zonaDe(usuario);
         LocalDate hoy = LocalDate.now(zona);
 
@@ -293,12 +292,22 @@ public class HabitoService {
         LocalDate inicioVentana =
                 baseVentana.minusDays(baseVentana.getDayOfWeek().getValue() - 1L);
 
-        for (Habito habito : activos) {
-            if (!estaProgramadoPara(habito, hoy)) continue;
+        List<Habito> programadosHoy = activos.stream()
+                .filter(habito -> estaProgramadoPara(habito, hoy))
+                .collect(Collectors.toList());
 
-            // Una sola consulta acotada por hábito
+        // Una sola consulta para todos los hábitos programados hoy, en vez de
+        // una consulta por hábito dentro del bucle: era el N+1 más caliente
+        // de la app, se ejecuta en cada carga del dashboard.
+        Map<Integer, List<Registro>> registrosPorHabito = registroDAO
+                .findByHabitosAndRango(programadosHoy, inicioVentana, hoy)
+                .stream()
+                .collect(Collectors.groupingBy(r -> r.getHabito().getHabitoId()));
+
+        List<DashboardHabitoDTO> dashboard = new ArrayList<>();
+        for (Habito habito : programadosHoy) {
             List<Registro> registrosVentana =
-                    registroDAO.findByHabitoAndRango(habito, inicioVentana, hoy);
+                    registrosPorHabito.getOrDefault(habito.getHabitoId(), List.of());
 
             LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
 
@@ -351,6 +360,13 @@ public class HabitoService {
 
         List<Habito> activos = habitoDAO.findActivos(usuario);
 
+        // Una sola consulta para todos los hábitos activos, en vez de una
+        // por hábito dentro del bucle.
+        Map<Integer, List<Registro>> registrosPorHabito = registroDAO
+                .findByHabitosAndRango(activos, lunes, lunes.plusDays(6))
+                .stream()
+                .collect(Collectors.groupingBy(r -> r.getHabito().getHabitoId()));
+
         List<List<HabitoDiaDTO>> habitosPorDia = new ArrayList<>();
         for (int i = 0; i < 7; i++) {
             habitosPorDia.add(new ArrayList<>());
@@ -358,9 +374,8 @@ public class HabitoService {
         List<HabitoFlexibleDTO> flexibles = new ArrayList<>();
 
         for (Habito habito : activos) {
-            // Una sola consulta acotada por hábito, para toda la semana.
             List<Registro> registrosSemana =
-                    registroDAO.findByHabitoAndRango(habito, lunes, lunes.plusDays(6));
+                    registrosPorHabito.getOrDefault(habito.getHabitoId(), List.of());
 
             if (esSemanalFlexible(habito)) {
                 int completadosSemana = (int) registrosSemana.stream()
