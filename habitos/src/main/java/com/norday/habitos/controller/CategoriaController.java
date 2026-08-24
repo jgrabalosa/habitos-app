@@ -49,14 +49,9 @@ public class CategoriaController {
             return prohibido();
         }
         categoria.setCreador(autenticado);
-        try {
-            categoriaService.crearCategoria(categoria);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("Categoría creada correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        categoriaService.crearCategoria(categoria);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Categoría creada correctamente");
     }
 
     @PutMapping("/{id}")
@@ -71,21 +66,16 @@ public class CategoriaController {
         if (!esElCreador(existente, authentication)) {
             return prohibido();
         }
-        try {
-            // categoriaId, codigo, esGlobal y creador se conservan de la
-            // categoría ya existente, nunca del body: solo los campos de
-            // abajo son editables por el usuario.
-            existente.setNombre(categoria.getNombre());
-            existente.setDescripcion(categoria.getDescripcion());
-            existente.setColor(categoria.getColor());
-            existente.setIcono(categoria.getIcono());
-            existente.setOrden(categoria.getOrden());
-            categoriaService.actualizar(existente);
-            return ResponseEntity.ok("Categoría actualizada correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        // categoriaId, codigo, esGlobal y creador se conservan de la
+        // categoría ya existente, nunca del body: solo los campos de
+        // abajo son editables por el usuario.
+        existente.setNombre(categoria.getNombre());
+        existente.setDescripcion(categoria.getDescripcion());
+        existente.setColor(categoria.getColor());
+        existente.setIcono(categoria.getIcono());
+        existente.setOrden(categoria.getOrden());
+        categoriaService.actualizar(existente);
+        return ResponseEntity.ok("Categoría actualizada correctamente");
     }
 
     @DeleteMapping("/{id}")
@@ -98,13 +88,8 @@ public class CategoriaController {
         if (!esElCreador(existente, authentication)) {
             return prohibido();
         }
-        try {
-            categoriaService.eliminar(id);
-            return ResponseEntity.ok("Categoría eliminada correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        categoriaService.eliminar(id);
+        return ResponseEntity.ok("Categoría eliminada correctamente");
     }
 
     // No existe rol de administrador en el proyecto, así que ninguna

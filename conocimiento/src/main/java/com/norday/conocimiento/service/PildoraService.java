@@ -11,6 +11,7 @@ import com.norday.conocimiento.model.dto.PildoraDetalleDTO;
 import com.norday.conocimiento.repository.IPildoraDAO;
 import com.norday.conocimiento.repository.IUsuarioPildoraDAO;
 import com.norday.conocimiento.repository.IValoracionPildoraDAO;
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,7 @@ public class PildoraService {
     public PildoraDetalleDTO match(Usuario usuario, int pildoraId) {
         Pildora pildora = pildoraDAO.findById(pildoraId);
         if (pildora == null || !pildora.isActiva()) {
-            throw new RuntimeException("Píldora no encontrada");
+            throw new RecursoNoEncontradoException("Píldora no encontrada");
         }
 
         LocalDateTime ahora = LocalDateTime.now();
@@ -84,7 +85,7 @@ public class PildoraService {
     public void descartar(Usuario usuario, int pildoraId) {
         Pildora pildora = pildoraDAO.findById(pildoraId);
         if (pildora == null || !pildora.isActiva()) {
-            throw new RuntimeException("Píldora no encontrada");
+            throw new RecursoNoEncontradoException("Píldora no encontrada");
         }
 
         LocalDateTime ahora = LocalDateTime.now();

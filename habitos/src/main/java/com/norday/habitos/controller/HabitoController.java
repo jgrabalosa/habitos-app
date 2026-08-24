@@ -116,24 +116,19 @@ public class HabitoController {
 
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Habito habito, Authentication authentication) {
-        try {
-            // El propietario nunca se toma del body: si viene, se ignora. Se
-            // fija siempre desde el token, para que nadie pueda crear un
-            // hábito a nombre de otro usuario mandando su usuarioId en el JSON.
-            Usuario autenticado = usuarioAutenticadoComoUsuario(authentication);
-            if (autenticado == null) {
-                return prohibido();
-            }
-            habito.setPropietario(autenticado);
-            List<String> logrosOtorgados = habitoService.crearHabito(habito);
-            Map<String, Object> respuesta = new HashMap<>();
-            respuesta.put("mensaje", "Hábito creado correctamente");
-            respuesta.put("logrosOtorgados", logrosOtorgados);
-            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
+        // El propietario nunca se toma del body: si viene, se ignora. Se
+        // fija siempre desde el token, para que nadie pueda crear un
+        // hábito a nombre de otro usuario mandando su usuarioId en el JSON.
+        Usuario autenticado = usuarioAutenticadoComoUsuario(authentication);
+        if (autenticado == null) {
+            return prohibido();
         }
+        habito.setPropietario(autenticado);
+        List<String> logrosOtorgados = habitoService.crearHabito(habito);
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("mensaje", "Hábito creado correctamente");
+        respuesta.put("logrosOtorgados", logrosOtorgados);
+        return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
     }
 
     @PutMapping("/{id}")
@@ -148,17 +143,12 @@ public class HabitoController {
         if (!esElPropietario(existente, authentication)) {
             return prohibido();
         }
-        try {
-            habito.setHabitoId(id);
-            // Mismo motivo que en crear(): el propietario no se toca desde
-            // el body, se conserva el que ya tenía el hábito en BD.
-            habito.setPropietario(existente.getPropietario());
-            habitoService.actualizar(habito);
-            return ResponseEntity.ok("Hábito actualizado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        habito.setHabitoId(id);
+        // Mismo motivo que en crear(): el propietario no se toca desde
+        // el body, se conserva el que ya tenía el hábito en BD.
+        habito.setPropietario(existente.getPropietario());
+        habitoService.actualizar(habito);
+        return ResponseEntity.ok("Hábito actualizado correctamente");
     }
 
     @PatchMapping("/{id}/activar")
@@ -171,13 +161,8 @@ public class HabitoController {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        try {
-            habitoService.activar(id);
-            return ResponseEntity.ok("Hábito activado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        habitoService.activar(id);
+        return ResponseEntity.ok("Hábito activado correctamente");
     }
 
     @PatchMapping("/{id}/desactivar")
@@ -190,13 +175,8 @@ public class HabitoController {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        try {
-            habitoService.desactivar(id);
-            return ResponseEntity.ok("Hábito desactivado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        habitoService.desactivar(id);
+        return ResponseEntity.ok("Hábito desactivado correctamente");
     }
 
     @DeleteMapping("/{id}")
@@ -209,13 +189,8 @@ public class HabitoController {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        try {
-            habitoService.eliminar(id);
-            return ResponseEntity.ok("Hábito eliminado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        habitoService.eliminar(id);
+        return ResponseEntity.ok("Hábito eliminado correctamente");
     }
 
     @GetMapping("/{id}/detalle")
@@ -230,13 +205,9 @@ public class HabitoController {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        try {
-            YearMonth yearMonth = (mes != null && !mes.isEmpty()) ? YearMonth.parse(mes) : null;
-            HabitoDetalleDTO detalle = habitoService.obtenerDetalle(id, yearMonth);
-            return ResponseEntity.ok(detalle);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        YearMonth yearMonth = (mes != null && !mes.isEmpty()) ? YearMonth.parse(mes) : null;
+        HabitoDetalleDTO detalle = habitoService.obtenerDetalle(id, yearMonth);
+        return ResponseEntity.ok(detalle);
     }
 
     // No existe rol de administrador en el proyecto (el token no lleva

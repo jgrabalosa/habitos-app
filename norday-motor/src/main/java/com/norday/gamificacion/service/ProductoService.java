@@ -1,5 +1,6 @@
 package com.norday.gamificacion.service;
 
+import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
 import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioProducto;
@@ -79,7 +80,7 @@ public class ProductoService {
                 usuario.getUsuarioId(), productoId);
 
         if (existente != null && "EQUIPABLE".equals(producto.getTipo())) {
-            throw new RuntimeException("Ya tienes este producto");
+            throw new ConflictoException("Ya tienes este producto");
         }
 
         int saldoActual = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
@@ -112,7 +113,7 @@ public class ProductoService {
                 usuario.getUsuarioId(), productoId);
 
         if (existente != null && "EQUIPABLE".equals(producto.getTipo())) {
-            throw new RuntimeException("Ya tienes este producto");
+            throw new ConflictoException("Ya tienes este producto");
         }
 
         if (existente != null && "CONSUMIBLE".equals(producto.getTipo())) {

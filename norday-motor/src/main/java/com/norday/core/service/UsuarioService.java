@@ -1,5 +1,7 @@
 package com.norday.core.service;
 
+import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.repository.IUsuarioDAO;
@@ -43,10 +45,10 @@ public class UsuarioService {
     @Transactional
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
-            throw new RuntimeException("Ya existe un usuario con ese email");
+            throw new ConflictoException("Ya existe un usuario con ese email");
         }
         if (usuarioDAO.findByUsername(usuario.getUsername()) != null) {
-            throw new RuntimeException("Ya existe un usuario con ese username");
+            throw new ConflictoException("Ya existe un usuario con ese username");
         }
         usuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
         usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
@@ -124,7 +126,7 @@ public class UsuarioService {
     public void actualizarPerfil(Usuario usuario) {
         Usuario existente = usuarioDAO.findById(usuario.getUsuarioId());
         if (existente == null) {
-            throw new RuntimeException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 
         // Solo se actualizan los campos editables del perfil.
@@ -152,7 +154,7 @@ public class UsuarioService {
     public void cambiarContrasena(int id, String contrasenaActual, String contrasenaNueva) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {
-            throw new RuntimeException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 
         if ("GOOGLE".equals(usuario.getProveedorAuth())) {
@@ -175,7 +177,7 @@ public class UsuarioService {
     public void actualizarFcmToken(int id, String fcmToken) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {
-            throw new RuntimeException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
         usuario.setFcmToken(fcmToken);
         usuarioDAO.update(usuario);
@@ -185,7 +187,7 @@ public class UsuarioService {
     public void eliminarCuenta(int id) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {
-            throw new RuntimeException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 
         // Cada módulo borra lo suyo. El orden entre limpiadores da igual (son
