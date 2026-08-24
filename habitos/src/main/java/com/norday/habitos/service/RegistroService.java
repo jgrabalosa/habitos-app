@@ -1,5 +1,7 @@
 package com.norday.habitos.service;
 
+import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.service.MascotaService;
@@ -53,7 +55,7 @@ public class RegistroService {
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
         if (habito.getFrecuencia() == Frecuencia.SEMANAL
                 && registroDAO.existeRegistroEnFecha(habito, hoy)) {
-            throw new RuntimeException("Este hábito ya se ha completado hoy");
+            throw new ConflictoException("Este hábito ya se ha completado hoy");
         }
 
         LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
@@ -65,7 +67,7 @@ public class RegistroService {
         // coincide justo con el punto en que se alcanza la meta, otorga
         // puntos por partida doble.
         if (habito.getFrecuencia() == Frecuencia.DIARIO && completadosAntes >= meta) {
-            throw new RuntimeException("Este hábito ya se ha completado hoy");
+            throw new ConflictoException("Este hábito ya se ha completado hoy");
         }
 
         Registro registro = new Registro(habito, true, nota, hoy);
@@ -200,7 +202,7 @@ public class RegistroService {
     public void actualizarNota(int registroId, String nota) {
         Registro registro = registroDAO.findById(registroId);
         if (registro == null) {
-            throw new RuntimeException("Registro no encontrado");
+            throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         registro.setNota(nota);
         registroDAO.update(registro);
@@ -215,7 +217,7 @@ public class RegistroService {
         }
         Registro registro = registroDAO.findById(registroId);
         if (registro == null) {
-            throw new RuntimeException("Registro no encontrado");
+            throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         registro.setValoracion(valoracion);
         registroDAO.update(registro);

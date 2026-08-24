@@ -48,18 +48,16 @@ public class UsuarioController {
                     .collect(java.util.stream.Collectors.joining(", "));
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errores);
         }
-        try {
-            usuarioService.registrar(usuario);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("Usuario registrado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        usuarioService.registrar(usuario);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Usuario registrado correctamente");
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Usuario usuario) {
+        // Este catch se conserva a propósito: el login siempre debe devolver
+        // 401 en cualquier fallo de credenciales, no el 400 por defecto del
+        // manejador global.
         try {
             Usuario encontrado = usuarioService.login(
                     usuario.getEmail(), usuario.getContrasena());
@@ -117,16 +115,12 @@ public class UsuarioController {
 
     @PostMapping("/restablecer")
     public ResponseEntity<?> restablecerContrasena(@RequestBody Map<String, String> body) {
-        try {
-            recuperacionService.restablecerContrasena(
-                    body.get("email"),
-                    body.get("codigo"),
-                    body.get("contrasenaNueva")
-            );
-            return ResponseEntity.ok("Contraseña restablecida correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        recuperacionService.restablecerContrasena(
+                body.get("email"),
+                body.get("codigo"),
+                body.get("contrasenaNueva")
+        );
+        return ResponseEntity.ok("Contraseña restablecida correctamente");
     }
 
     @GetMapping("/{id}")
@@ -175,18 +169,12 @@ public class UsuarioController {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        try {
-            Usuario usuario = preferenciasService.actualizar(
-                    id, body.get("idioma"), body.get("zonaHoraria"));
-            return ResponseEntity.ok(Map.of(
-                    "idioma", usuario.getIdioma(),
-                    "zonaHoraria", usuario.getZonaHoraria()
-            ));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        Usuario usuario = preferenciasService.actualizar(
+                id, body.get("idioma"), body.get("zonaHoraria"));
+        return ResponseEntity.ok(Map.of(
+                "idioma", usuario.getIdioma(),
+                "zonaHoraria", usuario.getZonaHoraria()
+        ));
     }
 
     /**
@@ -216,14 +204,9 @@ public class UsuarioController {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        try {
-            usuario.setUsuarioId(id);
-            usuarioService.actualizarPerfil(usuario);
-            return ResponseEntity.ok("Usuario actualizado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        usuario.setUsuarioId(id);
+        usuarioService.actualizarPerfil(usuario);
+        return ResponseEntity.ok("Usuario actualizado correctamente");
     }
 
     @PutMapping("/{id}/contrasena")
@@ -233,15 +216,10 @@ public class UsuarioController {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        try {
-            usuarioService.cambiarContrasena(id,
-                    body.get("contrasenaActual"),
-                    body.get("contrasenaNueva"));
-            return ResponseEntity.ok("Contraseña actualizada correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        usuarioService.cambiarContrasena(id,
+                body.get("contrasenaActual"),
+                body.get("contrasenaNueva"));
+        return ResponseEntity.ok("Contraseña actualizada correctamente");
     }
 
     @PutMapping("/{id}/fcm-token")
@@ -251,14 +229,9 @@ public class UsuarioController {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        try {
-            String fcmToken = body.get("fcmToken");
-            usuarioService.actualizarFcmToken(id, fcmToken);
-            return ResponseEntity.ok("Token FCM actualizado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        String fcmToken = body.get("fcmToken");
+        usuarioService.actualizarFcmToken(id, fcmToken);
+        return ResponseEntity.ok("Token FCM actualizado correctamente");
     }
 
     @DeleteMapping("/{id}")
@@ -271,13 +244,8 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("No puedes eliminar la cuenta de otro usuario");
         }
-        try {
-            usuarioService.eliminarCuenta(id);
-            return ResponseEntity.ok("Usuario eliminado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        usuarioService.eliminarCuenta(id);
+        return ResponseEntity.ok("Usuario eliminado correctamente");
     }
 
     // ── Autorización ───────────────────────────────────────

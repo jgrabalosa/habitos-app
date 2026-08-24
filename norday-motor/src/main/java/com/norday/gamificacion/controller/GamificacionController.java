@@ -101,12 +101,8 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        try {
-            productoService.comprarProducto(usuario, productoId);
-            return ResponseEntity.ok("Producto comprado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        productoService.comprarProducto(usuario, productoId);
+        return ResponseEntity.ok("Producto comprado correctamente");
     }
 
     @PostMapping("/productos/otorgar/{usuarioId}/{productoId}")
@@ -132,12 +128,8 @@ public class GamificacionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Solo los avatares pueden otorgarse gratis por esta vía");
         }
-        try {
-            productoService.otorgarProducto(usuario, productoId);
-            return ResponseEntity.ok("Producto otorgado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        productoService.otorgarProducto(usuario, productoId);
+        return ResponseEntity.ok("Producto otorgado correctamente");
     }
 
     @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
@@ -150,12 +142,8 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        try {
-            productoService.equiparProducto(usuario, productoId);
-            return ResponseEntity.ok("Producto equipado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        productoService.equiparProducto(usuario, productoId);
+        return ResponseEntity.ok("Producto equipado correctamente");
     }
 
     @PostMapping("/resena/{usuarioId}")
@@ -181,12 +169,8 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        try {
-            productoService.desequiparProducto(usuario, productoId);
-            return ResponseEntity.ok("Producto desequipado correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        productoService.desequiparProducto(usuario, productoId);
+        return ResponseEntity.ok("Producto desequipado correctamente");
     }
 
     @PostMapping("/productos/usar/{usuarioId}/{productoId}")
@@ -199,12 +183,8 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        try {
-            Map<String, Object> resultado = productoService.usarProducto(usuario, productoId);
-            return ResponseEntity.ok(resultado);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        Map<String, Object> resultado = productoService.usarProducto(usuario, productoId);
+        return ResponseEntity.ok(resultado);
     }
 
     private ResponseEntity<?> prohibido() {

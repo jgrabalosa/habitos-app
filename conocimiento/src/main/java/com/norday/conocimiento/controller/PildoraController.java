@@ -49,71 +49,47 @@ public class PildoraController {
 
     @PostMapping("/{id}/match")
     public ResponseEntity<?> match(@PathVariable int id, Authentication authentication) {
-        try {
-            Usuario usuario = usuarioAutenticado(authentication);
-            PildoraDetalleDTO detalle = pildoraService.match(usuario, id);
-            return ResponseEntity.ok(detalle);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        Usuario usuario = usuarioAutenticado(authentication);
+        PildoraDetalleDTO detalle = pildoraService.match(usuario, id);
+        return ResponseEntity.ok(detalle);
     }
 
     @PostMapping("/{id}/descartar")
     public ResponseEntity<?> descartar(@PathVariable int id, Authentication authentication) {
-        try {
-            Usuario usuario = usuarioAutenticado(authentication);
-            pildoraService.descartar(usuario, id);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        Usuario usuario = usuarioAutenticado(authentication);
+        pildoraService.descartar(usuario, id);
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/guardar")
     public ResponseEntity<?> guardar(@PathVariable int id,
                                      @RequestBody Map<String, Boolean> body,
                                      Authentication authentication) {
-        try {
-            Usuario usuario = usuarioAutenticado(authentication);
-            Boolean guardar = body.get("guardar");
-            if (guardar == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Falta el campo 'guardar'");
-            }
-            pildoraService.guardar(usuario, id, guardar);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        Usuario usuario = usuarioAutenticado(authentication);
+        Boolean guardar = body.get("guardar");
+        if (guardar == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Falta el campo 'guardar'");
         }
+        pildoraService.guardar(usuario, id, guardar);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/valoracion")
     public ResponseEntity<?> valorar(@PathVariable int id,
                                      @RequestBody Map<String, Object> body,
                                      Authentication authentication) {
-        try {
-            Usuario usuario = usuarioAutenticado(authentication);
+        Usuario usuario = usuarioAutenticado(authentication);
 
-            Object puntuacion = body.get("puntuacion");
-            if (!(puntuacion instanceof Integer)) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("La puntuación debe estar entre 1 y 5");
-            }
-            Object nota = body.get("notaPersonal");
-
-            valoracionService.valorar(usuario, id, (Integer) puntuacion,
-                    nota != null ? nota.toString() : null);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        Object puntuacion = body.get("puntuacion");
+        if (!(puntuacion instanceof Integer)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("La puntuación debe estar entre 1 y 5");
         }
+        Object nota = body.get("notaPersonal");
+
+        valoracionService.valorar(usuario, id, (Integer) puntuacion,
+                nota != null ? nota.toString() : null);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/coleccion")

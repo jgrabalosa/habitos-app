@@ -1,5 +1,6 @@
 package com.norday.habitos.service;
 
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -106,7 +107,7 @@ public class HabitoService {
     public void actualizar(Habito habito) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
-            throw new RuntimeException("Hábito no encontrado");
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
 
         boolean cambioFrecuencia = existente.getFrecuencia() != habito.getFrecuencia();
@@ -151,7 +152,7 @@ public class HabitoService {
     public HabitoDetalleDTO obtenerDetalle(int habitoId, YearMonth mes) {
         Habito habito = habitoDAO.findById(habitoId);
         if (habito == null) {
-            throw new RuntimeException("Hábito no encontrado");
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
 
         if (mes == null) {

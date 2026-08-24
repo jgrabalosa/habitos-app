@@ -1,5 +1,6 @@
 package com.norday.core.service;
 
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +40,7 @@ public class PreferenciasService {
     public Usuario actualizar(int usuarioId, String idioma, String zonaHoraria) {
         Usuario usuario = usuarioDAO.findById(usuarioId);
         if (usuario == null) {
-            throw new RuntimeException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 
         if (idioma != null) {

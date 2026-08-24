@@ -35,23 +35,18 @@ public class RegistroController {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        try {
-            String nota = body != null ? body.get("nota") : null;
-            Map<String, Object> resultado = registroService.completarHabito(habito, nota);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(Map.of(
-                            "mensaje", "Hábito completado correctamente",
-                            "logrosOtorgados", resultado.get("logros"),
-                            "puntosGanados", resultado.get("puntosGanados"),
-                            "registroId", resultado.get("registroId"),
-                            "mostrarValoracion", resultado.get("mostrarValoracion"),
-                            "subioNivel", resultado.get("subioNivel"),
-                            "nivelNuevo", resultado.get("nivelNuevo")
-                    ));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
-        }
+        String nota = body != null ? body.get("nota") : null;
+        Map<String, Object> resultado = registroService.completarHabito(habito, nota);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                        "mensaje", "Hábito completado correctamente",
+                        "logrosOtorgados", resultado.get("logros"),
+                        "puntosGanados", resultado.get("puntosGanados"),
+                        "registroId", resultado.get("registroId"),
+                        "mostrarValoracion", resultado.get("mostrarValoracion"),
+                        "subioNivel", resultado.get("subioNivel"),
+                        "nivelNuevo", resultado.get("nivelNuevo")
+                ));
     }
 
     @GetMapping("/habito/{habitoId}")
@@ -98,13 +93,9 @@ public class RegistroController {
         if (!esElPropietario(registro.getHabito(), authentication)) {
             return prohibido();
         }
-        try {
-            String nota = body.get("nota");
-            registroService.actualizarNota(registroId, nota);
-            return ResponseEntity.ok("Nota actualizada correctamente");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        String nota = body.get("nota");
+        registroService.actualizarNota(registroId, nota);
+        return ResponseEntity.ok("Nota actualizada correctamente");
     }
 
     @PutMapping("/{registroId}/valoracion")
@@ -118,15 +109,9 @@ public class RegistroController {
         if (!esElPropietario(registro.getHabito(), authentication)) {
             return prohibido();
         }
-        try {
-            Integer valoracion = body.get("valoracion");
-            registroService.actualizarValoracion(registroId, valoracion);
-            return ResponseEntity.ok("Valoración guardada correctamente");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        Integer valoracion = body.get("valoracion");
+        registroService.actualizarValoracion(registroId, valoracion);
+        return ResponseEntity.ok("Valoración guardada correctamente");
     }
 
     // No existe rol de administrador en el proyecto, así que nadie tiene
