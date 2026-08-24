@@ -28,19 +28,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<?> manejarNoEncontrado(RecursoNoEncontradoException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("mensaje", e.getMessage()));
+                .body(Map.of("mensaje", mensajeSeguro(e)));
     }
 
     @ExceptionHandler(ConflictoException.class)
     public ResponseEntity<?> manejarConflicto(ConflictoException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("mensaje", e.getMessage()));
+                .body(Map.of("mensaje", mensajeSeguro(e)));
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> manejarRuntimeException(RuntimeException e) {
+        // Se loguea a propósito: antes este handler devolvía 400 en silencio y
+        // dejaba fallos reales invisibles en el log del servidor.
+        log.error("RuntimeException no tipada", e);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("mensaje", e.getMessage()));
+                .body(Map.of("mensaje", mensajeSeguro(e)));
+    }
+
+    /** Map.of no admite valores null y muchas excepciones no traen mensaje. */
+    private String mensajeSeguro(Exception e) {
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
     }
 
     @ExceptionHandler(Exception.class)
