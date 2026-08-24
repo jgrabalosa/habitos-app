@@ -85,6 +85,15 @@ public class UsuarioPildoraDAO implements IUsuarioPildoraDAO {
     }
 
     @Override
+    public List<UsuarioPildora> findByUsuario(Usuario usuario) {
+        return em.createQuery(
+                        "SELECT up FROM UsuarioPildora up WHERE up.usuario = :usuario ORDER BY up.id",
+                        UsuarioPildora.class)
+                .setParameter("usuario", usuario)
+                .getResultList();
+    }
+
+    @Override
     public void deleteByUsuario(int usuarioId) {
         em.createQuery("DELETE FROM UsuarioPildora up WHERE up.usuario.usuarioId = :usuarioId")
                 .setParameter("usuarioId", usuarioId)

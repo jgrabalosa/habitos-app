@@ -2,6 +2,7 @@ package com.norday.conocimiento.repository;
 
 import com.norday.conocimiento.model.ValoracionPildora;
 import com.norday.core.model.Usuario;
+import java.util.List;
 
 public interface IValoracionPildoraDAO {
 
@@ -10,6 +11,8 @@ public interface IValoracionPildoraDAO {
 
     void save(ValoracionPildora valoracion);
     void update(ValoracionPildora valoracion);
+
+    List<ValoracionPildora> findByUsuario(Usuario usuario);
 
     /** Borrado en bloque al eliminar la cuenta. Ver LimpiadorConocimiento. */
     void deleteByUsuario(int usuarioId);

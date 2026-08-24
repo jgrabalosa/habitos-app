@@ -4,6 +4,7 @@ import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.security.JwtUtil;
 import com.norday.core.security.UsuarioAutenticado;
+import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.PreferenciasService;
 import com.norday.core.service.RecuperacionService;
 import com.norday.core.service.UsuarioService;
@@ -38,6 +39,9 @@ public class UsuarioController {
 
     @Autowired
     private PreferenciasService preferenciasService;
+
+    @Autowired
+    private ExportacionDatosService exportacionDatosService;
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
@@ -142,6 +146,26 @@ public class UsuarioController {
                 "idioma", usuario.getIdioma(),
                 "zonaHoraria", usuario.getZonaHoraria()
         ));
+    }
+
+    /**
+     * Portabilidad de datos del RGPD (art. 20). Devuelve todo lo que
+     * guardamos del usuario en un JSON descargable.
+     */
+    @GetMapping("/{id}/exportar")
+    public ResponseEntity<?> exportarDatos(@PathVariable int id,
+                                           Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
+        Map<String, Object> datos = exportacionDatosService.exportar(id);
+        String nombreArchivo = "norday-datos-" + id + "-"
+                + java.time.LocalDate.now() + ".json";
+        return ResponseEntity.ok()
+                .header("Content-Disposition",
+                        "attachment; filename=\"" + nombreArchivo + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(datos);
     }
 
     // ── Preferencias: idioma y zona horaria ────────────────

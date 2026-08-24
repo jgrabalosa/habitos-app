@@ -23,6 +23,9 @@ public interface IUsuarioPildoraDAO {
      */
     List<UsuarioPildora> findParaColeccion(Usuario usuario, Integer categoriaId, EstadoPildora estado);
 
+    /** Todo el historial, incluidos los descartes: la exportación RGPD no filtra. */
+    List<UsuarioPildora> findByUsuario(Usuario usuario);
+
     /** Borrado en bloque al eliminar la cuenta. Ver LimpiadorConocimiento. */
     void deleteByUsuario(int usuarioId);
 }

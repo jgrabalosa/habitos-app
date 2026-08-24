@@ -7,6 +7,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 @Repository
 @Transactional
@@ -34,6 +35,15 @@ public class ValoracionPildoraDAO implements IValoracionPildoraDAO {
     @Override
     public void update(ValoracionPildora valoracion) {
         em.merge(valoracion);
+    }
+
+    @Override
+    public List<ValoracionPildora> findByUsuario(Usuario usuario) {
+        return em.createQuery(
+                        "SELECT v FROM ValoracionPildora v WHERE v.usuario = :usuario ORDER BY v.id",
+                        ValoracionPildora.class)
+                .setParameter("usuario", usuario)
+                .getResultList();
     }
 
     @Override

@@ -65,7 +65,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.equals("/api/usuarios/login")
                 || uri.equals("/api/usuarios/recuperar")
                 || uri.equals("/api/usuarios/restablecer")
-                || uri.equals("/api/usuarios/registro")) {
+                || uri.equals("/api/usuarios/registro")
+                // La exportación lleva {id} en medio de la ruta, así que equals
+                // nunca casaría: endsWith es la única forma de reconocerla.
+                || uri.endsWith("/exportar")) {
             String ip = obtenerIpCliente(request);
             Bucket bucket = getBucket(ip);
 
