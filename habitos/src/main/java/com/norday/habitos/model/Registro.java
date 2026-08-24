@@ -24,7 +24,7 @@ public class Registro {
     @Column(name = "valoracion")
     private Integer valoracion; // 1-5, null si el usuario no valoró
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_registro_habito"))
     private Habito habito;
 

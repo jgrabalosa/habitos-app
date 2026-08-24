@@ -53,11 +53,11 @@ public class Habito {
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "propietario_id", nullable = false, foreignKey = @ForeignKey(name = "FK_habito_usuario"))
     private Usuario propietario;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tipo_id", foreignKey = @ForeignKey(name = "FK_habito_categoria"))
     private Categoria tipo;
 
