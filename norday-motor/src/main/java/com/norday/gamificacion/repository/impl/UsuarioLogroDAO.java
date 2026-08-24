@@ -51,4 +51,13 @@ public class UsuarioLogroDAO implements IUsuarioLogroDAO {
                 .setParameter("usuarioId", usuarioId)
                 .executeUpdate();
     }
+
+    @Override
+    public void deleteByUsuarioYLogro(int usuarioId, int logroId) {
+        em.createQuery(
+                        "DELETE FROM UsuarioLogro ul WHERE ul.usuario.usuarioId = :usuarioId AND ul.logro.logroId = :logroId")
+                .setParameter("usuarioId", usuarioId)
+                .setParameter("logroId", logroId)
+                .executeUpdate();
+    }
 }

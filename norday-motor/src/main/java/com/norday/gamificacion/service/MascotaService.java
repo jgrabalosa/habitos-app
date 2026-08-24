@@ -141,4 +141,16 @@ public class MascotaService {
         mascota.setFechaUltimaComida(LocalDate.now(zonaDeMascota(mascota)));
         mascotaDAO.update(mascota);
     }
+
+    /**
+     * Restaura el progreso a un estado anterior. Genérico a propósito: el
+     * motor no sabe por qué se revierte, solo a qué valores volver.
+     */
+    public void restaurarProgreso(int usuarioId, int experiencia,
+                                  LocalDate fechaUltimoDiaCompleto) {
+        Mascota mascota = obtenerOCrear(usuarioId);
+        mascota.setExperiencia(experiencia);
+        mascota.setFechaUltimoDiaCompleto(fechaUltimoDiaCompleto);
+        mascotaDAO.update(mascota);
+    }
 }

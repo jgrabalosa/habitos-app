@@ -292,8 +292,13 @@ class HabitoServiceTest {
     // hoy+offset, y como dias[0] es siempre lunes (ISO 1), el indice de un
     // dia ISO concreto dentro de la lista de 7 es simplemente (iso - 1).
 
+    // obtenerSemana pide los registros en una sola consulta por lotes
+    // (findByHabitosAndRango) en vez de una por hábito, para no repetir el
+    // N+1 que ya se arregló en obtenerDashboard. Cada test de este bloque
+    // deja `h` como único hábito activo, así que la lista de la consulta es
+    // siempre List.of(h).
     private void conRegistrosSemana(Habito h, List<Registro> registros) {
-        when(registroDAO.findByHabitoAndRango(eq(h), any(), any())).thenReturn(registros);
+        when(registroDAO.findByHabitosAndRango(eq(List.of(h)), any(), any())).thenReturn(registros);
     }
 
     @Test

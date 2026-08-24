@@ -8,6 +8,7 @@ import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IReversionRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -31,11 +32,15 @@ public class LimpiadorHabitos implements LimpiadorDatosUsuario {
     @Autowired
     private ICategoriaDAO categoriaDAO;
 
+    @Autowired
+    private IReversionRegistroDAO reversionRegistroDAO;
+
     @Override
     public void limpiar(Usuario usuario) {
         // 1. Borrar registros y rachas de todos sus hábitos
         List<Habito> habitos = habitoDAO.findByPropietario(usuario);
         for (Habito habito : habitos) {
+            reversionRegistroDAO.deleteByHabito(habito.getHabitoId());
             registroDAO.deleteByHabito(habito.getHabitoId());
             rachaDAO.deleteByHabito(habito.getHabitoId());
         }

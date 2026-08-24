@@ -1,6 +1,8 @@
 package com.norday.habitos;
 
+import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
+import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
@@ -8,8 +10,10 @@ import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IReversionRegistroDAO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RachaService;
@@ -56,6 +60,12 @@ class RegistroServiceTest {
     @Mock
     private HabitoService habitoService;
 
+    @Mock
+    private ILogroDAO logroDAO;
+
+    @Mock
+    private IReversionRegistroDAO reversionRegistroDAO;
+
     @InjectMocks
     private RegistroService registroService;
 
@@ -78,6 +88,9 @@ class RegistroServiceTest {
         racha = new Racha(habito, HOY);
 
         lenient().when(rachaService.zonaDe(any(Habito.class))).thenReturn(ZONA);
+        // La instantánea de deshacer lee el estado previo de la mascota antes
+        // de crear el Registro: sin este stub, mascotaPrevia sale null.
+        lenient().when(mascotaService.obtenerOCrear(anyInt())).thenReturn(new Mascota(usuario));
     }
 
     @Test
@@ -146,21 +159,19 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarMasVecesQueLaMeta_noSeOtorganPuntosExtra() {
+    void alCompletarMasVecesQueLaMeta_seRechazaConConflicto() {
         // Arrange: hábito diario con meta 1, YA completado hoy (1 registro previo)
         habito.setMeta(1);
         List<Registro> registrosPrevios = List.of(new Registro(habito, true, "", HOY));
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
-                .thenReturn(new ArrayList<>());
 
-        // Act: completamos una 2ª vez, superando la meta
-        registroService.completarHabito(habito, "");
+        // Act & Assert: completar una 2ª vez, superando la meta, se rechaza —
+        // es la guarda de idempotencia contra doble toque o reintento.
+        assertThrows(ConflictoException.class, () -> registroService.completarHabito(habito, ""));
 
-        // Assert: NUNCA se llama a registrarMovimiento con origen HABITO_COMPLETADO
+        // Y nunca se llega a otorgar puntos
         verify(usuarioMonedaService, never()).registrarMovimiento(
                 eq(usuario), anyInt(), eq("HABITO_COMPLETADO"), anyInt(), anyString()
         );
@@ -208,7 +219,7 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarDosVecesTrasAlcanzarLaMeta_laRachaNoSubeDeNuevo() {
+    void alCompletarTrasAlcanzarLaMeta_seRechazaConConflictoYLaRachaNoSubeDeNuevo() {
         habito.setMeta(3);
         racha.setRachaActual(1);
         racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().rangoPeriodoActual(ZONA)[0]); // ya se alcanzó este periodo
@@ -221,11 +232,10 @@ class RegistroServiceTest {
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
-        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
-                .thenReturn(new ArrayList<>());
 
-        registroService.completarHabito(habito, "");
+        // Act & Assert: un 4º completado tras alcanzar la meta se rechaza —
+        // ni siquiera llega a tocar la racha.
+        assertThrows(ConflictoException.class, () -> registroService.completarHabito(habito, ""));
 
         assertEquals(1, racha.getRachaActual()); // no subió de nuevo
     }

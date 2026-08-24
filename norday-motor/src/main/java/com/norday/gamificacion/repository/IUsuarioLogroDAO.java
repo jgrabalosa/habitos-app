@@ -10,4 +10,7 @@ public interface IUsuarioLogroDAO {
     UsuarioLogro findById(int id);
     List<UsuarioLogro> findByUsuario(Usuario usuario);
     boolean existePorUsuarioYLogro(int usuarioId, int logroId);
+
+    /** Retira un logro concreto. Lo usa el deshacer de hábitos. */
+    void deleteByUsuarioYLogro(int usuarioId, int logroId);
 }

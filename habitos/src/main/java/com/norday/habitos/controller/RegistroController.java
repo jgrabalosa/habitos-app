@@ -114,6 +114,19 @@ public class RegistroController {
         return ResponseEntity.ok("Valoración guardada correctamente");
     }
 
+    @DeleteMapping("/{registroId}")
+    public ResponseEntity<?> deshacer(@PathVariable int registroId, Authentication authentication) {
+        Registro registro = registroService.buscarPorId(registroId);
+        if (registro == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Registro no encontrado");
+        }
+        if (!esElPropietario(registro.getHabito(), authentication)) {
+            return prohibido();
+        }
+        Map<String, Object> resultado = registroService.deshacerRegistro(registroId);
+        return ResponseEntity.ok(resultado);
+    }
+
     // No existe rol de administrador en el proyecto, así que nadie tiene
     // motivo legítimo para operar sobre registros ajenos.
 

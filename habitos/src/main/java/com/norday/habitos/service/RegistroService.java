@@ -3,20 +3,28 @@ package com.norday.habitos.service;
 import com.norday.core.exception.ConflictoException;
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.gamificacion.model.Logro;
+import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
+import com.norday.gamificacion.repository.ILogroDAO;
+import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.ReversionLogro;
+import com.norday.habitos.model.ReversionRegistro;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IReversionRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +52,15 @@ public class RegistroService {
     @Autowired
     private HabitoService habitoService;
 
+    @Autowired
+    private ILogroDAO logroDAO;
+
+    @Autowired
+    private IUsuarioLogroDAO usuarioLogroDAO;
+
+    @Autowired
+    private IReversionRegistroDAO reversionRegistroDAO;
+
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
@@ -53,6 +70,7 @@ public class RegistroService {
     public Map<String, Object> completarHabito(Habito habito, String nota) {
         ZoneId zona = rachaService.zonaDe(habito);
         LocalDate hoy = LocalDate.now(zona);
+        Usuario usuario = habito.getPropietario();
 
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
         if (habito.getFrecuencia() == Frecuencia.SEMANAL
@@ -72,10 +90,22 @@ public class RegistroService {
             throw new ConflictoException("Este hábito ya se ha completado hoy");
         }
 
+        // Instantánea del estado previo, para poder deshacer este completado con
+        // exactitud (ver ReversionRegistro). Valores primitivos copiados a
+        // propósito: si guardásemos la entidad, Hibernate la modificaría más
+        // abajo y aquí leeríamos ya los valores nuevos.
+        int saldoAntes = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
+        Racha rachaPrevia = rachaDAO.findByHabito(habito);
+        Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
+        Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
+        LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
+        Mascota mascotaPrevia = mascotaService.obtenerOCrear(usuario.getUsuarioId());
+        int mascotaExperienciaPrevia = mascotaPrevia.getExperiencia();
+        LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
+
         Registro registro = new Registro(habito, true, nota, hoy);
         registroDAO.save(registro);
 
-        Usuario usuario = habito.getPropietario();
         int puntosGanados = 0;
         boolean subioNivel = false;
         int nivelNuevo = 0;
@@ -116,6 +146,19 @@ public class RegistroService {
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
         boolean mostrarValoracion = habito.getFrecuencia() == Frecuencia.SEMANAL
                 || (completadosAntes + 1) >= meta;
+
+        // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
+        // saldo recoge de una vez el completado, el hito de racha y los logros.
+        int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
+        ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
+                periodoMetaAlcanzadaPrevio, mascotaExperienciaPrevia, mascotaDiaCompletoPrevio, monedasOtorgadas);
+        for (String codigo : logros) {
+            Logro logro = logroDAO.findByCodigo(codigo);
+            if (logro != null) {
+                reversion.getLogros().add(new ReversionLogro(reversion, logro.getLogroId()));
+            }
+        }
+        reversionRegistroDAO.save(reversion);
 
         return Map.of(
                 "logros", logros,
@@ -223,5 +266,83 @@ public class RegistroService {
         }
         registro.setValoracion(valoracion);
         registroDAO.update(registro);
+    }
+
+    /**
+     * Deshace un hábito completado, revirtiendo con exactitud a partir de la
+     * instantánea capturada al completarlo. Solo el último registro del
+     * hábito, y solo si es de hoy: fuera de eso la instantánea no es fiel y
+     * el endpoint corrompería datos en silencio.
+     */
+    @Transactional
+    public Map<String, Object> deshacerRegistro(int registroId) {
+        Registro registro = registroDAO.findById(registroId);
+        if (registro == null) {
+            throw new RecursoNoEncontradoException("Registro no encontrado");
+        }
+        Habito habito = registro.getHabito();
+        Usuario usuario = habito.getPropietario();
+
+        // Solo se puede deshacer el último registro del hábito.
+        List<Registro> registrosHabito = registroDAO.findByHabito(habito);
+        Registro ultimo = null;
+        for (Registro r : registrosHabito) {
+            if (ultimo == null || r.getRegistroId() > ultimo.getRegistroId()) {
+                ultimo = r;
+            }
+        }
+        if (ultimo == null || ultimo.getRegistroId() != registroId) {
+            throw new ConflictoException("Solo se puede deshacer el último completado");
+        }
+
+        // Y solo si es de hoy, en la zona horaria del hábito.
+        ZoneId zona = rachaService.zonaDe(habito);
+        if (!registro.getFecha().equals(LocalDate.now(zona))) {
+            throw new ConflictoException("Solo se puede deshacer un completado de hoy");
+        }
+
+        ReversionRegistro reversion = reversionRegistroDAO.findByRegistro(registroId);
+        if (reversion == null) {
+            throw new ConflictoException(
+                    "Este completado es anterior al sistema de deshacer y no se puede revertir");
+        }
+
+        // Retira los logros para que puedan reconcederse. Sus monedas ya van
+        // dentro del delta que se compensa a continuación.
+        List<Integer> logrosRetirados = new ArrayList<>();
+        for (ReversionLogro reversionLogro : reversion.getLogros()) {
+            usuarioLogroDAO.deleteByUsuarioYLogro(usuario.getUsuarioId(), reversionLogro.getLogroRef());
+            logrosRetirados.add(reversionLogro.getLogroRef());
+        }
+
+        // Las monedas no se borran, se compensan: el libro es append-only.
+        // Se permite saldo negativo.
+        int monedasOtorgadas = reversion.getMonedasOtorgadas();
+        if (monedasOtorgadas != 0) {
+            usuarioMonedaService.registrarMovimiento(usuario, -monedasOtorgadas, "DESHACER_HABITO",
+                    habito.getHabitoId(), "Deshecho: " + habito.getNombre());
+        }
+
+        if (reversion.getRachaActualPrevia() != null) {
+            Racha racha = rachaDAO.findByHabito(habito);
+            racha.setRachaActual(reversion.getRachaActualPrevia());
+            racha.setRachaMaxima(reversion.getRachaMaximaPrevia());
+            racha.setPeriodoMetaAlcanzada(reversion.getPeriodoMetaAlcanzadaPrevio());
+            rachaDAO.update(racha);
+        }
+
+        if (reversion.getMascotaExperienciaPrevia() != null) {
+            mascotaService.restaurarProgreso(usuario.getUsuarioId(),
+                    reversion.getMascotaExperienciaPrevia(), reversion.getMascotaDiaCompletoPrevio());
+        }
+
+        // La reversión primero y el registro después: importa por la FK.
+        reversionRegistroDAO.delete(reversion.getReversionId());
+        registroDAO.delete(registro.getRegistroId());
+
+        return Map.of(
+                "monedasDevueltas", monedasOtorgadas,
+                "logrosRetirados", logrosRetirados
+        );
     }
 }
