@@ -1,6 +1,7 @@
 package com.norday.habitos.controller;
 
 import com.norday.core.model.Usuario;
+import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
@@ -8,6 +9,7 @@ import com.norday.habitos.service.HabitoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.time.LocalDate;
@@ -27,7 +29,10 @@ public class HabitoController {
     private UsuarioService usuarioService;
 
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<?> obtenerTodos(@PathVariable int usuarioId) {
+    public ResponseEntity<?> obtenerTodos(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -37,7 +42,10 @@ public class HabitoController {
     }
 
     @GetMapping("/usuario/{usuarioId}/activos")
-    public ResponseEntity<?> obtenerActivos(@PathVariable int usuarioId) {
+    public ResponseEntity<?> obtenerActivos(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -47,7 +55,10 @@ public class HabitoController {
     }
 
     @GetMapping("/usuario/{usuarioId}/resumen")
-    public ResponseEntity<?> obtenerResumen(@PathVariable int usuarioId) {
+    public ResponseEntity<?> obtenerResumen(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -57,7 +68,10 @@ public class HabitoController {
     }
 
     @GetMapping("/usuario/{usuarioId}/dashboard")
-    public ResponseEntity<?> obtenerDashboard(@PathVariable int usuarioId) {
+    public ResponseEntity<?> obtenerDashboard(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -68,7 +82,11 @@ public class HabitoController {
 
     @GetMapping("/usuario/{usuarioId}/semana")
     public ResponseEntity<?> obtenerSemana(@PathVariable int usuarioId,
-                                           @RequestParam(required = false) String desde) {
+                                           @RequestParam(required = false) String desde,
+                                           Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -84,18 +102,29 @@ public class HabitoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable int id) {
+    public ResponseEntity<?> buscarPorId(@PathVariable int id, Authentication authentication) {
         Habito habito = habitoService.buscarPorId(id);
         if (habito == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Hábito no encontrado");
         }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         return ResponseEntity.ok(habito);
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Habito habito) {
+    public ResponseEntity<?> crear(@RequestBody Habito habito, Authentication authentication) {
         try {
+            // El propietario nunca se toma del body: si viene, se ignora. Se
+            // fija siempre desde el token, para que nadie pueda crear un
+            // hábito a nombre de otro usuario mandando su usuarioId en el JSON.
+            Usuario autenticado = usuarioAutenticadoComoUsuario(authentication);
+            if (autenticado == null) {
+                return prohibido();
+            }
+            habito.setPropietario(autenticado);
             List<String> logrosOtorgados = habitoService.crearHabito(habito);
             Map<String, Object> respuesta = new HashMap<>();
             respuesta.put("mensaje", "Hábito creado correctamente");
@@ -109,9 +138,21 @@ public class HabitoController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable int id,
-                                        @RequestBody Habito habito) {
+                                        @RequestBody Habito habito,
+                                        Authentication authentication) {
+        Habito existente = habitoService.buscarPorId(id);
+        if (existente == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(existente, authentication)) {
+            return prohibido();
+        }
         try {
             habito.setHabitoId(id);
+            // Mismo motivo que en crear(): el propietario no se toca desde
+            // el body, se conserva el que ya tenía el hábito en BD.
+            habito.setPropietario(existente.getPropietario());
             habitoService.actualizar(habito);
             return ResponseEntity.ok("Hábito actualizado correctamente");
         } catch (RuntimeException e) {
@@ -121,7 +162,15 @@ public class HabitoController {
     }
 
     @PatchMapping("/{id}/activar")
-    public ResponseEntity<?> activar(@PathVariable int id) {
+    public ResponseEntity<?> activar(@PathVariable int id, Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(id);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         try {
             habitoService.activar(id);
             return ResponseEntity.ok("Hábito activado correctamente");
@@ -132,7 +181,15 @@ public class HabitoController {
     }
 
     @PatchMapping("/{id}/desactivar")
-    public ResponseEntity<?> desactivar(@PathVariable int id) {
+    public ResponseEntity<?> desactivar(@PathVariable int id, Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(id);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         try {
             habitoService.desactivar(id);
             return ResponseEntity.ok("Hábito desactivado correctamente");
@@ -143,7 +200,15 @@ public class HabitoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable int id) {
+    public ResponseEntity<?> eliminar(@PathVariable int id, Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(id);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         try {
             habitoService.eliminar(id);
             return ResponseEntity.ok("Hábito eliminado correctamente");
@@ -152,9 +217,19 @@ public class HabitoController {
                     .body(e.getMessage());
         }
     }
+
     @GetMapping("/{id}/detalle")
     public ResponseEntity<?> obtenerDetalle(@PathVariable int id,
-                                            @RequestParam(required = false) String mes) {
+                                            @RequestParam(required = false) String mes,
+                                            Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(id);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
         try {
             YearMonth yearMonth = (mes != null && !mes.isEmpty()) ? YearMonth.parse(mes) : null;
             HabitoDetalleDTO detalle = habitoService.obtenerDetalle(id, yearMonth);
@@ -162,5 +237,37 @@ public class HabitoController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
+    }
+
+    // No existe rol de administrador en el proyecto (el token no lleva
+    // authorities y Usuario no tiene campo de rol), así que nadie tiene
+    // motivo legítimo para operar sobre hábitos ajenos.
+
+    private ResponseEntity<?> prohibido() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Solo puedes operar sobre tus propios hábitos");
+    }
+
+    /** ¿El {usuarioId} de la URL es el del usuario que trae el token? */
+    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
+        return authentication != null
+                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                && autenticado.usuarioId() == idUrl;
+    }
+
+    /** ¿El propietario de este hábito es el usuario que trae el token? */
+    private boolean esElPropietario(Habito habito, Authentication authentication) {
+        return authentication != null
+                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                && habito.getPropietario() != null
+                && habito.getPropietario().getUsuarioId() == autenticado.usuarioId();
+    }
+
+    /** Carga el Usuario completo a partir del id que trae el token. */
+    private Usuario usuarioAutenticadoComoUsuario(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UsuarioAutenticado autenticado)) {
+            return null;
+        }
+        return usuarioService.buscarPorId(autenticado.usuarioId());
     }
 }
