@@ -35,4 +35,11 @@ public class ValoracionPildoraDAO implements IValoracionPildoraDAO {
     public void update(ValoracionPildora valoracion) {
         em.merge(valoracion);
     }
+
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM ValoracionPildora v WHERE v.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }

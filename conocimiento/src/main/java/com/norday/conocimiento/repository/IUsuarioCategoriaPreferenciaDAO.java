@@ -10,4 +10,7 @@ public interface IUsuarioCategoriaPreferenciaDAO {
     UsuarioCategoriaPreferencia findByUsuarioYCategoria(Usuario usuario, int categoriaId);
     void save(UsuarioCategoriaPreferencia preferencia);
     void update(UsuarioCategoriaPreferencia preferencia);
+
+    /** Borrado en bloque al eliminar la cuenta. Ver LimpiadorConocimiento. */
+    void deleteByUsuario(int usuarioId);
 }

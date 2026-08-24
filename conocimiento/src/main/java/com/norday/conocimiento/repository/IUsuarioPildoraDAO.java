@@ -22,4 +22,7 @@ public interface IUsuarioPildoraDAO {
      * opcionales (null = sin filtrar). Lo descartado nunca sale: no es suyo.
      */
     List<UsuarioPildora> findParaColeccion(Usuario usuario, Integer categoriaId, EstadoPildora estado);
+
+    /** Borrado en bloque al eliminar la cuenta. Ver LimpiadorConocimiento. */
+    void deleteByUsuario(int usuarioId);
 }

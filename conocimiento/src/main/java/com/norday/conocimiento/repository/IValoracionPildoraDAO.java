@@ -10,4 +10,7 @@ public interface IValoracionPildoraDAO {
 
     void save(ValoracionPildora valoracion);
     void update(ValoracionPildora valoracion);
+
+    /** Borrado en bloque al eliminar la cuenta. Ver LimpiadorConocimiento. */
+    void deleteByUsuario(int usuarioId);
 }

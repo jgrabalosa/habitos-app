@@ -83,4 +83,11 @@ public class UsuarioPildoraDAO implements IUsuarioPildoraDAO {
         }
         return query.getResultList();
     }
+
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM UsuarioPildora up WHERE up.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }

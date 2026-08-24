@@ -46,4 +46,11 @@ public class UsuarioCategoriaPreferenciaDAO implements IUsuarioCategoriaPreferen
     public void update(UsuarioCategoriaPreferencia preferencia) {
         em.merge(preferencia);
     }
+
+    @Override
+    public void deleteByUsuario(int usuarioId) {
+        em.createQuery("DELETE FROM UsuarioCategoriaPreferencia p WHERE p.usuario.usuarioId = :usuarioId")
+                .setParameter("usuarioId", usuarioId)
+                .executeUpdate();
+    }
 }
