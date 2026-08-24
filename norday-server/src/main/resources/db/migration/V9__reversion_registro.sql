@@ -8,6 +8,7 @@ CREATE TABLE reversion_registro (
     racha_actual_previa           INTEGER,
     racha_maxima_previa           INTEGER,
     periodo_meta_alcanzada_previo DATE,
+    ultima_fecha_previa           DATE,
     mascota_experiencia_previa    INTEGER,
     mascota_dia_completo_previo   DATE,
     monedas_otorgadas             INTEGER NOT NULL DEFAULT 0,

@@ -33,6 +33,9 @@ public class ReversionRegistro {
     @Column(name = "periodo_meta_alcanzada_previo")
     private LocalDate periodoMetaAlcanzadaPrevio;
 
+    @Column(name = "ultima_fecha_previa")
+    private LocalDate ultimaFechaPrevia;
+
     @Column(name = "mascota_experiencia_previa")
     private Integer mascotaExperienciaPrevia;
 
@@ -50,12 +53,14 @@ public class ReversionRegistro {
 
     // Constructor con parámetros
     public ReversionRegistro(Registro registro, Integer rachaActualPrevia, Integer rachaMaximaPrevia,
-                              LocalDate periodoMetaAlcanzadaPrevio, Integer mascotaExperienciaPrevia,
-                              LocalDate mascotaDiaCompletoPrevio, int monedasOtorgadas) {
+                              LocalDate periodoMetaAlcanzadaPrevio, LocalDate ultimaFechaPrevia,
+                              Integer mascotaExperienciaPrevia, LocalDate mascotaDiaCompletoPrevio,
+                              int monedasOtorgadas) {
         this.registro = registro;
         this.rachaActualPrevia = rachaActualPrevia;
         this.rachaMaximaPrevia = rachaMaximaPrevia;
         this.periodoMetaAlcanzadaPrevio = periodoMetaAlcanzadaPrevio;
+        this.ultimaFechaPrevia = ultimaFechaPrevia;
         this.mascotaExperienciaPrevia = mascotaExperienciaPrevia;
         this.mascotaDiaCompletoPrevio = mascotaDiaCompletoPrevio;
         this.monedasOtorgadas = monedasOtorgadas;
@@ -75,6 +80,9 @@ public class ReversionRegistro {
 
     public LocalDate getPeriodoMetaAlcanzadaPrevio() { return periodoMetaAlcanzadaPrevio; }
     public void setPeriodoMetaAlcanzadaPrevio(LocalDate periodoMetaAlcanzadaPrevio) { this.periodoMetaAlcanzadaPrevio = periodoMetaAlcanzadaPrevio; }
+
+    public LocalDate getUltimaFechaPrevia() { return ultimaFechaPrevia; }
+    public void setUltimaFechaPrevia(LocalDate ultimaFechaPrevia) { this.ultimaFechaPrevia = ultimaFechaPrevia; }
 
     public Integer getMascotaExperienciaPrevia() { return mascotaExperienciaPrevia; }
     public void setMascotaExperienciaPrevia(Integer mascotaExperienciaPrevia) { this.mascotaExperienciaPrevia = mascotaExperienciaPrevia; }

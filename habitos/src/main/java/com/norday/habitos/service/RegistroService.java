@@ -99,6 +99,7 @@ public class RegistroService {
         Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
         Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
         LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
+        LocalDate ultimaFechaPrevia = rachaPrevia != null ? rachaPrevia.getUltimaFecha() : null;
         Mascota mascotaPrevia = mascotaService.obtenerOCrear(usuario.getUsuarioId());
         int mascotaExperienciaPrevia = mascotaPrevia.getExperiencia();
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
@@ -151,7 +152,8 @@ public class RegistroService {
         // saldo recoge de una vez el completado, el hito de racha y los logros.
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
         ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
-                periodoMetaAlcanzadaPrevio, mascotaExperienciaPrevia, mascotaDiaCompletoPrevio, monedasOtorgadas);
+                periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, mascotaExperienciaPrevia,
+                mascotaDiaCompletoPrevio, monedasOtorgadas);
         for (String codigo : logros) {
             Logro logro = logroDAO.findByCodigo(codigo);
             if (logro != null) {
@@ -328,6 +330,7 @@ public class RegistroService {
             racha.setRachaActual(reversion.getRachaActualPrevia());
             racha.setRachaMaxima(reversion.getRachaMaximaPrevia());
             racha.setPeriodoMetaAlcanzada(reversion.getPeriodoMetaAlcanzadaPrevio());
+            racha.setUltimaFecha(reversion.getUltimaFechaPrevia());
             rachaDAO.update(racha);
         }
 
