@@ -1,5 +1,7 @@
 package com.norday.core.security;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -12,21 +14,28 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    // Antes era un ConcurrentHashMap sin expiración: cada IP que tocaba estas
+    // rutas dejaba un Bucket residente para siempre, y un escaneo automatizado
+    // (los hay constantemente contra cualquier IP pública) hacía crecer el
+    // mapa sin techo hasta el OutOfMemoryError. Caffeine limpia solo las
+    // entradas que llevan un rato sin usarse.
+    private final Cache<String, Bucket> buckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .build();
 
     private Bucket crearBucket() {
-        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1)));
+        // Subido de 5 a 10/min: 5 era agresivo con CGNAT, donde varios
+        // usuarios de la misma operadora móvil comparten IP pública.
+        Bandwidth limit = Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1)));
         return Bucket.builder().addLimit(limit).build();
     }
 
     private Bucket getBucket(String ip) {
-        return buckets.computeIfAbsent(ip, k -> crearBucket());
+        return buckets.get(ip, k -> crearBucket());
     }
 
     /**
@@ -55,7 +64,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         if (uri.equals("/api/usuarios/login")
                 || uri.equals("/api/usuarios/recuperar")
-                || uri.equals("/api/usuarios/restablecer")) {
+                || uri.equals("/api/usuarios/restablecer")
+                || uri.equals("/api/usuarios/registro")) {
             String ip = obtenerIpCliente(request);
             Bucket bucket = getBucket(ip);
 
