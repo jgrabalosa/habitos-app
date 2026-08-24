@@ -5,6 +5,7 @@ import com.norday.habitos.model.Categoria;
 import com.norday.habitos.repository.ICategoriaDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
@@ -16,6 +17,7 @@ public class CategoriaService {
     @Autowired
     private LogrosHabitosService logrosHabitosService;
 
+    @Transactional
     public void crearCategoria(Categoria categoria) {
         // El código pertenece al catálogo global: lo pone la siembra, nunca el
         // cliente. Una categoría del usuario no se traduce, se muestra tal cual.

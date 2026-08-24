@@ -14,6 +14,7 @@ import com.norday.conocimiento.repository.IValoracionPildoraDAO;
 import com.norday.core.model.Usuario;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,7 @@ public class PildoraService {
      * El usuario destapa una píldora. Es el único punto donde viaja el
      * contenido completo.
      */
+    @Transactional
     public PildoraDetalleDTO match(Usuario usuario, int pildoraId) {
         Pildora pildora = pildoraDAO.findById(pildoraId);
         if (pildora == null || !pildora.isActiva()) {
@@ -110,6 +112,7 @@ public class PildoraService {
      * Marca o desmarca como guardada. Desmarcar no resta afinidad: lo ganado
      * no se retira, solo deja de sumar.
      */
+    @Transactional
     public void guardar(Usuario usuario, int pildoraId, boolean guardar) {
         UsuarioPildora interaccion = usuarioPildoraDAO.findByUsuarioYPildora(usuario, pildoraId);
         if (interaccion == null || interaccion.getEstado() == EstadoPildora.DESCARTADA) {

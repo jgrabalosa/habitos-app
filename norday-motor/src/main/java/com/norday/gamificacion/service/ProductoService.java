@@ -8,6 +8,7 @@ import com.norday.gamificacion.repository.IProductoDAO;
 import com.norday.gamificacion.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +55,7 @@ public class ProductoService {
         return productoDAO.findById(productoId);
     }
 
+    @Transactional
     public void otorgarTemasBasicosGratis(Usuario usuario) {
         Producto claro = productoDAO.findByCodigo("TEMA_BASICO_CLARO");
         Producto oscuro = productoDAO.findByCodigo("TEMA_BASICO_OSCURO");
@@ -66,6 +68,7 @@ public class ProductoService {
         equiparProducto(usuario, oscuro.getProductoId());
     }
 
+    @Transactional
     public void comprarProducto(Usuario usuario, int productoId) {
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
@@ -98,6 +101,7 @@ public class ProductoService {
         );
     }
 
+    @Transactional
     public void otorgarProducto(Usuario usuario, int productoId) {
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
@@ -125,6 +129,7 @@ public class ProductoService {
         );
     }
 
+    @Transactional
     public void equiparProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
@@ -159,6 +164,7 @@ public class ProductoService {
         usuarioProductoDAO.update(poseido);
     }
 
+    @Transactional
     public Map<String, Object> usarProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);

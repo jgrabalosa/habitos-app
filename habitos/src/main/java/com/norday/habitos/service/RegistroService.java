@@ -12,6 +12,7 @@ import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -46,6 +47,7 @@ public class RegistroService {
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
     private static final int XP_POR_DIA_COMPLETADO = 5;
 
+    @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
         ZoneId zona = rachaService.zonaDe(habito);
         LocalDate hoy = LocalDate.now(zona);

@@ -19,6 +19,7 @@ import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -63,6 +64,7 @@ public class HabitoService {
         }
     }
 
+    @Transactional
     public List<String> crearHabito(Habito habito) {
         normalizarPlanificacion(habito);
         LocalDate hoy = LocalDate.now(rachaService.zonaDe(habito));
@@ -103,6 +105,7 @@ public class HabitoService {
         return resumen;
     }
 
+    @Transactional
     public void actualizar(Habito habito) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
@@ -142,6 +145,7 @@ public class HabitoService {
         }
     }
 
+    @Transactional
     public void eliminar(int id) {
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);

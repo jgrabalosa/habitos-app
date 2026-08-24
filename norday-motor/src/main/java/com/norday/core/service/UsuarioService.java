@@ -40,6 +40,7 @@ public class UsuarioService {
     @Autowired
     private List<LimpiadorDatosUsuario> limpiadores;
 
+    @Transactional
     public void registrar(Usuario usuario) {
         if (usuarioDAO.findByEmail(usuario.getEmail()) != null) {
             throw new RuntimeException("Ya existe un usuario con ese email");
@@ -87,6 +88,7 @@ public class UsuarioService {
         return usuario;
     }
 
+    @Transactional
     public ResultadoLoginGoogle loginConGoogle(String email, String nombre) {
         Usuario usuario = usuarioDAO.findByEmail(email);
 
