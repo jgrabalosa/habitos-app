@@ -65,8 +65,13 @@ public class HabitoDAO implements IHabitoDAO {
 
     @Override
     public List<Habito> findTodosActivos() {
+        // JOIN FETCH del propietario a propósito: los dos schedulers que usan
+        // este método (NotificacionScheduler, NotificadorRachaEnPeligro) leen
+        // habito.getPropietario() fuera de la sesión de Hibernate. Con el
+        // propietario en LAZY y sin este fetch, lanzan
+        // LazyInitializationException y abortan el envío de notificaciones.
         return em.createQuery(
-                        "SELECT h FROM Habito h WHERE h.activo = true", Habito.class)
+                        "SELECT h FROM Habito h JOIN FETCH h.propietario WHERE h.activo = true", Habito.class)
                 .getResultList();
     }
 }
