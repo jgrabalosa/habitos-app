@@ -6,7 +6,6 @@ import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.gamificacion.service.MotorLogrosService;
-import com.norday.gamificacion.service.ProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,9 +30,6 @@ public class UsuarioService {
 
     @Autowired
     private TextosService textosService;
-
-    @Autowired
-    private ProductoService productoService;
 
     @Autowired
     private MotorLogrosService motorLogrosService;

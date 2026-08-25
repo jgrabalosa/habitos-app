@@ -8,6 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 /**
  * Siembra el catálogo genérico de gamificación: los logros que no dependen
  * de ningún dominio (cuenta, perfil, reseña) y la tienda de productos.
@@ -101,6 +105,39 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
         } else {
             log.info("Logros genéricos: nada nuevo que crear (todos ya existían).");
         }
+
+        // Retirada: un logro que desaparece del catálogo debe dejar de
+        // ofrecerse. Antes solo se creaba, nunca se retiraba, y los logros
+        // viejos seguían activos en producción — hizo falta una migración
+        // manual cada vez (V6, V7, V10).
+        //
+        // Solo se tocan los genéricos del motor (origenApp null): los logros
+        // propios de cada app no aparecen en esta lista y desactivarlos
+        // rompería el catálogo de la otra app.
+        Set<String> codigosVigentesLogros = Arrays.stream(LOGROS)
+                .map(datos -> datos[0])
+                .collect(Collectors.toSet());
+
+        int retiradosLogros = 0;
+        for (Logro existente : logroDAO.findAll()) {
+            if (existente.getOrigenApp() != null) {
+                continue; // de otra app, no es asunto del motor
+            }
+            if (!existente.isActivo()) {
+                continue; // ya estaba retirado
+            }
+            if (codigosVigentesLogros.contains(existente.getCodigo())) {
+                continue; // sigue vigente
+            }
+            existente.setActivo(false);
+            logroDAO.update(existente);
+            retiradosLogros++;
+            log.warn("Logro retirado del catálogo: {}", existente.getCodigo());
+        }
+
+        if (retiradosLogros > 0) {
+            log.warn("Logros desactivados por no estar ya en el catálogo: {}", retiradosLogros);
+        }
     }
 
     private void inicializarProductos() {
@@ -127,6 +164,39 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             log.info("Productos nuevos creados: {}", creados);
         } else {
             log.info("Productos: nada nuevo que crear (todos ya existían).");
+        }
+
+        // Retirada: un producto que desaparece del catálogo debe dejar de
+        // ofrecerse. Antes solo se creaba, nunca se retiraba, y los productos
+        // viejos seguían activos en producción — hizo falta una migración manual
+        // cada vez (V6, V7, V10).
+        //
+        // Solo se tocan los genéricos del motor (origenApp null): los productos
+        // propios de cada app no aparecen en esta lista y desactivarlos rompería
+        // el catálogo de la otra app.
+        Set<String> codigosVigentes = Arrays.stream(PRODUCTOS)
+                .map(datos -> datos[0])
+                .collect(Collectors.toSet());
+
+        int retirados = 0;
+        for (Producto existente : productoDAO.findAll()) {
+            if (existente.getOrigenApp() != null) {
+                continue; // de otra app, no es asunto del motor
+            }
+            if (!existente.isActivo()) {
+                continue; // ya estaba retirado
+            }
+            if (codigosVigentes.contains(existente.getCodigo())) {
+                continue; // sigue vigente
+            }
+            existente.setActivo(false);
+            productoDAO.update(existente);
+            retirados++;
+            log.warn("Producto retirado del catálogo: {}", existente.getCodigo());
+        }
+
+        if (retirados > 0) {
+            log.warn("Productos desactivados por no estar ya en el catálogo: {}", retirados);
         }
     }
 }

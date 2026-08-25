@@ -16,8 +16,6 @@ import java.util.Map;
 @Service
 public class ProductoService {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ProductoService.class);
-
     @Autowired
     private IProductoDAO productoDAO;
 
