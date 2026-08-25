@@ -65,6 +65,7 @@ public class UsuarioController {
         try {
             Usuario encontrado = usuarioService.login(
                     usuario.getEmail(), usuario.getContrasena());
+            usuarioService.asegurarIdentidadSiProcede(encontrado);
             String token = jwtUtil.generateToken(
                     encontrado.getUsuarioId(), encontrado.getEmail());
             return ResponseEntity.ok(payloadSesion(encontrado, token, null));
@@ -96,6 +97,9 @@ public class UsuarioController {
 
             ResultadoLoginGoogle resultado = usuarioService.loginConGoogle(email, nombre);
             Usuario usuario = resultado.usuario();
+            // Se llama también para usuarios nuevos: la ventana de gracia de
+            // 24h los descarta sola, así no hay que distinguir el caso aquí.
+            usuarioService.asegurarIdentidadSiProcede(usuario);
             String token = jwtUtil.generateToken(
                     usuario.getUsuarioId(), usuario.getEmail());
 

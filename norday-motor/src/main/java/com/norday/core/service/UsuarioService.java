@@ -84,7 +84,16 @@ public class UsuarioService {
         }
     }
 
-    private void asegurarIdentidadSiProcede(Usuario usuario) {
+    /**
+     * Red de seguridad de identidad. Public y llamada desde el controlador a
+     * propósito: NO debe ejecutarse dentro de una transacción ajena. Si se
+     * llamase desde loginConGoogle (@Transactional), asegurarIdentidad se
+     * uniría a esa transacción y cualquier fallo suyo la marcaría como
+     * rollback-only — el catch de aquí se tragaría la excepción pero el
+     * commit reventaría después, devolviendo un 401 de Google por un fallo
+     * de identidad. Fuera de transacción, el catch sí protege de verdad.
+     */
+    public void asegurarIdentidadSiProcede(Usuario usuario) {
         if (usuario.getFechaRegistro() != null
                 && usuario.getFechaRegistro().isAfter(
                         LocalDateTime.now(ZoneOffset.UTC).minus(GRACIA_ONBOARDING))) {
@@ -110,7 +119,6 @@ public class UsuarioService {
         if (!passwordEncoder.matches(contrasena, usuario.getContrasena())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
-        asegurarIdentidadSiProcede(usuario);
         return usuario;
     }
 
@@ -124,7 +132,6 @@ public class UsuarioService {
                 usuarioDAO.update(usuario);
             }
             motorLogrosService.evaluarTrasLoginGoogle(usuario);
-            asegurarIdentidadSiProcede(usuario);
             return new ResultadoLoginGoogle(usuario, false);
         }
 
