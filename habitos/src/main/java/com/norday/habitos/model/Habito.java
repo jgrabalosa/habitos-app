@@ -57,7 +57,11 @@ public class Habito {
     @JoinColumn(name = "propietario_id", nullable = false, foreignKey = @ForeignKey(name = "FK_habito_usuario"))
     private Usuario propietario;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER a propósito: la entidad Habito se serializa tal cual a JSON en 6
+    // endpoints y el cliente necesita el objeto categoria anidado. Con LAZY,
+    // Jackson recibe un proxy sin inicializar y falla la serialización.
+    // Categoria es catálogo pequeño, el coste es despreciable.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tipo_id", foreignKey = @ForeignKey(name = "FK_habito_categoria"))
     private Categoria tipo;
 
