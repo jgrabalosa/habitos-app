@@ -24,6 +24,9 @@ public class LogrosHabitosInitializer implements CommandLineRunner {
     @Autowired
     private ILogroDAO logroDAO;
 
+    /** El appId que el core envía en X-Norday-App para esta app. */
+    private static final String APP = "habitos";
+
     // {codigo, nombre, descripcion, categoria, nivel, puntos}
     private static final String[][] LOGROS = {
             // Inicio
@@ -58,8 +61,11 @@ public class LogrosHabitosInitializer implements CommandLineRunner {
             if (logroDAO.findByCodigo(codigo) != null) {
                 continue; // ya existe, no lo tocamos
             }
+            // origenApp explícito: sin él estos logros quedan como genéricos del
+            // motor, y el catálogo del motor los daría por retirados al no
+            // encontrarlos en SU lista.
             Logro logro = new Logro(datos[0], datos[1], datos[2], datos[3], datos[4],
-                    Integer.parseInt(datos[5]), null);
+                    Integer.parseInt(datos[5]), null, APP);
             logroDAO.save(logro);
             creados++;
         }

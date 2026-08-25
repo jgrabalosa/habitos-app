@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -118,7 +120,7 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
                 .map(datos -> datos[0])
                 .collect(Collectors.toSet());
 
-        int retiradosLogros = 0;
+        List<Logro> candidatosRetiradaLogros = new ArrayList<>();
         for (Logro existente : logroDAO.findAll()) {
             if (existente.getOrigenApp() != null) {
                 continue; // de otra app, no es asunto del motor
@@ -129,6 +131,22 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             if (codigosVigentesLogros.contains(existente.getCodigo())) {
                 continue; // sigue vigente
             }
+            candidatosRetiradaLogros.add(existente);
+        }
+
+        // Tope de seguridad: el catálogo genérico del motor es pequeño y estable.
+        // Si de golpe hay que retirar más de la mitad de lo que hay, es mucho más
+        // probable que otro módulo esté creando entradas sin origenApp que que
+        // hayamos retirado medio catálogo a propósito. Se avisa y no se toca nada.
+        if (candidatosRetiradaLogros.size() > codigosVigentesLogros.size()) {
+            log.error("Retirada de logros abortada: {} candidatos superan el tope de {} códigos vigentes. Códigos afectados: {}",
+                    candidatosRetiradaLogros.size(), codigosVigentesLogros.size(),
+                    candidatosRetiradaLogros.stream().map(Logro::getCodigo).collect(Collectors.joining(", ")));
+            return;
+        }
+
+        int retiradosLogros = 0;
+        for (Logro existente : candidatosRetiradaLogros) {
             existente.setActivo(false);
             logroDAO.update(existente);
             retiradosLogros++;
@@ -178,7 +196,7 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
                 .map(datos -> datos[0])
                 .collect(Collectors.toSet());
 
-        int retirados = 0;
+        List<Producto> candidatosRetirada = new ArrayList<>();
         for (Producto existente : productoDAO.findAll()) {
             if (existente.getOrigenApp() != null) {
                 continue; // de otra app, no es asunto del motor
@@ -189,6 +207,22 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             if (codigosVigentes.contains(existente.getCodigo())) {
                 continue; // sigue vigente
             }
+            candidatosRetirada.add(existente);
+        }
+
+        // Tope de seguridad: el catálogo genérico del motor es pequeño y estable.
+        // Si de golpe hay que retirar más de la mitad de lo que hay, es mucho más
+        // probable que otro módulo esté creando entradas sin origenApp que que
+        // hayamos retirado medio catálogo a propósito. Se avisa y no se toca nada.
+        if (candidatosRetirada.size() > codigosVigentes.size()) {
+            log.error("Retirada de productos abortada: {} candidatos superan el tope de {} códigos vigentes. Códigos afectados: {}",
+                    candidatosRetirada.size(), codigosVigentes.size(),
+                    candidatosRetirada.stream().map(Producto::getCodigo).collect(Collectors.joining(", ")));
+            return;
+        }
+
+        int retirados = 0;
+        for (Producto existente : candidatosRetirada) {
             existente.setActivo(false);
             productoDAO.update(existente);
             retirados++;
