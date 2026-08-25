@@ -1,6 +1,7 @@
 package com.norday.gamificacion.service;
 
 import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioProducto;
@@ -15,6 +16,15 @@ import java.util.Map;
 
 @Service
 public class ProductoService {
+
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(ProductoService.class);
+
+    /** Las cuatro identidades comparten esta categoría en el catálogo. */
+    private static final String CATEGORIA_IDENTIDAD = "Tema";
+
+    /** La que se otorga si algo falla y el usuario se queda sin ninguna. */
+    private static final String CODIGO_IDENTIDAD_POR_DEFECTO = "TEMA_PROFUNDIDAD";
 
     @Autowired
     private IProductoDAO productoDAO;
@@ -187,5 +197,80 @@ public class ProductoService {
                 "subioNivel", subioNivel,
                 "nivelNuevo", nivelNuevo
         );
+    }
+
+    /**
+     * Identidad gratuita del onboarding. NO reutiliza otorgarProducto a
+     * propósito: aquella solo impide repetir el mismo producto, así que
+     * llamándola cuatro veces con códigos distintos se conseguían las cuatro
+     * identidades gratis. Aquí la guarda es "¿ya tiene ALGUNA?", que es la
+     * regla real: una y solo una, la primera vez.
+     *
+     * Equipa además de otorgar: si solo otorgara, el usuario elegiría en el
+     * onboarding y la app seguiría con el aspecto por defecto. Se marca
+     * equipado directamente en vez de llamar a equiparProducto porque la
+     * guarda de arriba garantiza que no hay otra identidad que desequipar.
+     */
+    @Transactional
+    public void otorgarIdentidadElegida(Usuario usuario, int productoId) {
+        Producto producto = productoDAO.findById(productoId);
+        if (producto == null || !producto.isActivo()) {
+            throw new RecursoNoEncontradoException("Identidad no disponible");
+        }
+        if (!CATEGORIA_IDENTIDAD.equals(producto.getCategoria())) {
+            throw new ConflictoException("Ese producto no es una identidad");
+        }
+        if (usuarioProductoDAO.poseeAlgunoDeCategoria(
+                usuario.getUsuarioId(), CATEGORIA_IDENTIDAD)) {
+            throw new ConflictoException("Ya tienes una identidad");
+        }
+
+        UsuarioProducto nueva = new UsuarioProducto(usuario, producto, 1);
+        nueva.setEquipado(true);
+        usuarioProductoDAO.save(nueva);
+
+        usuarioMonedaService.registrarMovimiento(
+                usuario, 0, "REGALO", productoId,
+                "Identidad de bienvenida: " + producto.getNombre()
+        );
+    }
+
+    /**
+     * Red de seguridad. Desde V10 nadie recibe tema al registrarse: si el
+     * onboarding falló o se cerró a mitad, el usuario se queda sin ninguna
+     * identidad y la app tira del aspecto por defecto sin que él lo posea.
+     * Esto lo corrige. No debe llamarse mientras el onboarding sigue vivo
+     * (ver la ventana de gracia en UsuarioService) o le robaría la elección.
+     *
+     * Si el código por defecto no está en el catálogo activo se avisa en el
+     * log y se sigue. Es el mismo fallo silencioso que tuvo
+     * otorgarTemasBasicosGratis, pero esta vez deja rastro.
+     */
+    @Transactional
+    public void asegurarIdentidad(Usuario usuario) {
+        if (usuarioProductoDAO.poseeAlgunoDeCategoria(
+                usuario.getUsuarioId(), CATEGORIA_IDENTIDAD)) {
+            return;
+        }
+
+        Producto porDefecto = productoDAO.findByCodigo(CODIGO_IDENTIDAD_POR_DEFECTO);
+        if (porDefecto == null || !porDefecto.isActivo()) {
+            log.warn("Red de seguridad: {} no está en el catálogo activo, "
+                            + "el usuario {} se queda sin identidad",
+                    CODIGO_IDENTIDAD_POR_DEFECTO, usuario.getUsuarioId());
+            return;
+        }
+
+        UsuarioProducto nueva = new UsuarioProducto(usuario, porDefecto, 1);
+        nueva.setEquipado(true);
+        usuarioProductoDAO.save(nueva);
+
+        usuarioMonedaService.registrarMovimiento(
+                usuario, 0, "REGALO", porDefecto.getProductoId(),
+                "Identidad por defecto (red de seguridad)"
+        );
+
+        log.warn("Red de seguridad: el usuario {} llegó al login sin identidad, "
+                + "se le otorga {}", usuario.getUsuarioId(), CODIGO_IDENTIDAD_POR_DEFECTO);
     }
 }

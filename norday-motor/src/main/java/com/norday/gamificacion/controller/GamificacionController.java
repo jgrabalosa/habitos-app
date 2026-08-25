@@ -132,6 +132,26 @@ public class GamificacionController {
         return ResponseEntity.ok("Producto otorgado correctamente");
     }
 
+    /**
+     * Elección de identidad en el onboarding. Endpoint aparte del de otorgar
+     * porque la regla es distinta: una sola vez por cuenta, y solo de la
+     * categoría Tema.
+     */
+    @PostMapping("/identidad/elegir/{usuarioId}/{productoId}")
+    public ResponseEntity<?> elegirIdentidad(@PathVariable int usuarioId,
+                                             @PathVariable int productoId,
+                                             Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        productoService.otorgarIdentidadElegida(usuario, productoId);
+        return ResponseEntity.ok("Identidad otorgada correctamente");
+    }
+
     @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
     public ResponseEntity<?> equiparProducto(@PathVariable int usuarioId, @PathVariable int productoId,
                                              Authentication authentication) {

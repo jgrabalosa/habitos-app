@@ -68,6 +68,19 @@ public class UsuarioProductoDAO implements IUsuarioProductoDAO {
     }
 
     @Override
+    public boolean poseeAlgunoDeCategoria(int usuarioId, String categoria) {
+        Long total = em.createQuery(
+                        "SELECT COUNT(up) FROM UsuarioProducto up " +
+                                "WHERE up.usuario.usuarioId = :usuarioId " +
+                                "AND up.producto.categoria = :categoria",
+                        Long.class)
+                .setParameter("usuarioId", usuarioId)
+                .setParameter("categoria", categoria)
+                .getSingleResult();
+        return total != null && total > 0;
+    }
+
+    @Override
     public void update(UsuarioProducto usuarioProducto) {
         em.merge(usuarioProducto);
     }

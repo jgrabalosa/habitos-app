@@ -6,9 +6,11 @@ import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.gamificacion.service.MotorLogrosService;
+import com.norday.gamificacion.service.ProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -18,6 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class UsuarioService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UsuarioService.class);
+
+    /**
+     * Mientras el usuario está dentro de esta ventana se da por hecho que el
+     * onboarding sigue en curso y la red de seguridad no interviene: si
+     * disparase antes de que elija, la guarda de una-sola-identidad
+     * rechazaría luego su elección y se quedaría con la que no pidió.
+     */
+    private static final Duration GRACIA_ONBOARDING = Duration.ofHours(24);
 
     @Autowired
     private IUsuarioDAO usuarioDAO;
@@ -33,6 +43,9 @@ public class UsuarioService {
 
     @Autowired
     private MotorLogrosService motorLogrosService;
+
+    @Autowired
+    private ProductoService productoService;
 
     /** Spring recolecta aquí todas las implementaciones registradas. */
     @Autowired
@@ -71,6 +84,21 @@ public class UsuarioService {
         }
     }
 
+    private void asegurarIdentidadSiProcede(Usuario usuario) {
+        if (usuario.getFechaRegistro() != null
+                && usuario.getFechaRegistro().isAfter(
+                        LocalDateTime.now(ZoneOffset.UTC).minus(GRACIA_ONBOARDING))) {
+            return;
+        }
+        // Nunca puede tumbar un login: mismo criterio que el email de bienvenida.
+        try {
+            productoService.asegurarIdentidad(usuario);
+        } catch (Exception e) {
+            log.warn("Red de seguridad de identidad falló para el usuario {}: {}",
+                    usuario.getUsuarioId(), e.getMessage());
+        }
+    }
+
     public Usuario login(String email, String contrasena) {
         Usuario usuario = usuarioDAO.findByEmail(email);
         if (usuario == null) {
@@ -82,6 +110,7 @@ public class UsuarioService {
         if (!passwordEncoder.matches(contrasena, usuario.getContrasena())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
+        asegurarIdentidadSiProcede(usuario);
         return usuario;
     }
 
@@ -95,6 +124,7 @@ public class UsuarioService {
                 usuarioDAO.update(usuario);
             }
             motorLogrosService.evaluarTrasLoginGoogle(usuario);
+            asegurarIdentidadSiProcede(usuario);
             return new ResultadoLoginGoogle(usuario, false);
         }
 

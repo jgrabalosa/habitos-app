@@ -11,5 +11,6 @@ public interface IUsuarioProductoDAO {
     List<UsuarioProducto> findByUsuario(Usuario usuario);
     UsuarioProducto findByUsuarioYProducto(int usuarioId, int productoId);
     UsuarioProducto findEquipadoPorCategoria(int usuarioId, String categoria);
+    boolean poseeAlgunoDeCategoria(int usuarioId, String categoria);
     void update(UsuarioProducto usuarioProducto);
 }

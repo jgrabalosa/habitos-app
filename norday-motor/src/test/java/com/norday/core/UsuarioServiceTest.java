@@ -4,6 +4,7 @@ import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.LimpiadorDatosUsuario;
 import com.norday.core.service.UsuarioService;
+import com.norday.gamificacion.service.ProductoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,9 @@ class UsuarioServiceTest {
 
     @Mock
     private LimpiadorDatosUsuario limpiadorB;
+
+    @Mock
+    private ProductoService productoService;
 
     @InjectMocks
     private UsuarioService usuarioService;
