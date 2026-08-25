@@ -57,19 +57,6 @@ public class ProductoService {
     }
 
     @Transactional
-    public void otorgarTemasBasicosGratis(Usuario usuario) {
-        Producto claro = productoDAO.findByCodigo("TEMA_BASICO_CLARO");
-        Producto oscuro = productoDAO.findByCodigo("TEMA_BASICO_OSCURO");
-        if (claro == null || oscuro == null) {
-            log.warn("Temas básicos no encontrados en catálogo; revisa DataInitializer.");
-            return;
-        }
-        otorgarProducto(usuario, claro.getProductoId());
-        otorgarProducto(usuario, oscuro.getProductoId());
-        equiparProducto(usuario, oscuro.getProductoId());
-    }
-
-    @Transactional
     public void comprarProducto(Usuario usuario, int productoId) {
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {

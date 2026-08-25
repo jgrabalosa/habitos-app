@@ -53,7 +53,6 @@ public class UsuarioService {
         usuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
         usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
         usuarioDAO.save(usuario);
-        productoService.otorgarTemasBasicosGratis(usuario);
 
         enviarBienvenidaSilenciosa(usuario);
     }
@@ -111,7 +110,6 @@ public class UsuarioService {
         nuevoUsuario.setProveedorAuth("GOOGLE");
         nuevoUsuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
         usuarioDAO.save(nuevoUsuario);
-        productoService.otorgarTemasBasicosGratis(nuevoUsuario);
 
         enviarBienvenidaSilenciosa(nuevoUsuario);
 
