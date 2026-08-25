@@ -1,5 +1,6 @@
 package com.norday.habitos.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.norday.core.model.Usuario;
 import jakarta.persistence.*;
 import java.time.LocalDate;
@@ -53,6 +54,10 @@ public class Habito {
     @Column(name = "activo", nullable = false)
     private boolean activo;
 
+    // El propietario no tiene por qué viajar dentro de cada hábito: el cliente
+    // ya sabe de quién son, los pidió con su propio usuarioId. Además, al ser
+    // LAZY, serializarlo lanzaría el mismo fallo de proxy que tuvo `tipo`.
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "propietario_id", nullable = false, foreignKey = @ForeignKey(name = "FK_habito_usuario"))
     private Usuario propietario;

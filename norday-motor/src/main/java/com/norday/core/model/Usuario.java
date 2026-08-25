@@ -1,5 +1,6 @@
 package com.norday.core.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
@@ -29,6 +30,10 @@ public class Usuario {
     @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
+    // WRITE_ONLY, no @JsonIgnore: el registro y el login SÍ envían la
+    // contraseña en el body y hay que poder deserializarla. Lo que no debe
+    // ocurrir nunca es que salga en una respuesta.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @NotBlank(message = "La contraseña es obligatoria")
     @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
     @Column(name = "contrasena", nullable = false, length = 255)
@@ -37,6 +42,8 @@ public class Usuario {
     @Column(name = "proveedor_auth", nullable = false, length = 20)
     private String proveedorAuth = "LOCAL";
 
+    // WRITE_ONLY: el cliente lo envía en actualizarFcmToken pero nunca lo lee.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 
