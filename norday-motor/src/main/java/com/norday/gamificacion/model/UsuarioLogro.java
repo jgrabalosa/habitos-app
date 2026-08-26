@@ -1,5 +1,6 @@
 package com.norday.gamificacion.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.norday.core.model.Usuario;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -18,6 +19,10 @@ public class UsuarioLogro {
     @Column(name = "usuario_logro_id")
     private int usuarioLogroId;
 
+    // El usuario no tiene por qué viajar dentro de cada logro: el cliente ya
+    // sabe de quién son, los pidió con su propio usuarioId. Serializarlo
+    // repite el mismo objeto una vez por logro.
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false,
             foreignKey = @ForeignKey(name = "FK_usuariologro_usuario"))
