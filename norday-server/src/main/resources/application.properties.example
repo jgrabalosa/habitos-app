@@ -1,8 +1,22 @@
+# Plantilla de la configuración local. Copiar como application.properties
+# (que está en .gitignore) y rellenar los valores propios de cada máquina.
+
 spring.datasource.url=jdbc:postgresql://localhost:5432/habitos_db
 spring.datasource.username=TU_USUARIO
 spring.datasource.password=TU_CONTRASEÑA
-spring.jpa.hibernate.ddl-auto=update
+
+# validate, NUNCA update: el esquema lo gestiona Flyway con las migraciones de
+# db/migration. Con update, Hibernate altera la base por su cuenta al arrancar
+# y acaba divergiendo de las migraciones. Si validate falla, la respuesta es
+# escribir una migración, no bajar el listón.
+spring.jpa.hibernate.ddl-auto=validate
+
 spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
 jwt.secret=TU_CLAVE_SECRETA_AQUI
 jwt.expiration=2592000000
+
+# Obligatorias para que arranque el contexto: EmailService inyecta
+# JavaMailSender, y ese bean solo se crea si existe spring.mail.host.
+norday.mail.from=no-reply@norday.app
+spring.mail.host=localhost
