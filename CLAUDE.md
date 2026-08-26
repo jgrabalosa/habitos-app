@@ -123,6 +123,31 @@ pertenecen (campo `app`) cuando se construya/amplíe la tienda. El saldo
 de puntos (UsuarioMoneda) es único y compartido entre todas las apps del
 ecosistema — no crear muros entre apps.
 
+## Elección de identidad en el onboarding
+
+El usuario elige identidad (tema visual) la primera vez que entra:
+`POST /api/gamificacion/identidad/elegir/{usuarioId}/{productoId}` →
+`otorgarIdentidadElegida`, que otorga **y** equipa en un solo paso.
+
+**No reutilizar `otorgarProducto` para esto.** Su guarda solo impide repetir
+el *mismo* producto: llamándola cuatro veces con códigos distintos se
+conseguían las cuatro identidades gratis (4000 monedas). La guarda correcta
+es "¿ya tiene *alguna* de categoría Tema?", y para eso está
+`poseeAlgunoDeCategoria` en el DAO.
+
+`asegurarIdentidad` es la red de seguridad: si un usuario llega sin ninguna
+identidad, le otorga `TEMA_PROFUNDIDAD`.
+
+**Se llama desde el controlador, nunca desde el servicio.** Dentro de
+`loginConGoogle`, que es `@Transactional`, una excepción marcaría la
+transacción como rollback-only y el commit reventaría después con
+`UnexpectedRollbackException`: el usuario recibiría un 401 de Google por un
+fallo de identidad. Cualquier red de seguridad que se añada en el futuro
+tiene el mismo problema y la misma solución.
+
+Tiene una **ventana de gracia de 24h** desde el alta, para que no dispare
+durante el onboarding y le robe la elección al usuario.
+
 ## Zona horaria y locale
 
 Ningún cálculo de "hoy" de cara al usuario puede usar `LocalDate.now()` sin
@@ -163,6 +188,74 @@ acordada. Idiomas soportados: `es`, `en`, `pt`.
 
 Los catálogos viajan por `codigo`; el nombre en BD es solo caída para el
 cliente, que traduce por código.
+
+## Tests
+
+Los `@SpringBootTest` cargan la configuración de
+`norday-server/src/test/resources/application.properties`, que apunta a una
+base de datos dedicada `habitos_db_test`.
+
+Esto no es cosmético. Mientras ese fichero no existió, cualquier test que
+levantara contexto Spring cargaba `src/main/resources/application.properties`
+—que está en `.gitignore` y en cada máquina apunta a la BD real— y con él
+arrancaban Flyway y los `CommandLineRunner` **contra producción en cada
+build**.
+
+Reglas al tocar esa configuración:
+
+- **`src/test/resources` tapa por completo a `src/main/resources`**, no se
+  suman valores. Por eso el fichero declara también `jwt.secret`,
+  `jwt.expiration`, `norday.mail.from` y `spring.mail.host`. Toda propiedad
+  obligatoria que se añada en producción hay que añadirla aquí también.
+- **`spring.mail.host` es obligatoria aunque no se envíe correo.**
+  `MailSenderAutoConfiguration` solo crea el bean `JavaMailSender` si esa
+  propiedad existe, y `EmailService` lo inyecta como obligatorio. Sin ella el
+  contexto no arranca. `localhost` no abre ninguna conexión.
+- **Flyway va desactivado y el esquema lo genera Hibernate (`create-drop`).**
+  No existe una migración `V1__`: el histórico está *baselined* en la versión 1
+  sobre un esquema creado con `ddl-auto=update`, y las siguientes son índices y
+  `UPDATE`s sobre tablas que ya existen. Flyway no puede construir la BD de
+  test desde cero.
+- **Los initializers siguen corriendo bajo test**, y es deliberado: sobre una
+  BD desechable son inofensivos y siembran el catálogo. No hay guardas
+  `@Profile` y no hacen falta.
+- **Usuario y contraseña salen del entorno** si existe:
+  `${TEST_DB_USER:norday_test}`. Una máquina con otras credenciales las pone
+  por variable, sin tocar el fichero.
+
+Descartado, y por qué:
+
+- **Testcontainers** — los tests corren en el VPS en cada despliegue y esa
+  máquina ya carga Postgres más dos JVMs. Un demonio Docker y una imagen por
+  build no compensan con un solo desarrollador y Postgres ya instalado.
+- **`-Dspring.profiles.active=staging` en el build** — vive fuera del repo y
+  depende de que nadie lo olvide; desde el IDE se volvería a producción.
+
+**Prerrequisito de build.** El `package` va sin `-DskipTests`, así que toda
+máquina que compile necesita la BD:
+
+```bash
+psql -U postgres -c "CREATE USER norday_test WITH PASSWORD 'norday_test';"
+psql -U postgres -c "CREATE DATABASE habitos_db_test OWNER norday_test;"
+```
+
+`norday_test` tiene que ser **dueño**: en Postgres 15+ el esquema `public` no
+es escribible por cualquiera y `create-drop` crea tablas en cada ejecución.
+
+**Cuidado con `create-drop`:** si el `spring.datasource.url` de test apunta a
+una BD con datos, la vacía al arrancar.
+
+Para comprobar que el aislamiento funciona en una máquina nueva, los tests en
+verde **no** son prueba: pasarían igual contra la BD real. Lo que lo demuestra
+es el contador de transacciones de Postgres:
+
+```bash
+psql -U postgres -c "SELECT datname, xact_commit FROM pg_stat_database WHERE datname LIKE 'habitos_db%';"
+```
+
+Qué cubre la suite y qué no: los tests mockean los DAOs, así que no ven
+proxies de Hibernate ni validan JPQL. Una consulta no está validada porque la
+suite esté verde.
 
 ## Estilo de trabajo con el usuario
 
