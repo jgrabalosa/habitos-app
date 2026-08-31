@@ -99,6 +99,47 @@ class ProductoServiceTest {
     }
 
     @Test
+    void elegirIdentidad_otorgaTambienElLogroDeEsaIdentidad() {
+        // Es la decisión de regalar el primer tema con sus 500 puntos: si
+        // alguien quita la llamada a otorgarLogroDeIdentidad, el usuario
+        // nuevo se queda sin su primera victoria sin que ningún test se
+        // entere.
+        Producto profundidad = new Producto();
+        profundidad.setProductoId(30);
+        profundidad.setCodigo("TEMA_PROFUNDIDAD");
+        profundidad.setCategoria("Tema");
+        profundidad.setTipo("EQUIPABLE");
+        profundidad.setActivo(true);
+        profundidad.setNombre("Profundidad");
+
+        when(usuarioProductoDAO.poseeAlgunoDeCategoria(1, "Tema")).thenReturn(false);
+        when(productoDAO.findById(30)).thenReturn(profundidad);
+
+        productoService.otorgarIdentidadElegida(usuario, 30);
+
+        verify(logroService).otorgarSiNoTiene(usuario, "IDENTIDAD_PROFUNDIDAD");
+    }
+
+    @Test
+    void comprarProducto_siNoEsCategoriaTema_noOtorgaLogro() {
+        Producto avatar = new Producto();
+        avatar.setProductoId(20);
+        avatar.setCodigo("AVATAR_ZORRO");
+        avatar.setCategoria("Avatar");
+        avatar.setTipo("EQUIPABLE");
+        avatar.setPrecio(500);
+        avatar.setActivo(true);
+
+        when(productoDAO.findById(20)).thenReturn(avatar);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 20)).thenReturn(null);
+        when(usuarioMonedaService.consultarSaldo(1)).thenReturn(1000);
+
+        productoService.comprarProducto(usuario, 20);
+
+        verifyNoInteractions(logroService);
+    }
+
+    @Test
     void asegurarIdentidad_siYaTieneUna_noHaceNada() {
         when(usuarioProductoDAO.poseeAlgunoDeCategoria(1, "Tema")).thenReturn(true);
 

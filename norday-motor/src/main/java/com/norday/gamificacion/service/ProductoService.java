@@ -47,8 +47,9 @@ public class ProductoService {
      * mano para que un quinto tema traiga su logro sin tocar código.
      *
      * No hace nada si el producto no es de categoría Tema. Es deliberado:
-     * los tres caminos que otorgan productos pasan por aquí y sólo las
-     * identidades tienen logro.
+     * los cuatro caminos que otorgan productos —compra, regalo, elección del
+     * onboarding y la red de seguridad de `asegurarIdentidad`— pasan por
+     * aquí y sólo las identidades tienen logro.
      */
     private void otorgarLogroDeIdentidad(Usuario usuario, Producto producto) {
         if (!CATEGORIA_IDENTIDAD.equals(producto.getCategoria())) {
@@ -299,6 +300,8 @@ public class ProductoService {
                 usuario, 0, "REGALO", porDefecto.getProductoId(),
                 "Identidad por defecto (red de seguridad)"
         );
+
+        otorgarLogroDeIdentidad(usuario, porDefecto);
 
         log.warn("Red de seguridad: el usuario {} llegó al login sin identidad, "
                 + "se le otorga {}", usuario.getUsuarioId(), CODIGO_IDENTIDAD_POR_DEFECTO);
