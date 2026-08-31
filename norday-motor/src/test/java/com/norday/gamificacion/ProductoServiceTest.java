@@ -6,6 +6,7 @@ import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioProducto;
 import com.norday.gamificacion.repository.IProductoDAO;
 import com.norday.gamificacion.repository.IUsuarioProductoDAO;
+import com.norday.gamificacion.service.LogroService;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.ProductoService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
@@ -34,6 +35,9 @@ class ProductoServiceTest {
 
     @Mock
     private MascotaService mascotaService;
+
+    @Mock
+    private LogroService logroService;
 
     @InjectMocks
     private ProductoService productoService;

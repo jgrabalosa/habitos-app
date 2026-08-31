@@ -38,6 +38,30 @@ public class ProductoService {
     @Autowired
     private MascotaService mascotaService;
 
+    @Autowired
+    private LogroService logroService;
+
+    /**
+     * El logro que corresponde a un tema, derivado de su código:
+     * TEMA_PROFUNDIDAD → IDENTIDAD_PROFUNDIDAD. Se deriva y no se escribe a
+     * mano para que un quinto tema traiga su logro sin tocar código.
+     *
+     * No hace nada si el producto no es de categoría Tema. Es deliberado:
+     * los tres caminos que otorgan productos pasan por aquí y sólo las
+     * identidades tienen logro.
+     */
+    private void otorgarLogroDeIdentidad(Usuario usuario, Producto producto) {
+        if (!CATEGORIA_IDENTIDAD.equals(producto.getCategoria())) {
+            return;
+        }
+        String codigo = producto.getCodigo();
+        if (codigo == null || !codigo.startsWith("TEMA_")) {
+            return;
+        }
+        logroService.otorgarSiNoTiene(
+                usuario, "IDENTIDAD_" + codigo.substring("TEMA_".length()));
+    }
+
     public List<Producto> catalogoActivo() {
         return productoDAO.findActivos();
     }
@@ -95,6 +119,8 @@ public class ProductoService {
                 usuario, -producto.getPrecio(), "COMPRA", productoId,
                 "Compra: " + producto.getNombre()
         );
+
+        otorgarLogroDeIdentidad(usuario, producto);
     }
 
     @Transactional
@@ -123,6 +149,8 @@ public class ProductoService {
                 usuario, 0, "REGALO", productoId,
                 "Regalo: " + producto.getNombre()
         );
+
+        otorgarLogroDeIdentidad(usuario, producto);
     }
 
     @Transactional
@@ -233,6 +261,8 @@ public class ProductoService {
                 usuario, 0, "REGALO", productoId,
                 "Identidad de bienvenida: " + producto.getNombre()
         );
+
+        otorgarLogroDeIdentidad(usuario, producto);
     }
 
     /**

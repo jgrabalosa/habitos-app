@@ -44,6 +44,15 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // migración V7). El diálogo de reseña se sigue mostrando en la app, solo se
             // retira la recompensa.
             // {"INTERACCION_RESENA", "Tu opinión cuenta", "Interactúa con la valoración de la app en Google Play", "Exploración", "Facil", "100"},
+            // Identidad
+            // Uno por tema, otorgado al conseguirlo por cualquiera de las tres
+            // vías (compra, regalo, elección gratuita del onboarding). El premio
+            // (500) es estrictamente menor que el precio de un tema (1000): si
+            // se igualaran, comprar temas fabricaría puntos.
+            {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "500"},
+            {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "500"},
+            {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "500"},
+            {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "500"},
     };
 
     // {codigo, nombre, descripcion, categoria, tipo, precio}
