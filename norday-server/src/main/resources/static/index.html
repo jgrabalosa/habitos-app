@@ -1,683 +1,1344 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-tema="profundidad">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norday — Constancia, no perfección</title>
-<meta name="description" content="Norday Hábitos: constancia, no perfección. Marca lo que has hecho hoy, cuida a Nori y convierte cada día en progreso.">
+<meta name="description" content="Marca lo que has hecho hoy y ya está. Sin rachas que se rompen, sin culpa y sin anuncios.">
+
 <meta property="og:title" content="Norday — Constancia, no perfección">
 <meta property="og:description" content="Marca lo que has hecho hoy y deja que Nori crezca contigo. Sin ruido y sin culpa.">
 <meta property="og:type" content="website">
-<!-- La landing la sirve el propio backend en api.norday.app. Si algun dia
-     norday.app pasa a servirla, este og:url y el og:image cambian con ella. -->
+<!-- Mientras la landing la sirva el backend, la URL canónica es api.norday.app.
+     Cuando norday.app pase a servirla, este og:url y el og:image cambian con ella. -->
 <meta property="og:url" content="https://api.norday.app/">
-<!-- PENDIENTE: og.png dedicado de 1200x630 y menos de 300 KB. Mientras tanto
-     apunta a hoy.png: 639 KB y 1220x2712, o sea vertical, asi que WhatsApp y
-     Twitter la recortan por el centro y se ve un trozo cualquiera de la
-     pantalla. Feo, pero visible; /img/og.png todavia no existe y daria 404. -->
+<!-- PENDIENTE: hoy.png es vertical y WhatsApp la recorta por el centro.
+     Sustituir por una imagen horizontal de 1200x630 y menos de 300 KB. -->
 <meta property="og:image" content="https://api.norday.app/img/screenshots/hoy.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#070D19">
 <link rel="icon" href="/img/logo-compass.png" type="image/png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Work+Sans:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
 <style>
+/* ══════════════════════════════════════════════════════════════════════════
+   NORDAY — landing
+   Las cuatro identidades son literalmente las de la app: colores, tipografías,
+   formas y radios copiados de norday_flutter_core/lib/theme/. Si allí cambian,
+   aquí también. Ninguna sección calcula un color: los nombra.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Identidades ────────────────────────────────────────────────────────── */
+
+[data-tema="profundidad"]{
+  --bg:#070D19; --sup:#1E2E4C; --baja:#101B2F; --alta:#2B4068;
+  --primary:#27C76F; --streak:#FFB020; --points:#FFB020;
+  --text:#EEF2F6; --muted:#C7CFDA; --inactivo:#3F4551; --tinta:#04342C;
+  --display:'Space Grotesk'; --cuerpo:'Manrope';
+  --d-ital:normal; --d-peso:700; --d-track:-.01em;
+  --r-hero:24px; --r-sec:18px; --clip:none;
+  --fila-relleno:transparent; --fila-linea:rgba(199,207,218,.14);
+  --vidrio:rgba(7,13,25,.72); --hilo:rgba(255,255,255,.07);
+  --marco:#2B4068; --pantalla:#0B1424;
+  --sombra:0 18px 50px rgba(0,0,0,.42);
+  --sombra-nori:drop-shadow(0 12px 28px rgba(0,0,0,.4));
+}
+[data-tema="neotokyo"]{
+  --bg:#090614; --sup:#110B21; --baja:#160F28; --alta:#1D1433;
+  --primary:#FF2E88; --streak:#FF4D2E; --points:#FFE347;
+  --text:#F5EEFF; --muted:#A08FC2; --inactivo:#473E5B; --tinta:#12000A;
+  --display:'Chakra Petch'; --cuerpo:'IBM Plex Sans';
+  --d-ital:normal; --d-peso:700; --d-track:.02em;
+  --r-hero:8px; --r-sec:8px;
+  --clip:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  --fila-relleno:rgba(255,46,136,.05); --fila-linea:rgba(255,46,136,.22);
+  --vidrio:rgba(9,6,20,.78); --hilo:rgba(255,46,136,.16);
+  --marco:#2A1B45; --pantalla:#0C0819;
+  --sombra:0 18px 50px rgba(0,0,0,.55);
+  --sombra-nori:drop-shadow(0 12px 28px rgba(255,46,136,.18));
+}
+[data-tema="alba"]{
+  --bg:#F4F1EB; --sup:#FCFAF6; --baja:#EAE5DB; --alta:#FFFFFF;
+  --primary:#7A9471; --streak:#8C4F35; --points:#8C4F35;
+  --text:#2C2824; --muted:#6B6259; --inactivo:#B2ACA5; --tinta:#2C2824;
+  --display:'Fraunces'; --cuerpo:'Work Sans';
+  --d-ital:italic; --d-peso:600; --d-track:-.015em;
+  --r-hero:14px; --r-sec:14px; --clip:none;
+  --fila-relleno:transparent; --fila-linea:rgba(44,40,36,.14);
+  --vidrio:rgba(244,241,235,.84); --hilo:rgba(44,40,36,.11);
+  --marco:#DED8CC; --pantalla:#FCFAF6;
+  --sombra:0 18px 44px rgba(44,40,36,.13);
+  --sombra-nori:drop-shadow(0 12px 24px rgba(44,40,36,.16));
+}
+[data-tema="dulce"]{
+  --bg:#FAF0F4; --sup:#FFFFFF; --baja:#FFE1EC; --alta:#FFFFFF;
+  --primary:#FF6FA5; --streak:#9C4E1A; --points:#E86A58;
+  --text:#4A2E3D; --muted:#A04A83; --inactivo:#CFA0BE; --tinta:#4A2E3D;
+  --display:'Quicksand'; --cuerpo:'Nunito'; --acento:'Caveat';
+  --d-ital:normal; --d-peso:700; --d-track:0;
+  --r-hero:26px; --r-sec:20px; --clip:none;
+  --fila-relleno:#FFFFFF; --fila-linea:rgba(74,46,61,.08);
+  --vidrio:rgba(250,240,244,.84); --hilo:rgba(74,46,61,.09);
+  --marco:#FFD3E3; --pantalla:#FFFFFF;
+  --sombra:0 18px 44px rgba(160,74,131,.14);
+  --sombra-nori:drop-shadow(0 12px 24px rgba(160,74,131,.18));
+}
+
+/* ── Escala y ritmo ─────────────────────────────────────────────────────── */
 :root{
-  /* ── Tokens de TEMA_PROFUNDIDAD, copiados de app_theme.dart ──────────
-     Si allí cambian, aquí también. No son valores propios de la web. */
-  --bg:#070D19;
-  --baja:#101B2F;      /* surface2  — lo hecho, lo que se hunde */
-  --sup:#1E2E4C;       /* surface   — la capa base */
-  --alta:#2B4068;      /* surfaceAlta — lo elevado */
-  --primary:#27C76F;
-  --acento:#FFB020;    /* streak y points son el mismo color en la app */
-  --text:#EEF2F6;
-  --muted:#C7CFDA;
-  --tinta:#04342C;     /* única tinta legible sobre el verde: 6.19:1 */
-
-  --radio-hero:24px;
-  --radio-sec:18px;
-
-  /* ── Escala tipográfica ──────────────────────────────────────────────
-     Razón 1.25 sobre 17px. Nada de tamaños puestos a ojo: si un texto
-     necesita un tamaño que no está aquí, el problema es la jerarquía. */
-  --t-xs:13px;
-  --t-sm:15px;
-  --t-base:17px;
-  --t-md:19px;
-  --t-lg:clamp(21px,2.2vw,24px);
-  --t-xl:clamp(27px,3.4vw,34px);
-  --t-2xl:clamp(34px,4.6vw,46px);
-  --t-3xl:clamp(42px,6.2vw,66px);
-
-  /* ── Ritmo vertical ──────────────────────────────────────────────────
-     Todo el espaciado sale de múltiplos de 8. Nada de 76px aquí y 84 allá. */
-  --e1:8px; --e2:16px; --e3:24px; --e4:32px;
-  --e6:48px; --e8:64px; --e12:96px; --e16:128px;
-
-  --medida:62ch;       /* medida de línea cómoda */
-  --nav-alto:64px;
+  --e1:8px; --e2:16px; --e3:24px; --e4:40px; --e5:64px; --e6:96px; --e7:140px;
+  --t-cierre:clamp(38px,5.4vw,68px);
+  --t-h1:clamp(46px,6.6vw,84px);
+  --t-h2:clamp(30px,3.6vw,46px);
+  --t-h3:clamp(19px,1.7vw,22px);
+  --t-lead:clamp(17px,1.5vw,20px);
 }
 
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);transition:background .8s cubic-bezier(.4,0,.2,1);scroll-behavior:smooth}
 body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
-  font-size:var(--t-base);
-  line-height:1.65;
-  overflow-x:hidden;
-  font-variant-numeric:tabular-nums;   /* los números no bailan al cambiar */
+  min-height:100vh;color:var(--text);
+  font-family:var(--cuerpo),system-ui,sans-serif;font-size:17px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  transition:color .8s cubic-bezier(.4,0,.2,1);
 }
+.cont{width:min(1200px,100% - 48px);margin-inline:auto}
+.estrecho{max-width:56ch}
 
-/* Space Grotesk sólo en titulares y cifras. El cuerpo de lectura se queda
-   en Manrope: la misma regla que obedecen Alba y Dulce en la app. */
-h1,h2,h3,.cifra,.pastilla,.cta,.nav__cta,.paso{
-  font-family:'Space Grotesk','Manrope',system-ui,sans-serif;
-  letter-spacing:-.02em;
+h1,h2,h3,.d{
+  font-family:var(--display),sans-serif;
+  font-weight:var(--d-peso);font-style:var(--d-ital);letter-spacing:var(--d-track);
+  color:var(--text);line-height:1.05;text-wrap:balance;
 }
-h1,h2,h3{line-height:1.08;margin:0}
-p{margin:0}
-a{color:var(--primary);font-weight:600}
+h1{font-size:var(--t-h1)}
+h2{font-size:var(--t-h2)}
+h3{font-size:var(--t-h3);line-height:1.2}
+p{color:var(--muted)}
+a{color:inherit}
 
-.cont{width:100%;max-width:1120px;margin:0 auto;padding:0 var(--e3)}
-.medida{max-width:var(--medida)}
-section{scroll-margin-top:var(--nav-alto)}
+/* ── Fondos: la regla común en cuatro idiomas ───────────────────────────── */
+.fondo{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.capa{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
+[data-tema="profundidad"] .capa--profundidad,
+[data-tema="neotokyo"] .capa--neotokyo,
+[data-tema="alba"] .capa--alba,
+[data-tema="dulce"] .capa--dulce{opacity:1}
+.capa svg{position:absolute;inset:0;width:100%;height:100%}
+.polvo circle{fill:#C7CFDA}
+.cruz line{stroke:#FFB020;stroke-width:.9;opacity:0;transition:opacity 1s ease}
+.cruz.enlazada line{opacity:.45}
+.cruz .astro{fill:#FFB020;opacity:.12;transition:opacity .8s ease}
+.cruz .astro.viva{opacity:1}
+.cruz .halo{fill:#FFB020;opacity:0;transition:opacity .8s ease}
+.cruz .halo.viva{opacity:.15}
+.ciudad rect.bloque{fill:#160F28}
+.ciudad rect.ventana{fill:#FFE347;opacity:.04;transition:opacity .7s ease}
+.ciudad rect.ventana.viva{opacity:.8}
+.capa--alba .luz{position:absolute;left:0;right:0;bottom:0;height:0;
+  background:linear-gradient(to top,rgba(140,79,53,.18),rgba(244,241,235,0));
+  transition:height 1.1s cubic-bezier(.4,0,.2,1)}
+.petalos circle{fill:#FF6FA5;opacity:0;transition:opacity .9s ease}
+.petalos circle.viva{opacity:.24}
 
-/* Todo lo pulsable llega a 44px de alto real en táctil. */
-.cta,.nav__cta,.fh,.faq__p{min-height:44px}
-
-/* ── El cielo ────────────────────────────────────────────────────────── */
-.cielo{
-  position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:
-    radial-gradient(130% 55% at 72% 6%, rgba(39,199,111,.13), rgba(7,13,25,0) 62%),
-    radial-gradient(100% 45% at 16% 84%, rgba(64,96,170,.16), rgba(7,13,25,0) 68%);
+/* ── Carga: el cielo se puebla ──────────────────────────────────────────── */
+.carga{
+  position:fixed;inset:0;z-index:90;display:grid;place-items:center;
+  background:var(--bg);transition:opacity .6s ease,visibility .6s;
 }
-.cielo svg{position:absolute;inset:-8% 0;width:100%;height:116%;will-change:transform}
+.carga.fuera{opacity:0;visibility:hidden}
+.carga__t{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(22px,3vw,34px);
+  color:#EEF2F6;letter-spacing:-.01em;opacity:0;animation:entra .8s .15s forwards}
+@keyframes entra{to{opacity:1}}
 
-/* ── Navegación ──────────────────────────────────────────────────────── */
-.nav{
-  position:sticky;top:0;z-index:20;height:var(--nav-alto);
-  display:flex;align-items:center;
-  background:rgba(7,13,25,.72);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,255,255,.06);
-}
-.nav__in{display:flex;align-items:center;justify-content:space-between;gap:var(--e2)}
-.marca{
-  display:inline-flex;align-items:center;gap:10px;
-  color:var(--text);text-decoration:none;font-weight:700;font-size:var(--t-md);
-  font-family:'Space Grotesk',sans-serif;
-}
-/* El PNG del compás trae su propio fondo opaco pegado, así que NO lleva disco
-   de color detrás: se redondea el archivo y se acaban los dos azules.
-   PENDIENTE: recortarle el fondo al PNG y devolverle la transparencia. */
-.marca__ico{width:34px;height:34px;flex:none}
-.marca__ico img{width:100%;height:100%;display:block}
-.nav__links{display:flex;align-items:center;gap:var(--e3);font-size:var(--t-sm)}
-.nav__links>a{color:var(--muted);text-decoration:none;font-weight:600;transition:color .2s}
-.nav__links>a:hover{color:var(--text)}
-.nav__cta{
-  display:inline-flex;align-items:center;
-  padding:10px 18px;border-radius:999px;
-  background:var(--primary);color:var(--tinta)!important;
-  font-weight:700;font-size:var(--t-sm);
-  transition:transform .2s,box-shadow .2s;
-}
-.nav__cta:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(39,199,111,.3)}
-@media(max-width:760px){.nav__links>a:not(.nav__cta){display:none}}
+/* ── Barra ──────────────────────────────────────────────────────────────── */
+.barra{position:sticky;top:0;z-index:30;background:var(--vidrio);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--hilo);transition:background .8s ease,border-color .8s ease}
+.barra__in{display:flex;align-items:center;justify-content:space-between;gap:var(--e3);height:70px}
+.marca{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-style:var(--d-ital);
+  letter-spacing:var(--d-track);font-size:21px;text-decoration:none}
+.ids{display:flex;align-items:center;gap:5px}
+.id{appearance:none;border:0;cursor:pointer;padding:9px 15px;background:transparent;
+  color:var(--muted);font-size:14px;line-height:1;transition:color .3s,background .3s}
+.id:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.id[data-id="profundidad"]{font-family:'Space Grotesk',sans-serif;font-weight:600;border-radius:18px}
+.id[data-id="neotokyo"]{font-family:'Chakra Petch',sans-serif;font-weight:600;letter-spacing:.03em;
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+.id[data-id="alba"]{font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+  border-bottom:1px solid transparent}
+.id[data-id="dulce"]{font-family:'Quicksand',sans-serif;font-weight:700;border-radius:999px}
+.id:hover{color:var(--text)}
+.id[aria-pressed="true"]{color:var(--text);background:var(--sup)}
+[data-tema="alba"] .id[data-id="alba"][aria-pressed="true"]{background:transparent;border-bottom-color:var(--text)}
 
-/* ── Hero ────────────────────────────────────────────────────────────── */
-.hero{padding:var(--e12) 0 var(--e8)}
-.hero__g{display:grid;grid-template-columns:1.02fr .98fr;gap:var(--e8);align-items:center}
-.hero h1{font-size:var(--t-3xl);font-weight:700;letter-spacing:-.035em}
-.hero h1 em{font-style:normal;color:var(--primary)}
-.tagline{
-  margin-top:var(--e2);font-size:var(--t-xs);
-  letter-spacing:.24em;text-transform:uppercase;color:var(--muted);font-weight:600;
-}
-.hero__p{margin-top:var(--e3);font-size:var(--t-md);color:var(--muted);max-width:38ch}
-.hero__acc{margin-top:var(--e4);display:flex;flex-wrap:wrap;gap:var(--e2);align-items:center}
+/* ── Piezas comunes ─────────────────────────────────────────────────────── */
+.sec{position:relative;z-index:1;padding:var(--e7) 0}
+.sec--corta{padding:var(--e6) 0}
+.cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;
+  padding:16px 30px;background:var(--primary);color:var(--tinta);
+  font-family:var(--cuerpo),sans-serif;font-weight:700;font-size:19px;
+  border-radius:var(--r-hero);clip-path:var(--clip);text-decoration:none;
+  transition:background .8s,color .8s,border-radius .8s,transform .18s}
+.cta:hover{transform:translateY(-2px)}
+.cta:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.panel{background:var(--sup);border:1px solid var(--hilo);border-radius:var(--r-hero);
+  clip-path:var(--clip);box-shadow:var(--sombra);
+  transition:background .8s,border-color .8s,border-radius .8s}
+[data-tema="alba"] .panel{background:var(--sup);box-shadow:none;border-color:var(--fila-linea)}
 
-.cta{
-  display:inline-flex;align-items:center;justify-content:center;gap:10px;
-  padding:15px 28px;border-radius:999px;
-  background:var(--primary);color:var(--tinta);
-  font-weight:700;font-size:var(--t-base);text-decoration:none;
-  border:none;cursor:pointer;transition:transform .2s,box-shadow .2s;
-}
-.cta:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(39,199,111,.32)}
-.cta svg{width:20px;height:20px;flex:none}
-.pista{font-size:var(--t-sm);color:var(--muted)}
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero{padding:clamp(48px,8vw,96px) 0 var(--e6)}
+.hero__g{display:grid;grid-template-columns:1.02fr .98fr;gap:clamp(32px,6vw,80px);align-items:center}
+.hero__p{margin-top:var(--e3);max-width:42ch;font-size:var(--t-lead)}
+.acc{display:flex;align-items:center;gap:var(--e3);flex-wrap:wrap;margin-top:var(--e4)}
+.pista{font-size:15px;color:var(--muted);transition:color .4s}
+.pista.hecho{color:var(--primary)}
 
-.badge{
-  display:inline-flex;align-items:center;gap:9px;margin-top:var(--e3);
-  padding:7px 15px;border-radius:999px;background:var(--baja);
-  color:var(--muted);font-size:var(--t-sm);font-weight:600;
-}
-.badge__pt{width:8px;height:8px;border-radius:50%;background:var(--primary);flex:none}
+/* ── Teléfono jugable ───────────────────────────────────────────────────── */
+.escena{position:relative;display:flex;justify-content:center}
+.marco{position:relative;width:min(324px,100%);padding:12px;background:var(--marco);
+  border-radius:calc(var(--r-hero) + 18px);box-shadow:var(--sombra);
+  transition:background .8s,border-radius .8s}
+[data-tema="neotokyo"] .marco{border-radius:10px;
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)}
+.pantalla{background:var(--pantalla);border-radius:calc(var(--r-hero) + 6px);padding:22px 18px 26px;
+  transition:background .8s,border-radius .8s}
+[data-tema="neotokyo"] .pantalla{border-radius:4px}
+.cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.cab__t{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-style:var(--d-ital);
+  letter-spacing:var(--d-track);font-size:20px}
+.cifra{font-family:var(--display),sans-serif;font-weight:var(--d-peso);color:var(--points);
+  font-variant-numeric:tabular-nums}
+.cab__c{margin-top:2px;font-size:12px;font-weight:600;color:var(--muted)}
+.lista{margin-top:20px;display:flex;flex-direction:column}
+.fh{appearance:none;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;
+  width:100%;padding:13px 12px;background:var(--fila-relleno);border:0;
+  border-bottom:1px solid var(--fila-linea);border-radius:var(--r-sec);clip-path:var(--clip);
+  color:var(--text);font-family:inherit;font-size:14px;
+  transition:background .5s,border-radius .8s,border-color .8s}
+[data-tema="dulce"] .fh{margin-bottom:8px;border-bottom-color:transparent;box-shadow:0 2px 10px rgba(160,74,131,.07)}
+[data-tema="neotokyo"] .fh{border:1px solid var(--fila-linea);margin-bottom:6px}
+.fh:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.aro{position:relative;flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  border:3px solid var(--inactivo);background:var(--pantalla);transition:border-color .35s,background .35s}
+.aro svg{position:absolute;inset:0;width:100%;height:100%;stroke:var(--text);stroke-width:2.6;
+  fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .25s}
+.fh:hover .aro svg{opacity:.15}
+.fh[aria-pressed="true"] .aro{border-color:var(--primary);background:var(--primary)}
+.fh[aria-pressed="true"] .aro svg{opacity:1;stroke:var(--tinta)}
+.fh__n{flex:1;font-weight:600;transition:color .35s,opacity .35s}
+.fh[aria-pressed="true"] .fh__n{color:var(--muted);opacity:.82}
+.fh__r{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:13px;
+  color:var(--streak);font-variant-numeric:tabular-nums}
+.nori{position:absolute;right:-16px;bottom:-32px;width:136px;height:136px;
+  filter:var(--sombra-nori);transition:transform .55s cubic-bezier(.34,1.56,.64,1),filter .8s}
+.nori img{width:100%;height:100%;object-fit:contain;display:block}
+.nori.saltando{transform:translateY(-15px) scale(1.06)}
+.fase{position:absolute;right:4px;bottom:-56px;font-family:var(--display),sans-serif;
+  font-weight:var(--d-peso);font-style:var(--d-ital);font-size:12px;color:var(--muted);white-space:nowrap}
 
-/* El teléfono jugable. El canto va en el degradado, igual que en Flutter:
-   allí por obligación —un Border con lados distintos no admite borderRadius—
-   y aquí por coherencia. */
-.movil{position:relative;justify-self:center;width:100%;max-width:320px;
-  transition:transform .35s cubic-bezier(.2,.7,.3,1);transform-style:preserve-3d}
-.marco{
-  border-radius:34px;padding:8px;
-  background:linear-gradient(165deg,rgba(255,255,255,.26) 0%,var(--alta) 3.5%,var(--baja) 100%);
-}
-.pantalla{border-radius:27px;background:rgba(7,13,25,.72);padding:var(--e2)}
-.pant__cab{display:flex;align-items:center;justify-content:space-between}
-.pant__t{font-size:var(--t-md);font-weight:700;font-family:'Space Grotesk',sans-serif}
-.pastilla{
-  font-size:var(--t-xs);font-weight:700;color:var(--acento);
-  background:rgba(255,176,32,.14);padding:4px 11px;border-radius:999px;
-}
-.pant__c{margin:6px 0 var(--e2);font-size:var(--t-xs);color:var(--muted)}
+/* ── Banda de tesis ─────────────────────────────────────────────────────── */
+.banda{position:relative;z-index:1;border-block:1px solid var(--hilo);padding:var(--e5) 0;
+  transition:border-color .8s}
+.banda p{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-style:var(--d-ital);
+  letter-spacing:var(--d-track);font-size:var(--t-h2);line-height:1.08;color:var(--text);max-width:22ch}
 
-.fh{
-  display:flex;align-items:center;gap:10px;
-  padding:12px 13px;margin-bottom:var(--e1);
-  border-radius:var(--radio-sec);
-  background:rgba(30,46,76,.88);
-  cursor:pointer;border:none;width:100%;text-align:left;
-  font:inherit;color:var(--text);
-  transition:background .3s,transform .12s;
-}
-.fh:last-of-type{margin-bottom:0}
-.fh:active{transform:scale(.98)}
-/* Lo hecho se hunde a la capa baja: lo que te queda por hacer está más cerca. */
-.fh.ok{background:rgba(16,27,47,.88)}
-.fh__pt{width:18px;height:18px;border-radius:50%;flex:none;
-  border:2px solid rgba(199,207,218,.55);transition:background .3s,border-color .3s}
-.fh.ok .fh__pt{background:var(--primary);border-color:transparent}
-.fh__n{flex:1;font-size:var(--t-sm)}
-.fh.ok .fh__n{color:var(--muted)}
-.fh__r{font-size:var(--t-xs);font-weight:700;color:var(--acento);font-family:'Space Grotesk',sans-serif}
+/* ── Fragmentos vivos ───────────────────────────────────────────────────── */
+.rejilla{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--e3);margin-top:var(--e5)}
+.tarj{padding:var(--e3);display:flex;flex-direction:column;gap:var(--e3)}
+.tarj h3{margin-bottom:-8px}
+.tarj p{font-size:15.5px}
+.frag{background:var(--pantalla);border-radius:var(--r-sec);clip-path:var(--clip);
+  padding:18px;transition:background .8s,border-radius .8s}
+[data-tema="alba"] .frag{background:var(--baja)}
 
-.nori{position:absolute;right:-22px;bottom:-16px;width:112px;height:112px;
-  filter:drop-shadow(0 10px 26px rgba(39,199,111,.3))}
+.semana{display:flex;gap:6px;justify-content:space-between}
+.dia{flex:1;text-align:center}
+.dia b{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px}
+.celda{aspect-ratio:1;border-radius:calc(var(--r-sec) * .5);background:var(--inactivo);
+  transition:background .6s,border-radius .8s}
+.celda.ok{background:var(--primary)}
+[data-tema="neotokyo"] .celda{border-radius:2px}
+[data-tema="dulce"] .celda{border-radius:999px}
+.tras{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:13px}
+.tras span{color:var(--muted)}
+.tras b{font-family:var(--display),sans-serif;font-weight:var(--d-peso);color:var(--streak)}
 
-@media(max-width:940px){
-  .hero{padding:var(--e8) 0 var(--e6)}
+.mapa{display:grid;grid-template-columns:repeat(14,1fr);gap:5px}
+.mapa i{aspect-ratio:1;border-radius:3px;background:var(--inactivo)}
+.mapa i.n1{background:color-mix(in srgb,var(--primary) 35%,transparent)}
+.mapa i.n2{background:color-mix(in srgb,var(--primary) 65%,transparent)}
+.mapa i.n3{background:var(--primary)}
+[data-tema="dulce"] .mapa i{border-radius:999px}
+
+.logro{display:flex;align-items:center;gap:14px}
+.logro__m{flex:0 0 auto;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--points) 18%,transparent);color:var(--points);
+  font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:19px}
+.logro__x b{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:15px}
+.logro__x i{font-style:normal;font-size:13px;color:var(--muted)}
+
+.anillo{display:flex;align-items:center;gap:16px}
+.anillo__c{position:relative;flex:0 0 auto;width:74px;height:74px}
+.anillo__c svg{transform:rotate(-90deg)}
+.anillo__c circle{fill:none;stroke-width:6}
+.anillo__c .pista2{stroke:var(--inactivo)}
+.anillo__c .val{stroke:var(--primary);stroke-linecap:round;
+  stroke-dasharray:201;stroke-dashoffset:56}
+.anillo__c img{position:absolute;inset:12px;width:50px;height:50px;object-fit:contain}
+.anillo__x b{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:16px}
+.anillo__x i{font-style:normal;font-size:13px;color:var(--muted)}
+
+/* ── Identidades ────────────────────────────────────────────────────────── */
+.specs{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--e2);margin-top:var(--e5)}
+.spec{padding:var(--e3);cursor:pointer;text-align:left;border:1px solid var(--hilo);
+  background:var(--sup);border-radius:var(--r-hero);clip-path:var(--clip);
+  transition:transform .2s,border-color .3s}
+.spec:hover{transform:translateY(-4px)}
+.spec:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.spec__aa{font-size:44px;line-height:1;display:block;margin-bottom:12px}
+.spec__n{display:block;font-size:16px;margin-bottom:4px}
+.spec__d{display:block;font-size:13.5px;line-height:1.45}
+.spec__p{display:flex;gap:6px;margin-top:16px}
+.spec__p i{width:22px;height:22px;border-radius:50%;display:block}
+
+/* Cada espécimen se pinta con SUS valores, no con los de la identidad activa. */
+.spec[data-id="profundidad"]{background:#1E2E4C;border-color:rgba(255,255,255,.07);border-radius:24px;clip-path:none}
+.spec[data-id="profundidad"] .spec__aa,.spec[data-id="profundidad"] .spec__n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-style:normal;color:#EEF2F6}
+.spec[data-id="profundidad"] .spec__d{font-family:'Manrope',sans-serif;color:#C7CFDA}
+.spec[data-id="neotokyo"]{background:#110B21;border-color:rgba(255,46,136,.18);border-radius:8px;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.spec[data-id="neotokyo"] .spec__aa,.spec[data-id="neotokyo"] .spec__n{font-family:'Chakra Petch',sans-serif;font-weight:700;font-style:normal;letter-spacing:.02em;color:#F5EEFF}
+.spec[data-id="neotokyo"] .spec__d{font-family:'IBM Plex Sans',sans-serif;color:#A08FC2}
+.spec[data-id="alba"]{background:#FCFAF6;border-color:rgba(44,40,36,.14);border-radius:14px;clip-path:none}
+.spec[data-id="alba"] .spec__aa,.spec[data-id="alba"] .spec__n{font-family:'Fraunces',serif;font-style:italic;font-weight:600;color:#2C2824}
+.spec[data-id="alba"] .spec__d{font-family:'Work Sans',sans-serif;color:#6B6259}
+.spec[data-id="dulce"]{background:#FFFFFF;border-color:rgba(74,46,61,.09);border-radius:26px;clip-path:none}
+.spec[data-id="dulce"] .spec__aa,.spec[data-id="dulce"] .spec__n{font-family:'Quicksand',sans-serif;font-weight:700;font-style:normal;color:#4A2E3D}
+.spec[data-id="dulce"] .spec__d{font-family:'Nunito',sans-serif;color:#A04A83}
+
+/* ── Nori ───────────────────────────────────────────────────────────────── */
+.fases{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--e4);margin-top:var(--e5);
+  align-items:end;max-width:760px}
+.fase-c{text-align:center}
+.fase-c img{width:100%;max-width:150px;height:auto;filter:var(--sombra-nori);transition:filter .8s}
+.fase-c b{display:block;margin-top:var(--e2);font-family:var(--display),sans-serif;
+  font-weight:var(--d-peso);font-style:var(--d-ital);font-size:16px}
+.fase-c span{display:block;font-size:14px;color:var(--muted)}
+
+/* ── Preguntas ──────────────────────────────────────────────────────────── */
+.faq{margin-top:var(--e4);border-top:1px solid var(--hilo)}
+.faq details{border-bottom:1px solid var(--hilo);transition:border-color .8s}
+.faq summary{cursor:pointer;list-style:none;padding:22px 0;display:flex;justify-content:space-between;
+  gap:var(--e3);font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-style:var(--d-ital);font-size:var(--t-h3);color:var(--text)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';color:var(--muted);font-weight:400}
+.faq details[open] summary::after{content:'–'}
+.faq p{padding-bottom:22px;max-width:66ch;font-size:16px}
+
+/* ── Autor y cierre ─────────────────────────────────────────────────────── */
+.autor{display:grid;grid-template-columns:auto 1fr;gap:var(--e3);align-items:start;max-width:70ch}
+.autor__i{width:56px;height:56px;border-radius:50%;background:var(--baja);display:grid;place-items:center;
+  font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:22px;color:var(--muted)}
+.cierre{text-align:left}
+.cierre h2{font-size:var(--t-cierre);max-width:18ch}
+pie{display:block}
+footer{position:relative;z-index:1;border-top:1px solid var(--hilo);padding:var(--e4) 0;
+  transition:border-color .8s}
+.pie{display:flex;justify-content:space-between;gap:var(--e3);flex-wrap:wrap;font-size:14.5px;color:var(--muted)}
+.pie a{text-decoration:none}
+.pie a:hover{color:var(--text)}
+.pie nav{display:flex;gap:var(--e3);flex-wrap:wrap}
+
+@media (max-width:940px){
   .hero__g{grid-template-columns:1fr;gap:var(--e6)}
-  .nori{width:88px;height:88px;right:-10px}
+  .escena{order:2}
+  .rejilla{grid-template-columns:1fr}
+  .specs{grid-template-columns:repeat(2,1fr)}
+  .barra__in{height:auto;padding:12px 0;flex-wrap:wrap;gap:12px}
+  .ids{width:100%;flex-wrap:wrap}
+  .sec{padding:var(--e6) 0}
 }
-
-/* ── Secciones ───────────────────────────────────────────────────────── */
-.sec{padding:var(--e12) 0}
-.sec__t{font-size:var(--t-2xl);font-weight:700}
-.sec__e{margin-top:var(--e2);margin-bottom:var(--e6);color:var(--muted);font-size:var(--t-md);max-width:52ch}
-
-.rej{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--e2)}
-.tj{
-  padding:var(--e3);border-radius:var(--radio-hero);
-  background:rgba(30,46,76,.88);border:1px solid rgba(255,255,255,.08);
-  transition:transform .25s,background .25s;
+@media (max-width:560px){
+  .specs{grid-template-columns:1fr}
+  .fases{grid-template-columns:1fr;gap:var(--e3);max-width:260px}
 }
-.tj:hover{transform:translateY(-3px);background:rgba(43,64,104,.92)}
-.tj h3{margin-top:var(--e3);font-size:var(--t-lg);font-weight:700}
-.tj p{margin-top:var(--e1);color:var(--muted);font-size:var(--t-sm)}
-.paso{float:right;font-size:var(--t-xl);font-weight:700;color:rgba(199,207,218,.20);line-height:1}
-
-/* ── Trozos reales de interfaz, en vez de iconos genéricos ──────────────
-   Cada tarjeta enseña una pieza de la app construida con sus mismos tokens.
-   Es la diferencia entre ilustrar el producto y demostrarlo. */
-.demo{border-radius:var(--radio-sec);background:var(--baja);padding:14px;overflow:hidden}
-.demo__fila{display:flex;align-items:center;gap:10px}
-.demo__ck{width:18px;height:18px;border-radius:50%;background:var(--primary);flex:none}
-.demo__nm{flex:1;font-size:var(--t-sm);color:var(--muted)}
-.demo__rc{font-size:var(--t-xs);font-weight:700;color:var(--acento);font-family:'Space Grotesk',sans-serif;
-  display:inline-flex;align-items:center;gap:4px}
-.demo__sub{margin-top:10px;height:5px;border-radius:999px;background:rgba(199,207,218,.14);overflow:hidden}
-.demo__sub i{display:block;height:100%;width:68%;border-radius:999px;background:var(--primary)}
-
-.anillo{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;margin:0 auto;
-  background:conic-gradient(var(--primary) 0 72%, rgba(199,207,218,.14) 72% 100%)}
-.anillo span{width:60px;height:60px;border-radius:50%;background:var(--baja);display:grid;place-items:center}
-.anillo img{width:46px;height:46px}
-.nivel{margin-top:10px;text-align:center;font-size:var(--t-xs);color:var(--muted)}
-.nivel b{color:var(--text);font-family:'Space Grotesk',sans-serif}
-
-.logro{display:flex;align-items:center;gap:12px}
-.logro__m{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;
-  background:rgba(255,176,32,.16);color:var(--acento)}
-.logro__m svg{width:22px;height:22px}
-.logro__x{flex:1}
-.logro__x b{display:block;font-size:var(--t-sm);font-family:'Space Grotesk',sans-serif}
-.logro__x i{font-style:normal;font-size:var(--t-xs);color:var(--muted)}
-
-/* ── Capturas ────────────────────────────────────────────────────────── */
-.caps{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--e2)}
-.cap{margin:0}
-.cap__m{border-radius:22px;padding:6px;transition:transform .25s;
-  background:linear-gradient(165deg,rgba(255,255,255,.18) 0%,var(--sup) 3.5%,var(--baja) 100%)}
-.cap:hover .cap__m{transform:translateY(-4px)}
-.cap__m img{display:block;width:100%;height:auto;border-radius:17px}
-.cap figcaption{margin-top:12px;text-align:center;color:var(--muted);font-size:var(--t-sm);font-weight:600}
-@media(max-width:880px){
-  /* En móvil se deslizan, una detrás de otra: la siguiente asoma para que se
-     vea que hay más. Mismo criterio que el viewportFraction del carrusel. */
-  .caps{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
-    padding-bottom:12px;margin-inline:calc(var(--e3)*-1);padding-inline:var(--e3);scrollbar-width:none}
-  .caps::-webkit-scrollbar{display:none}
-  .cap{flex:0 0 72%;scroll-snap-align:center}
-}
-
-/* ── FAQ, con Nori de anfitriona ─────────────────────────────────────── */
-.faq__g{display:grid;grid-template-columns:200px minmax(0,1fr);gap:var(--e6);align-items:start}
-.faq__nori{text-align:center}
-.faq__nori img{width:152px;height:152px;filter:drop-shadow(0 12px 30px rgba(39,199,111,.28))}
-.faq__nori p{margin-top:var(--e2);font-size:var(--t-sm);color:var(--muted)}
-.faq__i{border-bottom:1px solid rgba(255,255,255,.08)}
-.faq__p{
-  width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--e2);
-  padding:var(--e3) 0;background:none;border:none;cursor:pointer;text-align:left;
-  color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:var(--t-md);font-weight:700;
-}
-.faq__p svg{width:20px;height:20px;flex:none;color:var(--primary);transition:transform .25s}
-.faq__i.abierto .faq__p svg{transform:rotate(45deg)}
-.faq__r{max-height:0;overflow:hidden;transition:max-height .3s ease}
-.faq__i.abierto .faq__r{max-height:340px}
-.faq__r p{padding-bottom:var(--e3);color:var(--muted);font-size:var(--t-sm);max-width:58ch}
-@media(max-width:820px){.faq__g{grid-template-columns:1fr;gap:var(--e4)}.faq__nori img{width:112px;height:112px}}
-
-/* ── Franja de cierre ────────────────────────────────────────────────── */
-.franja{padding:var(--e4) 0 var(--e12)}
-.franja__in{
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--e3);
-  padding:var(--e6);border-radius:var(--radio-hero);
-  background:linear-gradient(165deg,rgba(255,255,255,.26) 0%,var(--alta) 3.5%,var(--baja) 100%);
-}
-.franja__t{font-size:var(--t-xl);font-weight:700;font-family:'Space Grotesk',sans-serif;max-width:22ch}
-@media(max-width:640px){.franja__in{padding:var(--e4) var(--e3)}}
-
-/* ── Pie ─────────────────────────────────────────────────────────────── */
-footer{padding:var(--e4) 0 var(--e6);border-top:1px solid rgba(255,255,255,.06);
-  color:var(--muted);font-size:var(--t-sm)}
-footer .cont{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--e2)}
-.foot__l{display:flex;gap:var(--e3);flex-wrap:wrap}
-.foot__l a{color:var(--muted);text-decoration:none;font-weight:600}
-.foot__l a:hover{color:var(--text)}
-
-/* ── Entradas escalonadas ────────────────────────────────────────────── */
-.ap{opacity:0;transform:translateY(22px);
-  transition:opacity .55s ease var(--d,0s),transform .55s ease var(--d,0s)}
-.ap.on{opacity:1;transform:none}
-
-@media(prefers-reduced-motion:reduce){
+@media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  .ap{opacity:1;transform:none;transition:none}
-  .cta:hover,.tj:hover,.cap:hover .cap__m,.movil{transform:none!important}
+  *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}
 }
 
-:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:6px}
+/* ══════════════════════════════════════════════════════════════════════════
+   MOVIMIENTO
+   Regla: nada aparece, todo entra. Y nada se mueve sin que lo provoque el
+   visitante, salvo la carga y la entrada de cada sección al cruzarla.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Titulares por líneas enmascaradas: cada línea sube desde debajo de su caja. */
+.ln{display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em}
+.ln > i{display:block;font-style:inherit;transform:translateY(115%);
+  transition:transform 1.05s cubic-bezier(.16,1,.3,1);transition-delay:var(--d,0s)}
+.in .ln > i,.ln.in > i{transform:translateY(0)}
+
+/* Entrada genérica */
+.rv{opacity:0;transform:translateY(26px);
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);
+  transition-delay:var(--d,0s)}
+.rv.in{opacity:1;transform:none}
+
+/* Barra: entra al terminar la carga */
+.barra{transform:translateY(-100%);transition:transform .9s cubic-bezier(.16,1,.3,1) .1s,
+  background .8s ease,border-color .8s ease}
+body.listo .barra{transform:none}
+
+/* Carga: contador y cortina */
+.carga{display:grid;place-items:center;overflow:hidden}
+.carga__in{text-align:center}
+.carga__n{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;
+  font-size:13px;letter-spacing:.22em;color:#C7CFDA;margin-bottom:20px;
+  font-variant-numeric:tabular-nums;opacity:0;animation:entra .5s .1s forwards}
+.carga__b{display:block;width:min(320px,60vw);height:1px;background:rgba(199,207,218,.18);
+  margin:26px auto 0;position:relative;overflow:hidden}
+.carga__b i{position:absolute;inset:0;background:#FFB020;transform-origin:left;
+  transform:scaleX(0);transition:transform .12s linear}
+.carga.fuera{transform:translateY(-101%);transition:transform .9s cubic-bezier(.76,0,.24,1);
+  opacity:1;visibility:visible}
+
+/* El teléfono responde al cursor. Sutil: doce grados no, tres. */
+.escena{perspective:1400px}
+.marco{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .5s cubic-bezier(.16,1,.3,1),background .8s,border-radius .8s}
+.marco.vivo{transition:transform .12s linear,background .8s,border-radius .8s}
+
+/* Las celdas de los fragmentos se llenan en cadena, no todas a la vez. */
+.celda,.mapa i{transform:scale(.55);opacity:0;
+  transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .4s,background .6s,border-radius .8s;
+  transition-delay:var(--d,0s)}
+.in .celda,.in .mapa i{transform:none;opacity:1}
+
+/* La constelación se dibuja, no se enciende de golpe. */
+.cruz line{stroke-dasharray:300;stroke-dashoffset:300;opacity:.45;
+  transition:stroke-dashoffset 1.2s cubic-bezier(.16,1,.3,1)}
+.cruz.enlazada line{stroke-dashoffset:0}
+.cruz .astro{transition:opacity .8s ease,transform .7s cubic-bezier(.34,1.56,.64,1);
+  transform-box:fill-box;transform-origin:center;transform:scale(.4)}
+.cruz .astro.viva{transform:scale(1)}
+
+/* Enlaces que intercambian su texto al pasar por encima. */
+.sw{position:relative;display:inline-block;overflow:hidden;vertical-align:bottom}
+.sw span{display:block;transition:transform .45s cubic-bezier(.16,1,.3,1)}
+.sw span:last-child{position:absolute;inset:0;transform:translateY(100%)}
+.sw:hover span:first-child{transform:translateY(-100%)}
+.sw:hover span:last-child{transform:translateY(0)}
+
+/* Sección de resultados: el argumento se queda quieto y las pruebas pasan. */
+.pegado{display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(32px,6vw,90px);align-items:start}
+.pegado__t{position:sticky;top:130px}
+.pilas{display:flex;flex-direction:column;gap:var(--e3)}
+.tarj{transform-origin:center top}
+
+/* Las cifras cuentan al entrar. */
+.num{font-variant-numeric:tabular-nums}
+
+/* Los especímenes entran escalonados y se levantan al pasar por encima. */
+.spec{transition:transform .35s cubic-bezier(.16,1,.3,1),border-color .3s,opacity .9s}
+.spec:hover{transform:translateY(-8px)}
+
+/* Nori, en su sección, respira. Sólo ahí, y sólo una vez cada seis segundos. */
+.fase-c img{animation:respira 6s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes respira{0%,88%,100%{transform:translateY(0)}94%{transform:translateY(-7px)}}
+
+/* Preguntas: el contenido se despliega en vez de saltar. */
+.faq details summary{transition:color .3s}
+.faq details summary:hover{color:var(--primary)}
+.faq summary::after{transition:transform .35s cubic-bezier(.16,1,.3,1);display:inline-block}
+.faq details[open] summary::after{transform:rotate(180deg)}
+
+@media (max-width:940px){
+  .pegado{grid-template-columns:1fr;gap:var(--e4)}
+  .pegado__t{position:static}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ln > i,.rv,.celda,.mapa i,.spec,.marco{transform:none !important;opacity:1 !important}
+  .cruz line{stroke-dashoffset:0 !important}
+  .fase-c img{animation:none !important}
+  .barra{transform:none !important}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COMPOSICIÓN — segunda vuelta
+   Fuera las tarjetas: Profundidad no lleva. El contenido va sobre el cielo,
+   igual que las filas de hábito en la app.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.panel{background:transparent !important;border:0 !important;box-shadow:none !important;
+  border-radius:0 !important;clip-path:none !important}
+.frag{background:transparent;padding:0;border-radius:0;clip-path:none}
+[data-tema="alba"] .frag{background:transparent}
+
+/* Etiqueta de sección: una palabra, no un grito en mayúsculas. */
+.et{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-style:var(--d-ital);font-size:14px;letter-spacing:.06em;color:var(--muted);
+  margin-bottom:var(--e3);transition:color .8s}
+.et::before{content:'';display:inline-block;width:26px;height:1px;background:var(--muted);
+  vertical-align:middle;margin-right:12px;transition:background .8s}
+
+/* Titulares que afirman. Más largos, más aire, medida controlada. */
+h2{max-width:19ch}
+.centro{text-align:center;margin-inline:auto}
+.centro h2{max-width:20ch;margin-inline:auto}
+.centro .et{margin-inline:auto}
+.centro .lead{margin-inline:auto;max-width:52ch}
+.lead{font-size:var(--t-lead);margin-top:var(--e3)}
+
+/* El argumento se queda en el centro de la pantalla mientras pasan las pruebas. */
+.pegado__t{position:sticky;top:50vh;transform:translateY(-50%);align-self:start}
+.pegado__t h2{transition:color .9s ease}
+.pegado.activo .pegado__t h2{color:var(--primary)}
+
+/* Los cuatro bloques, numerados y separados por un hilo. Sin caja. */
+.pilas{display:flex;flex-direction:column;gap:0}
+.blq{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,56px);align-items:center;
+  padding:var(--e5) 0;border-top:1px solid var(--hilo);transition:border-color .8s}
+.blq:first-child{border-top:0;padding-top:0}
+.blq__n{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-style:var(--d-ital);font-size:13px;color:var(--muted);margin-bottom:var(--e2);
+  font-variant-numeric:tabular-nums;transition:color .8s}
+.blq h3{max-width:16ch;margin-bottom:var(--e2)}
+.blq p{font-size:16px;max-width:38ch}
+
+/* Entradas laterales */
+.rv-i{opacity:0;transform:translateX(-38px);
+  transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);
+  transition-delay:var(--d,0s)}
+.rv-d{opacity:0;transform:translateX(38px);
+  transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);
+  transition-delay:var(--d,0s)}
+.rv-i.in,.rv-d.in{opacity:1;transform:none}
+
+/* Fragmentos sin caja: la celda apagada usa el token `inactivo`, que es
+   justo el que se creó para dibujar donde no hay nada. */
+.semana{gap:8px}
+.celda{border-radius:calc(var(--r-sec) * .55)}
+.mapa{gap:6px}
+.tras{border-top:1px solid var(--hilo);padding-top:12px;margin-top:16px;transition:border-color .8s}
+
+/* Especímenes: sin sombra, ya no compiten con tarjetas que no existen. */
+.specs{gap:var(--e3)}
+.spec{box-shadow:none}
+
+/* Nori: retrato vertical, como las imágenes de Enerblock. */
+.fases{max-width:820px;margin-inline:auto;gap:var(--e4)}
+
+/* Carga: la frase se escribe. */
+.carga__t{min-height:1.2em}
+.carga__t::after{content:'';display:inline-block;width:2px;height:.92em;background:#FFB020;
+  margin-left:3px;vertical-align:-.08em;animation:cursor .9s steps(1) infinite}
+.carga.escrito .carga__t::after{opacity:0;animation:none}
+@keyframes cursor{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+@media (max-width:940px){
+  .blq{grid-template-columns:1fr;gap:var(--e3);padding:var(--e4) 0}
+  .pegado__t{position:static;transform:none}
+  h2,.centro h2{max-width:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .rv-i,.rv-d{transform:none !important;opacity:1 !important}
+  .carga__t::after{display:none}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INVITACIONES
+   Lo que se puede tocar tiene que pedir que lo toquen.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Cada identidad late con SU color, no con el de la activa, y desfasadas
+   para que no parezcan un semáforo. */
+.id{position:relative;overflow:visible}
+.id::before{content:'';position:absolute;inset:0;border-radius:inherit;clip-path:inherit;
+  background:var(--acc);opacity:0;transition:opacity .35s ease;z-index:-1}
+.id::after{content:'';position:absolute;inset:-3px;border-radius:inherit;clip-path:inherit;
+  border:1px solid var(--acc);opacity:0;pointer-events:none;
+  animation:latido 3.6s ease-out infinite;animation-delay:var(--d,0s)}
+.id[aria-pressed="true"]::after{animation:none;opacity:0}
+.id:hover::before{opacity:.16}
+.id:hover{color:var(--acc-txt)}
+@keyframes latido{
+  0%{transform:scale(.97);opacity:0}
+  8%{opacity:.55}
+  26%{transform:scale(1.06);opacity:0}
+  100%{transform:scale(1.06);opacity:0}
+}
+.id[data-id="profundidad"]{--acc:#27C76F;--acc-txt:#27C76F}
+.id[data-id="dulce"]      {--acc:#FF6FA5;--acc-txt:#FF6FA5}
+.id[data-id="neotokyo"]   {--acc:#FF2E88;--acc-txt:#FF2E88}
+.id[data-id="alba"]       {--acc:#7A9471;--acc-txt:#7A9471}
+
+/* ── El teléfono, como la app: sin superficie. El cielo se ve a través. ── */
+.pantalla{background:color-mix(in srgb,var(--pantalla) 42%,transparent);
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+[data-tema="alba"] .pantalla,[data-tema="dulce"] .pantalla{
+  background:color-mix(in srgb,var(--pantalla) 66%,transparent)}
+.marco{background:color-mix(in srgb,var(--marco) 55%,transparent);
+  border:1px solid var(--hilo)}
+
+/* Filas sin relleno ni línea: sólo el aro manda, igual que en Profundidad. */
+.fh{background:transparent !important;border:0 !important;box-shadow:none !important}
+[data-tema="dulce"] .fh,[data-tema="neotokyo"] .fh{margin-bottom:2px}
+
+/* El aro late mientras esté sin marcar. Base opaca propia, que tapa las
+   estrellas: es la decisión que ya está tomada en `CheckCircular`. */
+.aro{background:var(--pantalla)}
+.aro::after{content:'';position:absolute;inset:-5px;border-radius:50%;
+  border:1.5px solid var(--primary);opacity:0;pointer-events:none;
+  animation:latido 3.2s ease-out infinite;animation-delay:var(--d,0s)}
+.fh[aria-pressed="true"] .aro::after{animation:none;opacity:0}
+.fh:hover .aro{border-color:var(--primary)}
+
+/* ── Botones que cambian de color y de texto ────────────────────────────── */
+.cta{position:relative;overflow:hidden;isolation:isolate}
+.cta::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--text);
+  transform:translateY(101%);transition:transform .5s cubic-bezier(.16,1,.3,1)}
+.cta:hover::before{transform:translateY(0)}
+.cta:hover{color:var(--bg)}
+.cta{transition:color .4s ease,background .8s,border-radius .8s,transform .18s}
+
+/* ── Cierre: centrado de verdad ─────────────────────────────────────────── */
+.cierre{text-align:center}
+.cierre h2{max-width:20ch;margin-inline:auto}
+.cierre .acc{justify-content:center}
+
+/* ── Calendario del mes ─────────────────────────────────────────────────── */
+.mes{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.mes i{aspect-ratio:1;border-radius:calc(var(--r-sec) * .35);background:var(--inactivo);
+  transform:scale(.55);opacity:0;
+  transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .4s,background .6s,border-radius .8s;
+  transition-delay:var(--d,0s)}
+.in .mes i{transform:none;opacity:1}
+.mes i.n1{background:color-mix(in srgb,var(--primary) 38%,transparent)}
+.mes i.n2{background:color-mix(in srgb,var(--primary) 68%,transparent)}
+.mes i.n3{background:var(--primary)}
+.mes i.fuera{opacity:.22}
+[data-tema="dulce"] .mes i{border-radius:999px}
+
+/* ── Tienda ─────────────────────────────────────────────────────────────── */
+.obj{display:flex;gap:10px;flex-wrap:wrap}
+.obj span{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;
+  border:1px solid var(--hilo);border-radius:var(--r-sec);clip-path:var(--clip);
+  font-size:13.5px;color:var(--muted);transition:border-color .8s,border-radius .8s,color .8s}
+.obj span b{font-family:var(--display),sans-serif;font-weight:var(--d-peso);color:var(--points)}
+
+@media (prefers-reduced-motion:reduce){
+  .id::after,.aro::after,.mes i{animation:none !important;opacity:0}
+  .mes i{opacity:1 !important;transform:none !important}
+  .cta::before{display:none}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CORRECCIONES
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* El latido, reconstruido. La forma la pone una capa de fondo; el botón se
+   queda sin `clip-path` para que el anillo pueda salirse de sus bordes.
+   Con clip-path en el propio botón, Neotokyo+ se recortaba el latido. */
+.id{background:transparent !important;border-radius:0 !important;clip-path:none !important;
+  position:relative;z-index:0;isolation:isolate}
+.id::before{content:'';position:absolute;inset:0;z-index:-1;background:transparent;
+  border-radius:var(--f-r,18px);clip-path:var(--f-c,none);
+  border-bottom:1px solid transparent;transition:background .3s ease,border-color .3s ease}
+.id::after{content:'';position:absolute;inset:-4px;z-index:-1;
+  border-radius:calc(var(--f-r,18px) + 4px);border:2px solid var(--acc);
+  opacity:0;pointer-events:none;animation:latido 2.6s ease-out infinite;
+  animation-delay:var(--d,0s)}
+.id[data-id="neotokyo"]::after{border-radius:3px}
+.id[data-id="alba"]::after{border-radius:4px}
+.id:hover::before{background:color-mix(in srgb,var(--acc) 20%,transparent)}
+.id[aria-pressed="true"]::before{background:var(--sup)}
+.id[aria-pressed="true"]::after{animation:none;opacity:0}
+[data-tema="alba"] .id[data-id="alba"][aria-pressed="true"]::before{
+  background:transparent;border-bottom-color:var(--text)}
+
+.id[data-id="profundidad"]{--f-r:18px}
+.id[data-id="dulce"]{--f-r:999px}
+.id[data-id="neotokyo"]{--f-r:2px;
+  --f-c:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+.id[data-id="alba"]{--f-r:0}
+
+/* Más fuerte: se tiene que ver sin fijarse. */
+@keyframes latido{
+  0%{transform:scale(.94);opacity:0}
+  10%{opacity:.9}
+  55%{transform:scale(1.14);opacity:0}
+  100%{transform:scale(1.14);opacity:0}
+}
+.aro::after{border-width:2px;animation-duration:2.4s}
+
+/* ── Fuera el teléfono. La lista flota sobre el cielo, como en la app. ─── */
+.marco{background:transparent !important;border:0 !important;box-shadow:none !important;
+  padding:0 !important;border-radius:0 !important;clip-path:none !important}
+.pantalla{background:transparent !important;backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;padding:0 !important;
+  border-radius:0 !important;clip-path:none !important}
+.escena{justify-content:flex-start}
+.marco{width:min(340px,100%)}
+.aro{background:var(--bg)}
+.nori{right:-24px;bottom:-40px}
+.fase{right:0;bottom:-64px}
+.cab__t{font-size:24px}
+.cifra{font-size:18px}
+
+/* ── Valoraciones ───────────────────────────────────────────────────────── */
+.val-l{display:flex;flex-direction:column;gap:11px}
+.val-f{display:grid;grid-template-columns:74px 1fr auto;gap:12px;align-items:center;font-size:13.5px}
+.val-f > span:first-child{color:var(--muted)}
+.val-b{height:6px;border-radius:999px;background:var(--inactivo);overflow:hidden}
+.val-b i{display:block;height:100%;border-radius:999px;background:var(--primary);
+  width:0;transition:width .9s cubic-bezier(.16,1,.3,1);transition-delay:var(--d,0s)}
+.in .val-b i{width:var(--w)}
+.val-f b{font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  color:var(--text);font-variant-numeric:tabular-nums}
+.media{display:flex;align-items:baseline;gap:10px;margin-top:18px;
+  border-top:1px solid var(--hilo);padding-top:14px;transition:border-color .8s}
+.media b{font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-size:34px;color:var(--primary);line-height:1;font-variant-numeric:tabular-nums}
+.media span{font-size:13.5px;color:var(--muted)}
+
+@media (prefers-reduced-motion:reduce){
+  .val-b i{width:var(--w) !important}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   IDENTIDADES — la app al lado de sus cuatro pieles
+   Hoy es una reconstrucción viva, con los mismos datos en las cuatro. El día
+   que existan las capturas reales sustituye a `.demo` un <img> por identidad
+   en img/identidades/{profundidad|dulce|neotokyo|alba}.webp — 640px, WebP,
+   width y height declarados, lazy salvo la primera.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ident-g{display:grid;grid-template-columns:minmax(280px,340px) 1fr;
+  gap:clamp(32px,6vw,84px);align-items:center;margin-top:var(--e6);text-align:left}
+
+.demo-w{perspective:1400px}
+.demo{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .5s cubic-bezier(.16,1,.3,1),opacity .35s ease}
+.demo.vivo{transition:transform .12s linear,opacity .35s ease}
+.demo.mudando{opacity:.25}
+
+.demo__c{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.demo__t{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-style:var(--d-ital);
+  letter-spacing:var(--d-track);font-size:24px;color:var(--text)}
+.demo__p{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:18px;
+  color:var(--points);font-variant-numeric:tabular-nums}
+.demo__s{margin-top:2px;font-size:12px;font-weight:600;color:var(--muted)}
+.demo__l{margin-top:22px;display:flex;flex-direction:column;gap:2px}
+.demo__f{display:flex;align-items:center;gap:12px;padding:13px 0;font-size:14px;color:var(--text)}
+.demo__a{position:relative;flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  border:3px solid var(--primary);background:var(--primary);
+  transition:border-color .8s,background .8s}
+.demo__a.no{border-color:var(--inactivo);background:var(--bg)}
+.demo__a svg{position:absolute;inset:0;width:100%;height:100%;stroke:var(--tinta);
+  stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .8s}
+.demo__a.no svg{display:none}
+.demo__n{flex:1;font-weight:600}
+.demo__f.hecho .demo__n{color:var(--muted);opacity:.82}
+.demo__r{font-family:var(--display),sans-serif;font-weight:var(--d-peso);font-size:13px;
+  color:var(--streak);font-variant-numeric:tabular-nums}
+.demo__pie{display:flex;align-items:center;gap:14px;margin-top:26px;padding-top:16px;
+  border-top:1px solid var(--hilo);transition:border-color .8s}
+.demo__pie img{width:56px;height:56px;object-fit:contain;filter:var(--sombra-nori)}
+.demo__pie b{display:block;font-family:var(--display),sans-serif;font-weight:var(--d-peso);
+  font-size:15px;color:var(--text)}
+.demo__pie i{font-style:normal;font-size:13px;color:var(--muted)}
+
+.specs{grid-template-columns:repeat(2,1fr);margin-top:0}
+
+@media (max-width:940px){
+  .ident-g{grid-template-columns:1fr;gap:var(--e5)}
+  .specs{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){ .specs{grid-template-columns:1fr} }
+
 </style>
 </head>
 <body>
-
-<div class="cielo" aria-hidden="true">
-  <svg id="sky" viewBox="0 0 640 900" preserveAspectRatio="xMidYMid slice">
-    <g fill="#EEF2F6">
-      <circle cx="48" cy="62" r="1.3" opacity=".55"/><circle cx="126" cy="146" r=".9" opacity=".38"/>
-      <circle cx="212" cy="38" r="1.1" opacity=".62"/><circle cx="292" cy="212" r=".9" opacity=".3"/>
-      <circle cx="88" cy="288" r="1.5" opacity=".44"/><circle cx="24" cy="398" r="1" opacity=".7"/>
-      <circle cx="168" cy="352" r=".9" opacity=".5"/><circle cx="252" cy="482" r="1.2" opacity=".36"/>
-      <circle cx="352" cy="90" r="1" opacity=".66"/><circle cx="418" cy="232" r=".9" opacity=".42"/>
-      <circle cx="486" cy="46" r="1.4" opacity=".5"/><circle cx="556" cy="158" r="1" opacity=".72"/>
-      <circle cx="608" cy="304" r=".9" opacity=".34"/><circle cx="516" cy="426" r="1.2" opacity=".58"/>
-      <circle cx="596" cy="512" r="1" opacity=".4"/><circle cx="376" cy="496" r=".9" opacity=".46"/>
-      <circle cx="140" cy="528" r="1.1" opacity=".3"/><circle cx="62" cy="186" r=".9" opacity=".6"/>
-      <circle cx="304" cy="322" r="1" opacity=".28"/><circle cx="452" cy="368" r=".9" opacity=".52"/>
-      <circle cx="94" cy="632" r="1.2" opacity=".48"/><circle cx="246" cy="716" r=".9" opacity=".34"/>
-      <circle cx="398" cy="648" r="1.4" opacity=".56"/><circle cx="534" cy="742" r="1" opacity=".42"/>
-      <circle cx="176" cy="822" r=".9" opacity=".5"/><circle cx="330" cy="866" r="1.1" opacity=".3"/>
-      <circle cx="482" cy="846" r="1" opacity=".62"/><circle cx="608" cy="666" r=".9" opacity=".38"/>
-      <circle cx="36" cy="742" r="1" opacity=".54"/><circle cx="286" cy="592" r=".9" opacity=".44"/>
-    </g>
-    <!-- La constelación del hero. Los puntos se encienden al marcar hábitos. -->
-    <g id="lin" stroke="#27C76F" stroke-width="1.2" fill="none">
-      <line data-l="1" x1="86" y1="252" x2="196" y2="172" opacity="0"/>
-      <line data-l="2" x1="196" y1="172" x2="316" y2="258" opacity="0"/>
-      <line data-l="3" x1="316" y1="258" x2="438" y2="146" opacity="0"/>
-    </g>
-    <g id="cst" fill="#27C76F">
-      <circle cx="86" cy="252" r="2.6" opacity=".14"/>
-      <circle cx="196" cy="172" r="2.6" opacity=".14"/>
-      <circle cx="316" cy="258" r="2.6" opacity=".14"/>
-      <circle cx="438" cy="146" r="2.6" opacity=".14"/>
-    </g>
-  </svg>
+<div class="carga" id="carga">
+  <div class="carga__in">
+    <span class="carga__n" id="cargaN">000</span>
+    <p class="carga__t" id="cargaT"></p>
+    <span class="carga__b"><i id="cargaB"></i></span>
+  </div>
 </div>
 
-<nav class="nav">
-  <div class="cont nav__in">
-    <a class="marca" href="/">
-      <span class="marca__ico"><img src="/img/logo-compass.png" alt="" width="34" height="34"></span>
-      Norday
-    </a>
-    <div class="nav__links">
-      <a href="#caracteristicas">Características</a>
-      <a href="#capturas">Capturas</a>
-      <a href="#faq">Preguntas</a>
-      <a href="/privacidad.html">Privacidad</a>
-      <a class="nav__cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">Quiero probarla</a>
-    </div>
+<div class="fondo" aria-hidden="true">
+  <div class="capa capa--profundidad">
+    <svg viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">
+      <g class="polvo" id="polvo"></g>
+      <g class="cruz" id="cruz">
+        <line x1="720" y1="130" x2="720" y2="410"/><line x1="625" y1="270" x2="815" y2="280"/>
+        <circle class="halo" cx="720" cy="130" r="16"/><circle class="astro" cx="720" cy="130" r="4.5"/>
+        <circle class="halo" cx="815" cy="280" r="14"/><circle class="astro" cx="815" cy="280" r="3.8"/>
+        <circle class="halo" cx="720" cy="410" r="18"/><circle class="astro" cx="720" cy="410" r="5.4"/>
+        <circle class="halo" cx="625" cy="270" r="13"/><circle class="astro" cx="625" cy="270" r="3.4"/>
+      </g>
+    </svg>
   </div>
-</nav>
+  <div class="capa capa--neotokyo">
+    <svg class="ciudad" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMax slice"><g id="ciudad"></g></svg>
+  </div>
+  <div class="capa capa--alba"><div class="luz" id="luzAlba"></div></div>
+  <div class="capa capa--dulce">
+    <svg class="petalos" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice"><g id="petalos"></g></svg>
+  </div>
+</div>
 
-<header class="hero">
-  <div class="cont hero__g">
-    <div>
-      <h1 class="ap">Constancia,<br><em>no perfección</em></h1>
-      <p class="tagline ap" style="--d:.06s">Habits · Focus · Growth</p>
-      <p class="hero__p ap" style="--d:.12s">
-        Marca lo que has hecho hoy y deja que Nori crezca contigo.
-        Sin ruido y sin culpa: solo paso a paso.
-      </p>
-      <div class="hero__acc ap" style="--d:.18s">
-        <a class="cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">
-          Quiero probarla
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </a>
-        <span class="pista" id="pista">Pruébala aquí mismo →</span>
-      </div>
-      <p><span class="badge ap" style="--d:.24s"><span class="badge__pt"></span>Beta cerrada, plazas abiertas</span></p>
-    </div>
-
-    <div class="movil ap" id="movil" style="--d:.1s">
-      <div class="marco">
-        <div class="pantalla">
-          <div class="pant__cab">
-            <span class="pant__t">Hoy</span>
-            <span class="pastilla" id="pts">240</span>
-          </div>
-          <p class="pant__c" id="cont">0 de 4 hoy · toca para marcar</p>
-
-          <button class="fh" type="button" data-i="0" aria-pressed="false">
-            <span class="fh__pt"></span><span class="fh__n">Beber agua</span><span class="fh__r">12</span>
-          </button>
-          <button class="fh" type="button" data-i="1" aria-pressed="false">
-            <span class="fh__pt"></span><span class="fh__n">Leer 20 minutos</span><span class="fh__r">5</span>
-          </button>
-          <button class="fh" type="button" data-i="2" aria-pressed="false">
-            <span class="fh__pt"></span><span class="fh__n">Salir a correr</span><span class="fh__r">3</span>
-          </button>
-          <button class="fh" type="button" data-i="3" aria-pressed="false">
-            <span class="fh__pt"></span><span class="fh__n">Meditar</span>
-          </button>
-        </div>
-      </div>
-      <img class="nori" src="/img/nori.png" alt="Nori, la mascota de Norday" width="112" height="112" decoding="async">
-    </div>
+<header class="barra">
+  <div class="cont barra__in">
+    <a class="marca" href="#">Norday</a>
+    <nav class="ids" aria-label="Identidad visual">
+      <button class="id" data-id="profundidad" aria-pressed="true" style="--d:0s">Profundidad</button>
+      <button class="id" data-id="dulce" aria-pressed="false" style="--d:.9s">Dulce</button>
+      <button class="id" data-id="neotokyo" aria-pressed="false" style="--d:1.8s">Neotokyo+</button>
+      <button class="id" data-id="alba" aria-pressed="false" style="--d:2.7s">Alba</button>
+    </nav>
   </div>
 </header>
 
 <main>
-  <section class="sec" id="caracteristicas">
-    <div class="cont">
-      <h2 class="sec__t ap">Tres cosas, bien hechas</h2>
-      <p class="sec__e ap" style="--d:.06s">
-        Los hábitos que tú decides, una mascota que te acompaña y un progreso
-        que se ve. Esto es la app de verdad, no un dibujo.
+
+  <section class="hero" data-obs>
+    <div class="cont hero__g">
+      <div>
+        <h1><span class="ln"><i>Constancia,</i></span><span class="ln" style="--d:.09s"><i>no perfección</i></span></h1>
+        <p class="hero__p rv" style="--d:.34s">
+          Marca lo que has hecho hoy y ya está. Sin rachas que se rompen, sin
+          culpa y sin anuncios.
+        </p>
+        <div class="acc rv" style="--d:.44s">
+          <a class="cta" href="#probar"><span class="sw"><span>Quiero probarla</span><span>Vamos allá</span></span></a>
+          <span class="pista" id="pista">Marca un hábito y mira qué pasa</span>
+        </div>
+      </div>
+      <div class="escena rv" style="--d:.22s" id="escena">
+        <div class="marco" id="marco">
+          <div class="pantalla">
+            <div class="cab"><span class="cab__t">Hoy</span><span class="cifra num" id="puntos">240</span></div>
+            <p class="cab__c" id="contador">0 de 4 completados</p>
+            <div class="lista">
+              <button class="fh" type="button" data-i="0" aria-pressed="false">
+                <span class="aro" style="--d:0s"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span>
+                <span class="fh__n">Beber agua</span><span class="fh__r">12</span></button>
+              <button class="fh" type="button" data-i="1" aria-pressed="false">
+                <span class="aro" style="--d:.55s"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span>
+                <span class="fh__n">Leer 20 minutos</span><span class="fh__r">5</span></button>
+              <button class="fh" type="button" data-i="2" aria-pressed="false">
+                <span class="aro" style="--d:1.1s"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span>
+                <span class="fh__n">Salir a correr</span><span class="fh__r">3</span></button>
+              <button class="fh" type="button" data-i="3" aria-pressed="false">
+                <span class="aro" style="--d:1.65s"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span>
+                <span class="fh__n">Meditar</span><span class="fh__r"></span></button>
+            </div>
+          </div>
+          <div class="nori" id="nori"><img id="noriImg" alt="Nori, la mascota de Norday"></div>
+          <span class="fase" id="faseTxt">Nori está dormida</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="banda" data-obs><div class="cont">
+    <p><span class="ln"><i>Nada de lo que consigues</i></span><span class="ln" style="--d:.08s"><i>se pierde mañana.</i></span></p>
+  </div></div>
+
+  <section class="sec" data-obs>
+    <div class="cont pegado" id="pegado">
+      <div class="pegado__t">
+        <span class="et rv">Método</span>
+        <h2><span class="ln"><i>Las cinco cosas</i></span><span class="ln" style="--d:.08s"><i>que hacen que no</i></span><span class="ln" style="--d:.16s"><i>lo dejes en febrero</i></span></h2>
+        <p class="rv lead" style="--d:.30s">
+          No son funciones. Es lo que pasa el día que fallas, que es el único día
+          que decide si una app de hábitos se queda o se borra.
+        </p>
+      </div>
+
+      <div class="pilas">
+        <article class="blq" data-obs>
+          <div class="rv-i">
+            <span class="blq__n">01</span>
+            <h3>Fallar un martes y que no pase nada</h3>
+            <p>El día que no marcas se queda vacío y en silencio. Ni rojo, ni aviso, ni contador a cero.</p>
+          </div>
+          <div class="frag rv-d" style="--d:.12s">
+            <div class="semana">
+              <div class="dia"><b>L</b><div class="celda ok" style="--d:.05s"></div></div>
+              <div class="dia"><b>M</b><div class="celda" style="--d:.11s"></div></div>
+              <div class="dia"><b>X</b><div class="celda ok" style="--d:.17s"></div></div>
+              <div class="dia"><b>J</b><div class="celda ok" style="--d:.23s"></div></div>
+              <div class="dia"><b>V</b><div class="celda ok" style="--d:.29s"></div></div>
+              <div class="dia"><b>S</b><div class="celda ok" style="--d:.35s"></div></div>
+              <div class="dia"><b>D</b><div class="celda ok" style="--d:.41s"></div></div>
+            </div>
+            <div class="tras"><span>Puntos de la semana</span><b class="num" data-hasta="240">0</b></div>
+          </div>
+        </article>
+
+        <article class="blq" data-obs>
+          <div class="rv-i">
+            <span class="blq__n">02</span>
+            <h3>Ver el mes entero de un vistazo</h3>
+            <p>Lo que llevas hecho, junto. Es la figura la que motiva, no el número.</p>
+          </div>
+          <div class="frag rv-d" style="--d:.12s">
+            <div class="mes" id="mes"></div>
+            <div class="tras"><span>Septiembre</span><b><span class="num" data-hasta="23">0</span> de 30</b></div>
+          </div>
+        </article>
+
+        <article class="blq" data-obs>
+          <div class="rv-i">
+            <span class="blq__n">03</span>
+            <h3>Puntuar cómo te ha ido, no sólo si lo hiciste</h3>
+            <p>Cada día valoras cómo ha salido. Con el tiempo la media te dice qué hábito te está costando de verdad, que casi nunca es el que crees.</p>
+          </div>
+          <div class="frag rv-d" style="--d:.12s">
+            <div class="val-l">
+              <div class="val-f"><span>Beber agua</span><span class="val-b"><i style="--w:92%;--d:.10s"></i></span><b>4,6</b></div>
+              <div class="val-f"><span>Leer</span><span class="val-b"><i style="--w:84%;--d:.18s"></i></span><b>4,2</b></div>
+              <div class="val-f"><span>Correr</span><span class="val-b"><i style="--w:52%;--d:.26s"></i></span><b>2,6</b></div>
+              <div class="val-f"><span>Meditar</span><span class="val-b"><i style="--w:76%;--d:.34s"></i></span><b>3,8</b></div>
+            </div>
+            <div class="media"><b>3,8</b><span>media del mes · 118 valoraciones</span></div>
+          </div>
+        </article>
+        <article class="blq" data-obs>
+          <div class="rv-i">
+            <span class="blq__n">04</span>
+            <h3>Que crezca algo mientras tú creces</h3>
+            <p>Nori sube de nivel con lo que haces. No se enfada si no apareces: te espera.</p>
+          </div>
+          <div class="frag rv-d" style="--d:.12s">
+            <div class="anillo">
+              <span class="anillo__c">
+                <svg viewBox="0 0 74 74" width="74" height="74">
+                  <circle class="pista2" cx="37" cy="37" r="32"/>
+                  <circle class="val" cx="37" cy="37" r="32"/>
+                </svg>
+                <img id="noriAnillo" alt="">
+              </span>
+              <span class="anillo__x"><b>Nivel 7</b><i><span class="num" data-hasta="720">0</span> / 1000 XP</i></span>
+            </div>
+          </div>
+        </article>
+        <article class="blq" data-obs>
+          <div class="rv-i">
+            <span class="blq__n">05</span>
+            <h3>Dejarlo un mes y volver con todo intacto</h3>
+            <p>Los puntos no caducan y lo que compraste sigue siendo tuyo. Vuelves y retomas donde lo dejaste, sin empezar de cero.</p>
+          </div>
+          <div class="frag rv-d" style="--d:.12s">
+            <div class="obj">
+              <span>Profundidad <b>Equipado</b></span>
+              <span>Avatar Nori <b>Tuyo</b></span>
+              <span>Neotokyo+ <b>1200</b></span>
+            </div>
+            <div class="tras"><span>Puntos disponibles</span><b class="num" data-hasta="240">0</b></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="identidades" data-obs>
+    <div class="cont centro">
+      <span class="et rv">Identidades</span>
+      <h2><span class="ln"><i>Cuatro identidades completas,</i></span><span class="ln" style="--d:.08s"><i>no cuatro paletas de color</i></span></h2>
+      <p class="rv lead" style="--d:.26s">
+        Cada una trae su tipografía, su forma, sus esquinas y su propio cielo.
+        Pruébalas aquí mismo: esta página cambia entera.
       </p>
 
-      <div class="rej">
-        <article class="tj ap">
-          <span class="paso" aria-hidden="true">1</span>
-          <div class="demo">
-            <div class="demo__fila">
-              <span class="demo__ck"></span>
-              <span class="demo__nm">Beber agua</span>
-              <span class="demo__rc">12 🔥</span>
+      <div class="ident-g">
+        <div class="demo-w rv" style="--d:.28s" id="demoW">
+          <div class="demo" id="demo">
+            <div class="demo__c"><span class="demo__t">Hoy</span><span class="demo__p">240</span></div>
+            <p class="demo__s">3 de 4 completados</p>
+            <div class="demo__l">
+              <div class="demo__f hecho"><span class="demo__a"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span><span class="demo__n">Beber agua</span><span class="demo__r">12</span></div>
+              <div class="demo__f hecho"><span class="demo__a"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span><span class="demo__n">Leer 20 minutos</span><span class="demo__r">5</span></div>
+              <div class="demo__f hecho"><span class="demo__a"><svg viewBox="0 0 26 26"><path d="M7 13.4l4 4 8-8.6"/></svg></span><span class="demo__n">Salir a correr</span><span class="demo__r">3</span></div>
+              <div class="demo__f"><span class="demo__a no"></span><span class="demo__n">Meditar</span><span class="demo__r"></span></div>
             </div>
-            <div class="demo__sub"><i></i></div>
-          </div>
-          <h3>Hábitos a tu medida</h3>
-          <p>Diarios, semanales o los días que tú elijas, con su categoría y su recordatorio.</p>
-        </article>
-
-        <article class="tj ap" style="--d:.1s">
-          <span class="paso" aria-hidden="true">2</span>
-          <div class="demo">
-            <div class="anillo"><span><img src="/img/nori.png" alt="" width="46" height="46" decoding="async"></span></div>
-            <p class="nivel"><b>Nivel 7</b> · 720 / 1000 XP</p>
-          </div>
-          <h3>Nori crece contigo</h3>
-          <p>Tu mascota sube de nivel con cada hábito completado. Cuídala y mira cómo evoluciona.</p>
-        </article>
-
-        <article class="tj ap" style="--d:.2s">
-          <span class="paso" aria-hidden="true">3</span>
-          <div class="demo">
-            <div class="logro">
-              <span class="logro__m">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M7 4h10v6a5 5 0 0 1-10 0z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/>
-                  <path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M12 15v3"/><path d="M9 21h6"/>
-                </svg>
-              </span>
-              <span class="logro__x"><b>Dos semanas seguidas</b><i>Desbloqueado · +150 puntos</i></span>
+            <div class="demo__pie">
+              <img id="noriDemo" alt="">
+              <span><b>Nori · Nivel 7</b><i>720 / 1000 XP</i></span>
             </div>
           </div>
-          <h3>Progresa jugando</h3>
-          <p>Puntos, rachas y logros que canjeas por avatares y temas en la tienda.</p>
-        </article>
+        </div>
+      <div class="specs">
+        <button class="spec rv" data-id="profundidad" type="button" style="--d:0.30s">
+          <span class="spec__aa">Aa</span><span class="spec__n">Profundidad</span>
+          <span class="spec__d">Un cielo nocturno que se puebla de estrellas. Space Grotesk.</span>
+          <span class="spec__p"><i style="background:#27C76F"></i><i style="background:#FFB020"></i><i style="background:#1E2E4C"></i></span>
+        </button>
+        <button class="spec rv" data-id="dulce" type="button" style="--d:0.38s">
+          <span class="spec__aa">Aa</span><span class="spec__n">Dulce</span>
+          <span class="spec__d">Algo que se acumula, pétalo a pétalo. Quicksand.</span>
+          <span class="spec__p"><i style="background:#FF6FA5"></i><i style="background:#E86A58"></i><i style="background:#FFE1EC"></i></span>
+        </button>
+        <button class="spec rv" data-id="neotokyo" type="button" style="--d:0.46s">
+          <span class="spec__aa">Aa</span><span class="spec__n">Neotokyo+</span>
+          <span class="spec__d">Una ciudad cuyas ventanas se encienden. Chakra Petch.</span>
+          <span class="spec__p"><i style="background:#FF2E88"></i><i style="background:#FFE347"></i><i style="background:#1D1433"></i></span>
+        </button>
+        <button class="spec rv" data-id="alba" type="button" style="--d:0.54s">
+          <span class="spec__aa">Aa</span><span class="spec__n">Alba</span>
+          <span class="spec__d">La luz que sube al amanecer. Fraunces en cursiva.</span>
+          <span class="spec__p"><i style="background:#7A9471"></i><i style="background:#8C4F35"></i><i style="background:#EAE5DB"></i></span>
+        </button>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="sec" id="capturas">
+  <section class="sec" id="nori-sec" data-obs>
+    <div class="cont centro">
+      <span class="et rv">Compañía</span>
+      <h2><span class="ln"><i>Nori crece contigo</i></span><span class="ln" style="--d:.08s"><i>y no te vigila</i></span></h2>
+      <p class="rv lead" style="--d:.26s">
+        Empieza como un huevo. Crece con lo que haces, y cuando desapareces una
+        temporada no se muere ni te lo reprocha: se queda dormida esperándote.
+      </p>
+      <div class="fases">
+        <div class="fase-c rv" style="--d:.28s"><img id="fHuevo" alt="Nori en fase de huevo"><b>Huevo</b><span>Dormida, al empezar</span></div>
+        <div class="fase-c rv" style="--d:.40s"><img id="fCria" alt="Nori en fase de cría" style="--d:2s"><b>Cría</b><span>Nivel 3</span></div>
+        <div class="fase-c rv" style="--d:.52s"><img id="fAdulto" alt="Nori adulta" style="--d:4s"><b>Adulta</b><span>Nivel 7</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--corta" data-obs>
     <div class="cont">
-      <h2 class="sec__t ap">Así se ve</h2>
-      <p class="sec__e ap" style="--d:.06s">Cuatro pantallas de un día cualquiera en Norday.</p>
-
-      <div class="caps">
-        <figure class="cap ap">
-          <div class="cap__m"><img src="/img/screenshots/hoy.png" alt="Pantalla Hoy: los hábitos del día con sus rachas" width="1220" height="2712" loading="lazy" decoding="async"></div>
-          <figcaption>Hoy</figcaption>
-        </figure>
-        <figure class="cap ap" style="--d:.08s">
-          <div class="cap__m"><img src="/img/screenshots/habitos.png" alt="Pantalla de hábitos: la lista completa por categorías" width="1220" height="2712" loading="lazy" decoding="async"></div>
-          <figcaption>Hábitos</figcaption>
-        </figure>
-        <figure class="cap ap" style="--d:.16s">
-          <div class="cap__m"><img src="/img/screenshots/mascota.png" alt="Pantalla de la mascota Nori y su nivel" width="1220" height="2712" loading="lazy" decoding="async"></div>
-          <figcaption>Nori</figcaption>
-        </figure>
-        <figure class="cap ap" style="--d:.24s">
-          <div class="cap__m"><img src="/img/screenshots/tienda.png" alt="Pantalla de la tienda con avatares y temas" width="1080" height="2400" loading="lazy" decoding="async"></div>
-          <figcaption>Tienda</figcaption>
-        </figure>
+      <span class="et rv">Detrás</span>
+      <h2><span class="ln"><i>La hace una persona,</i></span><span class="ln" style="--d:.08s"><i>no una empresa</i></span></h2>
+      <div class="autor rv" style="--d:.20s;margin-top:var(--e3)">
+        <span class="autor__i">Q</span>
+        <p style="font-size:var(--t-lead)">
+          Norday la hace una persona, no una empresa. La escribí porque dejé
+          cuatro apps de hábitos en el mismo punto: el día que rompes la racha y
+          la app te lo recuerda. Esta no hace eso. Si algo no funciona, me
+          escribes y te contesto yo.
+        </p>
       </div>
     </div>
   </section>
 
-  <section class="sec" id="faq">
-    <div class="cont faq__g">
-      <div class="faq__nori ap">
-        <img src="/img/nori.png" alt="Nori, la mascota de Norday" width="152" height="152" decoding="async">
-        <p>Nori responde</p>
-      </div>
-
-      <div>
-        <h2 class="sec__t ap" style="margin-bottom:var(--e3)">Lo que sueles preguntar</h2>
-
-        <div class="faq__i ap">
-          <button class="faq__p" type="button" aria-expanded="false">
-            ¿Es gratis?
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-          <div class="faq__r"><p>Sí. La app es gratuita, y durante la beta cerrada no hay nada de pago: sin límites ni pruebas que caduquen.</p></div>
-        </div>
-
-        <div class="faq__i ap" style="--d:.06s">
-          <button class="faq__p" type="button" aria-expanded="false">
-            ¿Hay anuncios?
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-          <div class="faq__r"><p>No, y no está previsto ponerlos. Una app que quiere ayudarte a concentrarte no puede interrumpirte para venderte algo.</p></div>
-        </div>
-
-        <div class="faq__i ap" style="--d:.12s">
-          <button class="faq__p" type="button" aria-expanded="false">
-            ¿Qué pasa con mis datos?
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-          <div class="faq__r"><p>Son tuyos. No se venden ni se ceden a terceros, puedes pedir una copia cuando quieras y puedes borrar tu cuenta y todo lo que lleva dentro desde la propia app. Está detallado en la <a href="/privacidad.html">política de privacidad</a>.</p></div>
-        </div>
-
-        <div class="faq__i ap" style="--d:.18s">
-          <button class="faq__p" type="button" aria-expanded="false">
-            ¿Y si un día fallo?
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-          <div class="faq__r"><p>No pasa nada. Norday no te riñe, no te enseña lo que dejaste sin hacer ayer y no apaga nada de lo que ya conseguiste. Mañana vuelves a empezar donde estabas.</p></div>
-        </div>
-
-        <div class="faq__i ap" style="--d:.24s">
-          <button class="faq__p" type="button" aria-expanded="false">
-            ¿Cómo entro en la beta?
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-          <div class="faq__r"><p>Dejas tu correo en el formulario y te llega la invitación de Google Play. Es una prueba cerrada, así que las plazas son limitadas.</p></div>
-        </div>
+  <section class="sec sec--corta" data-obs>
+    <div class="cont">
+      <span class="et rv">Dudas</span>
+      <h2><span class="ln"><i>Preguntas</i></span></h2>
+      <div class="faq rv" style="--d:.18s">
+        <details open><summary>¿Y si un día fallo?</summary>
+          <p>No pasa nada. Norday no te riñe, no te enseña lo que dejaste sin hacer
+          ayer y no apaga nada de lo que ya conseguiste. El día vacío se queda vacío
+          y mañana sigues.</p></details>
+        <details><summary>¿Es gratis?</summary>
+          <p>Sí, y sin anuncios. Hay temas y avatares que se compran con los puntos
+          que ganas usándola, no con dinero.</p></details>
+        <details><summary>¿Necesito conexión?</summary>
+          <p>Para entrar y sincronizar sí. Las fuentes y las ilustraciones van dentro
+          de la app, así que se ve igual con mala cobertura.</p></details>
+        <details><summary>¿Qué pasa con mis datos?</summary>
+          <p>Están en un servidor propio en Europa, no se venden ni se ceden, y puedes
+          pedir que se borren o descargarlos cuando quieras.</p></details>
       </div>
     </div>
   </section>
+
+  <section class="sec cierre" id="probar" data-obs>
+    <div class="cont centro">
+      <span class="et rv">Prueba cerrada</span>
+      <h2><span class="ln"><i>Nada de lo que consigues</i></span><span class="ln" style="--d:.08s"><i>se pierde mañana</i></span></h2>
+      <p class="rv lead" style="--d:.26s">
+        Quedan plazas. Se instala desde Google Play,
+        se usa como cualquier app, y si algo falla me lo cuentas.
+      </p>
+      <div class="acc rv" style="--d:.36s;justify-content:center">
+        <a class="cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener"><span class="sw"><span>Quiero probarla</span><span>Apúntame</span></span></a>
+      </div>
+    </div>
+  </section>
+
 </main>
 
-<section class="franja">
-  <div class="cont">
-    <div class="franja__in ap">
-      <p class="franja__t">Sé de los primeros en probarla</p>
-      <a class="cta" href="https://tally.so/r/GxV5pL" target="_blank" rel="noopener">
-        Quiero probarla
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      </a>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="cont">
-    <div class="foot__l">
-      <a href="/privacidad.html">Privacidad</a>
-      <a href="/eliminar-cuenta.html">Eliminar cuenta</a>
-      <a href="mailto:hola@norday.app">hola@norday.app</a>
-    </div>
-    <p>© 2026 Norday</p>
+<footer data-obs>
+  <div class="cont pie rv">
+    <span>Norday · Hábitos</span>
+    <nav>
+      <a href="#identidades" class="sw"><span>Identidades</span><span>Identidades</span></a>
+      <a href="#nori-sec" class="sw"><span>Nori</span><span>Nori</span></a>
+      <a href="#" class="sw"><span>Privacidad</span><span>Privacidad</span></a>
+      <a href="#" class="sw"><span>Contacto</span><span>Contacto</span></a>
+    </nav>
   </div>
 </footer>
 
+<script>window.__NORI__={"huevo": "/img/nori/nori-huevo.png", "huevo_ok": "/img/nori/nori-huevo-despierta.png", "cria": "/img/nori/nori-cria.png", "adulto": "/img/nori/nori-adulta.png"};</script>
 <script>
 (function(){
+  var NORI = window.__NORI__;
   var quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var svgNS = 'http://www.w3.org/2000/svg';
 
-  // ── Entradas escalonadas ──────────────────────────────────────────────
-  var aps = document.querySelectorAll('.ap');
-  if (quieto) {
-    aps.forEach(function(e){ e.classList.add('on'); });
-  } else {
-    var obs = new IntersectionObserver(function(es){
-      es.forEach(function(e){
-        if (!e.isIntersecting) return;
-        e.target.classList.add('on');
-        obs.unobserve(e.target);
-      });
-    }, { rootMargin: '0px 0px -10% 0px' });
-    aps.forEach(function(e){ obs.observe(e); });
+  /* ── Ilustraciones ──────────────────────────────────────────────────── */
+  document.getElementById('noriAnillo').src = NORI.adulto;
+  document.getElementById('noriDemo').src = NORI.adulto;
+  document.getElementById('fHuevo').src  = NORI.huevo;
+  document.getElementById('fCria').src   = NORI.cria;
+  document.getElementById('fAdulto').src = NORI.adulto;
+
+  /* ── Fondos generativos ─────────────────────────────────────────────── */
+  var polvo = document.getElementById('polvo');
+  for (var i = 0; i < 95; i++) {
+    var c = document.createElementNS(svgNS,'circle');
+    c.setAttribute('cx',(Math.random()*1000).toFixed(1));
+    c.setAttribute('cy',(Math.random()*700).toFixed(1));
+    c.setAttribute('r',(Math.random()*1.1+.35).toFixed(2));
+    c.setAttribute('opacity',(Math.random()*.30+.06).toFixed(2));
+    polvo.appendChild(c);
   }
 
-  // ── Hero jugable ──────────────────────────────────────────────────────
-  // Marcar un hábito enciende una estrella de la constelación del fondo y
-  // traza la línea a la anterior. Nada se apaga por no hacer: un día flojo
-  // deja el dibujo a medias, pero no hay castigo visual en ninguna parte.
+  var ciudad = document.getElementById('ciudad'), ventanas = [], x = -20;
+  while (x < 1020) {
+    var w = 40+Math.random()*70, h = 130+Math.random()*300;
+    var b = document.createElementNS(svgNS,'rect');
+    b.setAttribute('class','bloque'); b.setAttribute('x',x); b.setAttribute('y',700-h);
+    b.setAttribute('width',w); b.setAttribute('height',h); ciudad.appendChild(b);
+    for (var vy = 700-h+16; vy < 690; vy += 22) {
+      for (var vx = x+9; vx < x+w-12; vx += 17) {
+        var v = document.createElementNS(svgNS,'rect');
+        v.setAttribute('class','ventana'); v.setAttribute('x',vx); v.setAttribute('y',vy);
+        v.setAttribute('width',7); v.setAttribute('height',10);
+        ciudad.appendChild(v); ventanas.push(v);
+      }
+    }
+    x += w+6+Math.random()*10;
+  }
+  ventanas.sort(function(){ return Math.random()-.5; });
+
+  var petalosG = document.getElementById('petalos'), petalos = [];
+  for (var p = 0; p < 130; p++) {
+    var pc = document.createElementNS(svgNS,'circle');
+    pc.setAttribute('cx',(Math.random()*1000).toFixed(1));
+    pc.setAttribute('cy',(Math.random()*700).toFixed(1));
+    pc.setAttribute('r',(Math.random()*9+3).toFixed(1));
+    petalosG.appendChild(pc); petalos.push(pc);
+  }
+
+  /* Calendario del mes: la misma figura que dibuja el detalle de hábito. */
+  var mes = document.getElementById('mes');
+  ['fuera','n2','n3','n1','n3','','n2','n3','n3','n1','','n3','n2','n3',
+   'n2','','n3','n1','n3','n3','n2','n3','n2','','n1','n3','n3','n2',
+   'n3','n2','n3','fuera','fuera','fuera','fuera'].forEach(function(n,i){
+    var el = document.createElement('i');
+    if (n) el.className = n;
+    el.style.setProperty('--d', (i*0.018).toFixed(3)+'s');
+    mes.appendChild(el);
+  });
+
+  /* ── El hero jugable ────────────────────────────────────────────────── */
   var hechos = [false,false,false,false];
-  var filas  = document.querySelectorAll('.fh');
-  var puntos = document.querySelectorAll('#cst circle');
-  var lineas = document.querySelectorAll('#lin line');
-  var cont   = document.getElementById('cont');
-  var pts    = document.getElementById('pts');
-  var pista  = document.getElementById('pista');
-  var tocado = false;
+  var astros = [].slice.call(document.querySelectorAll('.cruz .astro'));
+  var halos  = [].slice.call(document.querySelectorAll('.cruz .halo'));
+  var cruz = document.getElementById('cruz'), luz = document.getElementById('luzAlba');
+  var noriEl = document.getElementById('nori'), noriImg = document.getElementById('noriImg');
+  var faseTxt = document.getElementById('faseTxt'), pista = document.getElementById('pista');
+  var puntosEl = document.getElementById('puntos'), contador = document.getElementById('contador');
+
+  var FASES = [
+    {src:'huevo',    txt:'Nori está dormida'},
+    {src:'huevo_ok', txt:'Nori se ha despertado'},
+    {src:'cria',     txt:'Nori ha salido del huevo'},
+    {src:'cria',     txt:'Nori está creciendo'},
+    {src:'adulto',   txt:'Nori ha crecido contigo'}
+  ];
 
   function pintar(){
     var n = hechos.filter(Boolean).length;
-    cont.textContent = n + ' de 4 hoy' + (tocado ? '' : ' · toca para marcar');
-    pts.textContent  = 240 + n * 10;
-    if (tocado) pista.textContent = n === 4 ? 'Constelación completa' : 'Sigue marcando…';
+    contador.textContent = n+' de 4 completados';
+    puntosEl.textContent = 240 + n*10;
 
-    filas.forEach(function(f,i){
-      f.classList.toggle('ok', hechos[i]);
-      f.setAttribute('aria-pressed', hechos[i] ? 'true' : 'false');
-    });
-    puntos.forEach(function(p,i){
-      p.setAttribute('opacity', hechos[i] ? '1' : '.14');
-      p.setAttribute('r', hechos[i] ? '3.6' : '2.6');
-    });
-    lineas.forEach(function(l,i){
-      l.setAttribute('opacity', (hechos[i] && hechos[i+1]) ? '.5' : '0');
-    });
+    astros.forEach(function(a,i){ a.classList.toggle('viva', i<n); });
+    halos.forEach(function(h,i){ h.classList.toggle('viva', i<n); });
+    cruz.classList.toggle('enlazada', n===4);
+
+    var cuantas = Math.round(ventanas.length*(n/4)*.55);
+    ventanas.forEach(function(v,i){ v.classList.toggle('viva', i<cuantas); });
+
+    luz.style.height = (n/4*46)+'%';
+
+    var cuantos = Math.round(petalos.length*(n/4)*.8);
+    petalos.forEach(function(c,i){ c.classList.toggle('viva', i<cuantos); });
+
+    var fase = FASES[n];
+    if (noriImg.dataset.fase !== fase.src) {
+      noriImg.dataset.fase = fase.src;
+      noriImg.src = NORI[fase.src];
+      if (!quieto) {
+        noriEl.classList.add('saltando');
+        setTimeout(function(){ noriEl.classList.remove('saltando'); }, 550);
+      }
+    }
+    faseTxt.textContent = fase.txt;
+    pista.classList.toggle('hecho', n===4);
+    pista.textContent = n===0 ? 'Marca un hábito y mira qué pasa'
+                      : '';
   }
 
-  filas.forEach(function(f){
+  [].forEach.call(document.querySelectorAll('.fh'), function(f){
     f.addEventListener('click', function(){
-      tocado = true;
       var i = +f.dataset.i;
       hechos[i] = !hechos[i];
+      f.setAttribute('aria-pressed', hechos[i] ? 'true' : 'false');
       pintar();
     });
   });
-  pintar();
 
-  // ── Parallax del cielo ────────────────────────────────────────────────
-  // Las estrellas se mueven a un tercio de la velocidad del contenido: la
-  // definición literal de profundidad, y el único movimiento de la página
-  // que no responde a una acción del visitante.
-  var sky = document.getElementById('sky');
-  var movil = document.getElementById('movil');
-  var pendiente = false;
+  /* ── El selector: la barra y los especímenes mandan lo mismo ────────── */
+  var demo = document.getElementById('demo');
+  function aplicar(id){
+    if (demo && !quieto) {
+      demo.classList.add('mudando');
+      setTimeout(function(){ demo.classList.remove('mudando'); }, 340);
+    }
+    document.documentElement.setAttribute('data-tema', id);
+    [].forEach.call(document.querySelectorAll('.id'), function(o){
+      o.setAttribute('aria-pressed', o.dataset.id === id ? 'true' : 'false');
+    });
+  }
+  [].forEach.call(document.querySelectorAll('.id, .spec'), function(b){
+    b.addEventListener('click', function(){ aplicar(b.dataset.id); });
+  });
 
+
+  /* ── Entradas al cruzar el borde ────────────────────────────────────── */
+  if (!quieto && 'IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function(items){
+      items.forEach(function(it){
+        if (!it.isIntersecting) return;
+        it.target.classList.add('in');
+        [].forEach.call(it.target.querySelectorAll('.rv,.rv-i,.rv-d,.ln'), function(e){ e.classList.add('in'); });
+        contarDentro(it.target);
+        obs.unobserve(it.target);
+      });
+    }, {rootMargin:'0px 0px -12% 0px', threshold:.12});
+    [].forEach.call(document.querySelectorAll('[data-obs]'), function(s){ obs.observe(s); });
+  } else {
+    document.body.classList.add('sin-animacion');
+    [].forEach.call(document.querySelectorAll('[data-obs],.rv,.rv-i,.rv-d,.ln'), function(e){ e.classList.add('in'); });
+  }
+
+  /* ── Cifras que cuentan al entrar ───────────────────────────────────── */
+  function contarDentro(raiz){
+    [].forEach.call(raiz.querySelectorAll('.num[data-hasta]'), function(el){
+      if (el.dataset.hecho) return;
+      el.dataset.hecho = '1';
+      var fin = +el.dataset.hasta, t0 = null, dur = 1100;
+      if (quieto) { el.textContent = fin; return; }
+      function paso(t){
+        if (!t0) t0 = t;
+        var p = Math.min((t - t0)/dur, 1);
+        el.textContent = Math.round(fin * (1 - Math.pow(1-p, 3)));
+        if (p < 1) requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+    });
+  }
+
+  /* ── Parallax del fondo, a un cuarto de velocidad ───────────────────── */
   if (!quieto) {
+    var capas = document.querySelector('.fondo'), pendiente = false;
     window.addEventListener('scroll', function(){
       if (pendiente) return;
       pendiente = true;
       requestAnimationFrame(function(){
-        sky.style.transform = 'translateY(' + (window.scrollY * -0.26) + 'px)';
+        capas.style.transform = 'translate3d(0,' + (window.scrollY * .25) + 'px,0)';
         pendiente = false;
       });
-    }, { passive: true });
-
-    // Inclinación leve del teléfono siguiendo al ratón. Sólo en puntero fino:
-    // en táctil no hay hover y el efecto se quedaría pegado al último toque.
-    if (window.matchMedia('(pointer: fine)').matches) {
-      var zona = movil.parentElement;
-      zona.addEventListener('mousemove', function(ev){
-        var r = movil.getBoundingClientRect();
-        var x = (ev.clientX - r.left - r.width/2)  / r.width;
-        var y = (ev.clientY - r.top  - r.height/2) / r.height;
-        movil.style.transform =
-          'perspective(900px) rotateY(' + (x*6) + 'deg) rotateX(' + (-y*6) + 'deg)';
-      });
-      zona.addEventListener('mouseleave', function(){ movil.style.transform = ''; });
-    }
+    }, {passive:true});
   }
 
-  // ── FAQ ───────────────────────────────────────────────────────────────
-  document.querySelectorAll('.faq__p').forEach(function(b){
-    b.addEventListener('click', function(){
-      var i = b.parentElement;
-      var abierto = i.classList.toggle('abierto');
-      b.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+  /* ── El teléfono mira al cursor. Tres grados, no doce. ──────────────── */
+  var escena = document.getElementById('escena'), marco = document.getElementById('marco');
+  if (!quieto && escena && window.matchMedia('(pointer:fine)').matches) {
+    escena.addEventListener('pointermove', function(e){
+      var r = escena.getBoundingClientRect();
+      marco.classList.add('vivo');
+      marco.style.setProperty('--ry', (((e.clientX - r.left)/r.width - .5) *  6).toFixed(2) + 'deg');
+      marco.style.setProperty('--rx', (((e.clientY - r.top)/r.height - .5) * -4).toFixed(2) + 'deg');
     });
-  });
+    escena.addEventListener('pointerleave', function(){
+      marco.classList.remove('vivo');
+      marco.style.setProperty('--ry','0deg'); marco.style.setProperty('--rx','0deg');
+    });
+  }
+
+  /* ── Carga: contador y cortina ──────────────────────────────────────── */
+  var carga = document.getElementById('carga');
+  var cargaN = document.getElementById('cargaN'), cargaB = document.getElementById('cargaB');
+  function abrir(){
+    carga.classList.add('fuera');
+    document.body.classList.add('listo');
+  }
+  if (quieto) {
+    carga.style.display = 'none';
+    document.body.classList.add('listo');
+  } else {
+    var n = 0;
+    var reloj = setInterval(function(){
+      n = Math.min(n + Math.ceil(Math.random()*9), 100);
+      cargaN.textContent = String(n).padStart(3,'0');
+      cargaB.style.transform = 'scaleX(' + (n/100) + ')';
+      if (n >= 100) { clearInterval(reloj); setTimeout(abrir, 420); }
+    }, 55);
+    carga.addEventListener('click', function(){ clearInterval(reloj); abrir(); });
+  }
+
+  var cargaT = document.getElementById('cargaT'), FRASE = 'Constancia, no perfección';
+  if (quieto) { cargaT.textContent = FRASE; }
+  else {
+    var k = 0;
+    var tecla = setInterval(function(){
+      cargaT.textContent = FRASE.slice(0, ++k);
+      if (k >= FRASE.length) { clearInterval(tecla); carga.classList.add('escrito'); }
+    }, 42);
+  }
+  var pegado = document.getElementById('pegado');
+  if (pegado && !quieto && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function(x){
+      pegado.classList.toggle('activo', x[0].isIntersecting);
+    }, {rootMargin:'-35% 0px -35% 0px'}).observe(pegado);
+  }
+  var demoW = document.getElementById('demoW');
+  if (!quieto && demoW && window.matchMedia('(pointer:fine)').matches) {
+    demoW.addEventListener('pointermove', function(e){
+      var r = demoW.getBoundingClientRect();
+      demo.classList.add('vivo');
+      demo.style.setProperty('--ry', (((e.clientX-r.left)/r.width - .5) *  6).toFixed(2)+'deg');
+      demo.style.setProperty('--rx', (((e.clientY-r.top)/r.height - .5) * -4).toFixed(2)+'deg');
+    });
+    demoW.addEventListener('pointerleave', function(){
+      demo.classList.remove('vivo');
+      demo.style.setProperty('--ry','0deg'); demo.style.setProperty('--rx','0deg');
+    });
+  }
+
+  pintar();
 })();
+
 </script>
 </body>
 </html>
