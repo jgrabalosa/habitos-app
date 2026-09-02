@@ -121,6 +121,13 @@ Implementaciones actuales, cuatro:
 - `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría y
   valoraciones.
 
+**Cada módulo nuevo que guarde datos colgando de `Usuario` debe aportar su
+propio limpiador.** Esto sustituye a la regla frágil de "acordarse de
+añadir cada tabla nueva a `eliminarCuenta`": ese método ya no se toca.
+El orden entre limpiadores es indiferente (son árboles de FK
+independientes que solo apuntan a `Usuario`); el orden *dentro* de cada
+limpiador sí importa.
+
 ## Exportación de datos: el mismo patrón
 
 `ExportacionDatosService.exportar(id)` tampoco conoce las tablas de cada
@@ -136,13 +143,6 @@ privacidad.
 **Un módulo nuevo que guarde datos del usuario aporta dos cosas: su
 limpiador y su exportador.** Si solo aporta el limpiador, la exportación
 mentirá por omisión.
-
-**Cada módulo nuevo que guarde datos colgando de `Usuario` debe aportar su
-propio limpiador.** Esto sustituye a la regla frágil de "acordarse de
-añadir cada tabla nueva a `eliminarCuenta`": ese método ya no se toca.
-El orden entre limpiadores es indiferente (son árboles de FK
-independientes que solo apuntan a `Usuario`); el orden *dentro* de cada
-limpiador sí importa.
 
 ## Siembra de catálogos
 
