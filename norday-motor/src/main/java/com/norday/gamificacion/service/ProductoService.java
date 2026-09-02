@@ -155,6 +155,12 @@ public class ProductoService {
                 "Regalo: " + producto.getNombre()
         );
 
+        // Hoy esta llamada no se ejecuta nunca con una identidad:
+        // GamificacionController rechaza cualquier categoría que no sea
+        // "Avatar" antes de llegar aquí. Se conserva a propósito. Este método
+        // es público y si el controlador dejara pasar un Tema, quitarla
+        // significaría dejar de otorgar el logro en silencio, que es
+        // exactamente el tipo de fallo que no da la cara.
         otorgarLogroDeIdentidad(usuario, producto);
     }
 
