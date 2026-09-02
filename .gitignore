@@ -32,5 +32,11 @@ build/
 ### VS Code ###
 .vscode/
 
-application.properties
+# Anclado a la ruta a propósito. Sin la barra inicial, el patrón casaba también
+# con norday-server/src/test/resources/application.properties, que SÍ va
+# versionado y es el que apunta los @SpringBootTest a habitos_db_test. Ese
+# fichero sobrevivía sólo porque se añadió antes que esta regla: si alguna vez
+# saliera del índice, no se podría volver a añadir y el aislamiento de la BD de
+# test se rompería en silencio.
+/norday-server/src/main/resources/application.properties
 
