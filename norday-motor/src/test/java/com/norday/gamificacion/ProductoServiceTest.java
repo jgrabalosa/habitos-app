@@ -17,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -137,6 +138,27 @@ class ProductoServiceTest {
         productoService.comprarProducto(usuario, 20);
 
         verifyNoInteractions(logroService);
+    }
+
+    @Test
+    void comprarProducto_siEsUnTemaYSeOtorgaElLogro_loDevuelve() {
+        Producto profundidad = new Producto();
+        profundidad.setProductoId(30);
+        profundidad.setCodigo("TEMA_PROFUNDIDAD");
+        profundidad.setCategoria("Tema");
+        profundidad.setTipo("EQUIPABLE");
+        profundidad.setPrecio(500);
+        profundidad.setActivo(true);
+        profundidad.setNombre("Profundidad");
+
+        when(productoDAO.findById(30)).thenReturn(profundidad);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(null);
+        when(usuarioMonedaService.consultarSaldo(1)).thenReturn(1000);
+        when(logroService.otorgarSiNoTiene(usuario, "IDENTIDAD_PROFUNDIDAD")).thenReturn(true);
+
+        List<String> logrosOtorgados = productoService.comprarProducto(usuario, 30);
+
+        assertEquals(List.of("IDENTIDAD_PROFUNDIDAD"), logrosOtorgados);
     }
 
     @Test

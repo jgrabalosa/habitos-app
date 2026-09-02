@@ -51,16 +51,20 @@ public class ProductoService {
      * onboarding y la red de seguridad de `asegurarIdentidad`— pasan por
      * aquí y sólo las identidades tienen logro.
      */
-    private void otorgarLogroDeIdentidad(Usuario usuario, Producto producto) {
+    private List<String> otorgarLogroDeIdentidad(Usuario usuario, Producto producto) {
         if (!CATEGORIA_IDENTIDAD.equals(producto.getCategoria())) {
-            return;
+            return List.of();
         }
         String codigo = producto.getCodigo();
         if (codigo == null || !codigo.startsWith("TEMA_")) {
-            return;
+            return List.of();
         }
-        logroService.otorgarSiNoTiene(
-                usuario, "IDENTIDAD_" + codigo.substring("TEMA_".length()));
+        String codigoLogro = "IDENTIDAD_" + codigo.substring("TEMA_".length());
+        // otorgarSiNoTiene devuelve false si el usuario ya lo tenía: sólo se
+        // celebra lo que se acaba de conseguir.
+        return logroService.otorgarSiNoTiene(usuario, codigoLogro)
+                ? List.of(codigoLogro)
+                : List.of();
     }
 
     public List<Producto> catalogoActivo() {
@@ -90,7 +94,7 @@ public class ProductoService {
     }
 
     @Transactional
-    public void comprarProducto(Usuario usuario, int productoId) {
+    public List<String> comprarProducto(Usuario usuario, int productoId) {
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RuntimeException("Producto no disponible");
@@ -121,7 +125,7 @@ public class ProductoService {
                 "Compra: " + producto.getNombre()
         );
 
-        otorgarLogroDeIdentidad(usuario, producto);
+        return otorgarLogroDeIdentidad(usuario, producto);
     }
 
     @Transactional
@@ -241,7 +245,7 @@ public class ProductoService {
      * guarda de arriba garantiza que no hay otra identidad que desequipar.
      */
     @Transactional
-    public void otorgarIdentidadElegida(Usuario usuario, int productoId) {
+    public List<String> otorgarIdentidadElegida(Usuario usuario, int productoId) {
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RecursoNoEncontradoException("Identidad no disponible");
@@ -263,7 +267,7 @@ public class ProductoService {
                 "Identidad de bienvenida: " + producto.getNombre()
         );
 
-        otorgarLogroDeIdentidad(usuario, producto);
+        return otorgarLogroDeIdentidad(usuario, producto);
     }
 
     /**

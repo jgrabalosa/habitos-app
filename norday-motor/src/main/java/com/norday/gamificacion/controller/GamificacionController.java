@@ -101,8 +101,11 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        productoService.comprarProducto(usuario, productoId);
-        return ResponseEntity.ok("Producto comprado correctamente");
+        List<String> logrosOtorgados = productoService.comprarProducto(usuario, productoId);
+        return ResponseEntity.ok(Map.of(
+                "mensaje", "Producto comprado correctamente",
+                "logrosOtorgados", logrosOtorgados
+        ));
     }
 
     @PostMapping("/productos/otorgar/{usuarioId}/{productoId}")
@@ -148,8 +151,11 @@ public class GamificacionController {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        productoService.otorgarIdentidadElegida(usuario, productoId);
-        return ResponseEntity.ok("Identidad otorgada correctamente");
+        List<String> logrosOtorgados = productoService.otorgarIdentidadElegida(usuario, productoId);
+        return ResponseEntity.ok(Map.of(
+                "mensaje", "Identidad otorgada correctamente",
+                "logrosOtorgados", logrosOtorgados
+        ));
     }
 
     @PostMapping("/productos/equipar/{usuarioId}/{productoId}")
