@@ -1,5 +1,6 @@
 package com.norday.habitos.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
@@ -24,6 +25,12 @@ public class Registro {
     @Column(name = "valoracion")
     private Integer valoracion; // 1-5, null si el usuario no valoró
 
+    // No sale en el JSON. Se serializaba en un solo sitio, GET
+    // /api/registros/habito/{id}, que devuelve la lista de registros en crudo:
+    // allí el cliente ya sabe de qué hábito son —los ha pedido por su id— y el
+    // hábito entero venía repetido en cada elemento. Además era LAZY, así que
+    // serializarlo dependía de que open-in-view siguiera activo.
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "habito_ref", nullable = false, foreignKey = @ForeignKey(name = "FK_registro_habito"))
     private Habito habito;
