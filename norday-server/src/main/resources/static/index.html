@@ -35,7 +35,8 @@
 [data-tema="profundidad"]{
   --bg:#070D19; --sup:#1E2E4C; --baja:#101B2F; --alta:#2B4068;
   --primary:#27C76F; --streak:#FFB020; --points:#FFB020;
-  --text:#EEF2F6; --muted:#C7CFDA; --inactivo:#3F4551; --tinta:#04342C;
+  --text:#EEF2F6; --muted:#C7CFDA;
+  --inactivo:#3F4551; --aro-vacio:#8D95A0; --tinta:#04342C;
   --display:'Space Grotesk'; --cuerpo:'Manrope';
   --d-ital:normal; --d-peso:700; --d-track:-.01em;
   --r-hero:24px; --r-sec:18px; --clip:none;
@@ -48,7 +49,8 @@
 [data-tema="neotokyo"]{
   --bg:#090614; --sup:#110B21; --baja:#160F28; --alta:#1D1433;
   --primary:#FF2E88; --streak:#FF4D2E; --points:#FFE347;
-  --text:#F5EEFF; --muted:#A08FC2; --inactivo:#473E5B; --tinta:#12000A;
+  --text:#F5EEFF; --muted:#A08FC2;
+  --inactivo:#473E5B; --aro-vacio:#6A5D85; --tinta:#12000A;
   --display:'Chakra Petch'; --cuerpo:'IBM Plex Sans';
   --d-ital:normal; --d-peso:700; --d-track:.02em;
   --r-hero:8px; --r-sec:8px;
@@ -62,7 +64,8 @@
 [data-tema="alba"]{
   --bg:#F4F1EB; --sup:#FCFAF6; --baja:#EAE5DB; --alta:#FFFFFF;
   --primary:#7A9471; --streak:#8C4F35; --points:#8C4F35;
-  --text:#2C2824; --muted:#6B6259; --inactivo:#B2ACA5; --tinta:#2C2824;
+  --text:#2C2824; --muted:#6B6259;
+  --inactivo:#B2ACA5; --aro-vacio:#898179; --tinta:#23201D;
   --display:'Fraunces'; --cuerpo:'Work Sans';
   --d-ital:italic; --d-peso:600; --d-track:-.015em;
   --r-hero:14px; --r-sec:14px; --clip:none;
@@ -75,7 +78,8 @@
 [data-tema="dulce"]{
   --bg:#FAF0F4; --sup:#FFFFFF; --baja:#FFE1EC; --alta:#FFFFFF;
   --primary:#FF6FA5; --streak:#9C4E1A; --points:#E86A58;
-  --text:#4A2E3D; --muted:#A04A83; --inactivo:#CFA0BE; --tinta:#4A2E3D;
+  --text:#4A2E3D; --muted:#A04A83;
+  --inactivo:#CFA0BE; --aro-vacio:#B36E9C; --tinta:#4A2E3D;
   --display:'Quicksand'; --cuerpo:'Nunito'; --acento:'Caveat';
   --d-ital:normal; --d-peso:700; --d-track:0;
   --r-hero:26px; --r-sec:20px; --clip:none;
@@ -222,7 +226,7 @@ a{color:inherit}
 [data-tema="neotokyo"] .fh{border:1px solid var(--fila-linea);margin-bottom:6px}
 .fh:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .aro{position:relative;flex:0 0 auto;width:26px;height:26px;border-radius:50%;
-  border:3px solid var(--inactivo);background:var(--pantalla);transition:border-color .35s,background .35s}
+  border:3px solid var(--aro-vacio);background:var(--pantalla);transition:border-color .35s,background .35s}
 .aro svg{position:absolute;inset:0;width:100%;height:100%;stroke:var(--text);stroke-width:2.6;
   fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .25s}
 .fh:hover .aro svg{opacity:.15}
@@ -740,7 +744,7 @@ h2{max-width:19ch}
 .demo__a{position:relative;flex:0 0 auto;width:26px;height:26px;border-radius:50%;
   border:3px solid var(--primary);background:var(--primary);
   transition:border-color .8s,background .8s}
-.demo__a.no{border-color:var(--inactivo);background:var(--bg)}
+.demo__a.no{border-color:var(--aro-vacio);background:var(--bg)}
 .demo__a svg{position:absolute;inset:0;width:100%;height:100%;stroke:var(--tinta);
   stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .8s}
 .demo__a.no svg{display:none}
