@@ -14,6 +14,11 @@ spring.jpa.hibernate.ddl-auto=validate
 spring.jpa.show-sql=true
 
 jwt.secret=TU_CLAVE_SECRETA_AQUI
+# 30 días. No es un valor de seguridad sino de supervivencia: no hay refresh
+# token, así que al caducar el usuario vuelve a teclear la contraseña. Y hoy
+# nadie cierra la sesión al recibir un 401 —sólo login_screen lo maneja—, así
+# que un token caducado deja la app en un limbo de errores. Antes de bajarlo,
+# implementar el cierre de sesión automático.
 jwt.expiration=2592000000
 
 # Obligatorias para que arranque el contexto: EmailService inyecta
