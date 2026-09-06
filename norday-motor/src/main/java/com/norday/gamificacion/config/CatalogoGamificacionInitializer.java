@@ -75,7 +75,13 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // reajustará en el punto 7 de la Fase 2.
             {"TEMA_PROFUNDIDAD", "Profundidad", "Azul noche y cristal esmerilado, de calma sobria", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
+            // TEMA_ALBA desactivado el 6-sep-2026: se sale a Google Play con tres
+            // identidades y su rebranding queda aplazado. Al salir de este array,
+            // inicializarProductos() lo pone activo=false en el próximo arranque.
+            // Ojo al reactivar: descomentar NO basta si el producto ya existe en la
+            // BD con activo=false, porque findByCodigo!=null salta la creación —
+            // haría falta un UPDATE manual, igual que con ESCUDO_RACHA.
+            // {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1000"},
             // placeholder hasta que revises los DiceBear reales
             {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
