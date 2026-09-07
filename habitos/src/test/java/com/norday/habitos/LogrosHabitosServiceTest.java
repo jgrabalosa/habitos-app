@@ -121,6 +121,35 @@ class LogrosHabitosServiceTest {
     }
 
     @Test
+    void alAlcanzarUnUmbralIntermedio_seOtorgaElLogroCorrespondiente() {
+        Racha racha = new Racha(habito, HOY);
+        racha.setRachaActual(45);
+        racha.setRachaMaxima(45);
+
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_45")).thenReturn(true);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(45);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertTrue(otorgados.contains("RACHA_45"));
+    }
+
+    @Test
+    void alQuedarEntreDosUmbrales_noSeOtorgaNingunLogroDeRacha() {
+        Racha racha = new Racha(habito, HOY);
+        racha.setRachaActual(46);
+        racha.setRachaMaxima(46);
+
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(46);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertFalse(otorgados.stream().anyMatch(c -> c.startsWith("RACHA_")));
+    }
+
+    @Test
     void alCrearElTercerHabitoActivo_seOtorgaHABITOS_ACTIVOS_3() {
         List<Habito> tresHabitos = List.of(
                 crearHabitoSimple(1), crearHabitoSimple(2), crearHabitoSimple(3)

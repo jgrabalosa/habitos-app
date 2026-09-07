@@ -35,6 +35,24 @@ public class LogrosHabitosService {
     @Autowired
     private IRachaDAO rachaDAO;
 
+    /**
+     * Umbrales de racha que otorgan logro. El código se compone como
+     * "RACHA_" + umbral, así que cada valor de aquí exige una fila con ese
+     * código en LogrosHabitosInitializer: sin ella el logro no existe y el
+     * otorgado se pierde en silencio.
+     *
+     * Entre 7 y 30 se va de 5 en 5 y se sigue así hasta 90, que es el tramo
+     * donde más gente abandona. RACHA_3 y RACHA_RECUPERADA NO están aquí:
+     * dependen además de rachaMaxima y viven en sus propios ifs.
+     *
+     * La comparación es por igualdad, no por >=, igual que antes: si una
+     * racha saltara de 34 a 36 sin pasar por 35, ese logro se perdería.
+     */
+    private static final int[] UMBRALES_RACHA = {
+            7, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+            55, 60, 65, 70, 75, 80, 85, 90, 100, 365
+    };
+
     // ── Evento: completar un registro ───────────────────────
     public List<String> evaluarTrasCompletarRegistro(Usuario usuario, Habito habito) {
         List<String> logrosOtorgados = new ArrayList<>();
@@ -57,17 +75,12 @@ public class LogrosHabitosService {
         if (actual == 3 && maxima > actual) {
             if (logroService.otorgarSiNoTiene(usuario, "RACHA_RECUPERADA")) otorgados.add("RACHA_RECUPERADA");
         }
-        if (actual == 7) {
-            if (logroService.otorgarSiNoTiene(usuario, "RACHA_7")) otorgados.add("RACHA_7");
-        }
-        if (actual == 30) {
-            if (logroService.otorgarSiNoTiene(usuario, "RACHA_30")) otorgados.add("RACHA_30");
-        }
-        if (actual == 100) {
-            if (logroService.otorgarSiNoTiene(usuario, "RACHA_100")) otorgados.add("RACHA_100");
-        }
-        if (actual == 365) {
-            if (logroService.otorgarSiNoTiene(usuario, "RACHA_365")) otorgados.add("RACHA_365");
+        for (int umbral : UMBRALES_RACHA) {
+            if (actual == umbral) {
+                String codigo = "RACHA_" + umbral;
+                if (logroService.otorgarSiNoTiene(usuario, codigo)) otorgados.add(codigo);
+                break;
+            }
         }
         return otorgados;
     }
