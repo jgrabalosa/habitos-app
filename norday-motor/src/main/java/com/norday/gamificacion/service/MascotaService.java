@@ -7,6 +7,7 @@ import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
+import com.norday.gamificacion.service.LogroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -24,6 +25,9 @@ public class MascotaService {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Autowired
+    private LogroService logroService;
 
     /** Subir a nivel N cuesta 15×(N-1) XP. */
     private int costoNivel(int nivel) {
@@ -113,6 +117,29 @@ public class MascotaService {
 
         int nivelDespues = calcularNivel(mascota.getExperiencia());
         boolean subioNivel = nivelDespues > nivelAntes;
+
+        // La fase no se guarda: se deriva del nivel en calcularFase. Compararla
+        // antes y después es lo que convierte un cálculo en un evento, y evita
+        // cablear aquí los niveles 3 y 10 —si calcularFase cambia sus umbrales,
+        // esto sigue siendo correcto sin tocarlo.
+        //
+        // El logro no viaja en ResultadoExperienciaDTO: aparecerá en la
+        // Colección al refrescar. La CelebracionNivel ya salta con subioNivel,
+        // así que el momento no se queda mudo.
+        if (subioNivel) {
+            String faseAntes = calcularFase(nivelAntes);
+            String faseDespues = calcularFase(nivelDespues);
+            if (!faseAntes.equals(faseDespues)) {
+                Usuario usuario = usuarioDAO.findById(usuarioId);
+                if (usuario != null) {
+                    if ("CRIA".equals(faseDespues)) {
+                        logroService.otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
+                    } else if ("ADULTO".equals(faseDespues)) {
+                        logroService.otorgarSiNoTiene(usuario, "MASCOTA_ADULTO");
+                    }
+                }
+            }
+        }
 
         return new ResultadoExperienciaDTO(subioNivel, nivelDespues, construirDTO(mascota));
     }

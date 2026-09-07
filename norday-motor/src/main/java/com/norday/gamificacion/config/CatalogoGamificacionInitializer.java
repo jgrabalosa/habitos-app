@@ -53,6 +53,11 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "500"},
             {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "500"},
             {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "500"},
+            // Mascota. Se otorgan en MascotaService.ganarExperiencia al cambiar
+            // de fase. Los códigos se comparan literalmente allí: renombrarlos
+            // aquí los deja inalcanzables sin que nada falle.
+            {"MASCOTA_CRIA", "Ha salido del cascarón", "Tu mascota evoluciona de huevo a cría", "Mascota", "Medio", "200"},
+            {"MASCOTA_ADULTO", "Nori ha crecido", "Tu mascota evoluciona de cría a adulto", "Mascota", "Medio", "200"},
     };
 
     // {codigo, nombre, descripcion, categoria, tipo, precio}

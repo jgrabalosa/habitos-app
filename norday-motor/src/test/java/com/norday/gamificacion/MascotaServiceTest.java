@@ -6,6 +6,7 @@ import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
+import com.norday.gamificacion.service.LogroService;
 import com.norday.gamificacion.service.MascotaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,9 @@ class MascotaServiceTest {
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Mock
+    private LogroService logroService;
 
     @InjectMocks
     private MascotaService mascotaService;
@@ -179,5 +183,30 @@ class MascotaServiceTest {
 
         assertEquals(LocalDate.now(ZONA), mascota.getFechaUltimoDiaCompleto());
         verify(mascotaDAO).update(mascota);
+    }
+
+    // ── Logros al cambiar de fase ─────────────────────────────────────────
+
+    @Test
+    void alPasarDeHuevoACriaSeOtorgaElLogroDeCria() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(15); // nivel 2, HUEVO
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+        when(usuarioDAO.findById(1)).thenReturn(usuario);
+
+        mascotaService.ganarExperiencia(1, 30); // 45 XP = nivel 3, CRIA
+
+        verify(logroService).otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
+    }
+
+    @Test
+    void alSubirDeNivelDentroDeLaMismaFaseNoSeOtorgaNingunLogroDeMascota() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(90); // nivel 4, CRIA
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        mascotaService.ganarExperiencia(1, 60); // 150 XP = nivel 5, sigue CRIA
+
+        verify(logroService, never()).otorgarSiNoTiene(any(), anyString());
     }
 }
