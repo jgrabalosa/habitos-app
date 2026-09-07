@@ -23,6 +23,10 @@ public class ProductoService {
     /** Las cuatro identidades comparten esta categoría en el catálogo. */
     private static final String CATEGORIA_IDENTIDAD = "Tema";
 
+    /** XP que da consumir una comida. El cliente lo recibe en la respuesta
+     *  de `usarProducto`, no lo cablea: ver `xpGanada`. */
+    private static final int XP_POR_COMIDA = 10;
+
     /** La que se otorga si algo falla y el usuario se queda sin ninguna. */
     private static final String CODIGO_IDENTIDAD_POR_DEFECTO = "TEMA_PROFUNDIDAD";
 
@@ -224,17 +228,21 @@ public class ProductoService {
         int nivelNuevo = 0;
 
         // Por código, no por categoría: mañana puede haber consumibles que no den XP
+        int xpGanada = 0;
         if (codigo.startsWith("COMIDA_")) {
-            ResultadoExperienciaDTO resultadoXp = mascotaService.ganarExperiencia(usuario.getUsuarioId(), 10);
+            ResultadoExperienciaDTO resultadoXp = mascotaService.ganarExperiencia(
+                    usuario.getUsuarioId(), XP_POR_COMIDA);
             mascotaService.registrarComida(usuario.getUsuarioId());
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
+            xpGanada = XP_POR_COMIDA;
         }
 
         return Map.of(
                 "codigoConsumido", codigo,
                 "subioNivel", subioNivel,
-                "nivelNuevo", nivelNuevo
+                "nivelNuevo", nivelNuevo,
+                "xpGanada", xpGanada
         );
     }
 
