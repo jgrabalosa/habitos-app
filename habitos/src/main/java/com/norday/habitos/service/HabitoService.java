@@ -82,10 +82,6 @@ public class HabitoService {
         return habitoDAO.findById(id);
     }
 
-    public List<Habito> obtenerTodos(Usuario propietario) {
-        return habitoDAO.findByPropietario(propietario);
-    }
-
     public List<Habito> obtenerActivos(Usuario propietario) {
         return habitoDAO.findActivos(propietario);
     }

@@ -35,13 +35,6 @@ public class CategoriaDAO implements ICategoriaDAO {
     }
 
     @Override
-    public List<Categoria> findGlobales() {
-        return em.createQuery(
-                        "SELECT c FROM Categoria c WHERE c.esGlobal = true ORDER BY c.orden", Categoria.class)
-                .getResultList();
-    }
-
-    @Override
     public List<Categoria> findByCreador(Usuario creador) {
         return em.createQuery(
                         "SELECT c FROM Categoria c WHERE c.creador = :creador ORDER BY c.nombre", Categoria.class)

@@ -35,10 +35,6 @@ public class CategoriaService {
         return categoriaDAO.findById(id);
     }
 
-    public List<Categoria> obtenerGlobales() {
-        return categoriaDAO.findGlobales();
-    }
-
     public List<Categoria> obtenerPorUsuario(Usuario usuario) {
         return categoriaDAO.findByCreador(usuario);
     }
