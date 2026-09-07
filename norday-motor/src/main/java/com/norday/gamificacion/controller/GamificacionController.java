@@ -8,7 +8,6 @@ import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioLogro;
 import com.norday.gamificacion.model.UsuarioProducto;
 import com.norday.gamificacion.service.LogroService;
-import com.norday.gamificacion.service.MotorLogrosService;
 import com.norday.gamificacion.service.ProductoService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,9 +33,6 @@ public class GamificacionController {
 
     @Autowired
     private ProductoService productoService;
-
-    @Autowired
-    private MotorLogrosService motorLogrosService;
 
     @GetMapping("/saldo/{usuarioId}")
     public ResponseEntity<?> consultarSaldo(@PathVariable int usuarioId, Authentication authentication) {
@@ -170,19 +166,6 @@ public class GamificacionController {
         }
         productoService.equiparProducto(usuario, productoId);
         return ResponseEntity.ok("Producto equipado correctamente");
-    }
-
-    @PostMapping("/resena/{usuarioId}")
-    public ResponseEntity<?> registrarInteraccionResena(@PathVariable int usuarioId, Authentication authentication) {
-        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
-            return prohibido();
-        }
-        Usuario usuario = usuarioService.buscarPorId(usuarioId);
-        if (usuario == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
-        }
-        motorLogrosService.evaluarTrasInteraccionResena(usuario);
-        return ResponseEntity.ok("Interacción registrada");
     }
 
     @PostMapping("/productos/desequipar/{usuarioId}/{productoId}")

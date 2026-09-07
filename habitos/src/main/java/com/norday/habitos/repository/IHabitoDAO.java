@@ -10,7 +10,6 @@ public interface IHabitoDAO {
     Habito findById(int id);
     List<Habito> findByPropietario(Usuario propietario);
     List<Habito> findActivos(Usuario propietario);
-    List<Habito> findInactivos(Usuario propietario);
     void update(Habito habito);
     void delete(int id);
     List<Habito> findTodosActivos();

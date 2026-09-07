@@ -43,14 +43,6 @@ public class HabitoDAO implements IHabitoDAO {
     }
 
     @Override
-    public List<Habito> findInactivos(Usuario propietario) {
-        return em.createQuery(
-                        "SELECT h FROM Habito h WHERE h.propietario = :propietario AND h.activo = false ORDER BY h.nombre", Habito.class)
-                .setParameter("propietario", propietario)
-                .getResultList();
-    }
-
-    @Override
     public void update(Habito habito) {
         em.merge(habito);
     }

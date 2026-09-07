@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Motor genérico de logros: solo eventos que cualquier app del ecosistema
- * puede disparar (cuenta, perfil, reseña). Los logros ligados a un dominio
+ * puede disparar (cuenta, perfil). Los logros ligados a un dominio
  * concreto viven en el servicio de logros de ese dominio.
  */
 @Service
@@ -23,10 +23,5 @@ public class MotorLogrosService {
     // ── Evento: actualizar perfil ────────────────────────────
     public void evaluarTrasActualizarPerfil(Usuario usuario) {
         logroService.otorgarSiNoTiene(usuario, "BIENVENIDO");
-    }
-
-    // ── Evento: interacción con reseña (llamado desde Flutter) ──
-    public void evaluarTrasInteraccionResena(Usuario usuario) {
-        logroService.otorgarSiNoTiene(usuario, "INTERACCION_RESENA");
     }
 }

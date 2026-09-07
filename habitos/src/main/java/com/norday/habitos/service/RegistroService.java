@@ -238,10 +238,6 @@ public class RegistroService {
         return registroDAO.findByHabito(habito);
     }
 
-    public Registro obtenerPorFecha(Habito habito, LocalDate fecha) {
-        return registroDAO.findByHabitoAndFecha(habito, fecha);
-    }
-
     public Registro buscarPorId(int registroId) {
         return registroDAO.findById(registroId);
     }

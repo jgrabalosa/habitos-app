@@ -90,10 +90,6 @@ public class HabitoService {
         return habitoDAO.findActivos(propietario);
     }
 
-    public List<Habito> obtenerInactivos(Usuario propietario) {
-        return habitoDAO.findInactivos(propietario);
-    }
-
     public List<HabitoResumenDTO> obtenerResumen(Usuario propietario) {
         List<Habito> todos = habitoDAO.findByPropietario(propietario);
         Map<Integer, Long> conteos = registroDAO.contarCompletadosPorUsuario(propietario.getUsuarioId());
