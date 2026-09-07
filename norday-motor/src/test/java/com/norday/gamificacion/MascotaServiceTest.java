@@ -69,8 +69,8 @@ class MascotaServiceTest {
     }
 
     @Test
-    void laMascotaNaceSinNombre_paraQueNoNazcaEnUnIdiomaConcreto() {
-        assertNull(new Mascota(usuario).getNombre());
+    void laMascotaNaceLlamandoseNori_porqueEsMarcaYNoIdioma() {
+        assertEquals("Nori", new Mascota(usuario).getNombre());
     }
 
     @Test

@@ -42,9 +42,12 @@ public class Mascota {
     public Mascota(Usuario usuario) {
         this.usuario = usuario;
         this.experiencia = 0;
-        // El nombre es dato del usuario: no debe nacer en un idioma concreto.
-        // Mientras esté a null, el cliente muestra la fase localizada.
-        this.nombre = null;
+        // Nori es marca, no palabra castellana: vale igual en es, en y pt, así
+        // que la mascota nace con él y el usuario lo cambia si quiere. Antes
+        // nacía a null por no nacer en un idioma concreto; el criterio cambió
+        // el 7-sep-2026. El cliente conserva su caída a la fase localizada
+        // (`mascota_screen._nombreVisible`) por si el nombre llegara vacío.
+        this.nombre = "Nori";
         this.fechaUltimaComida = null;
         this.fechaUltimoDiaCompleto = null;
     }
