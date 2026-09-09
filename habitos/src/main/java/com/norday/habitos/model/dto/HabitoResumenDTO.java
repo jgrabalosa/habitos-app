@@ -4,16 +4,15 @@ import com.norday.habitos.model.Habito;
 
 public class HabitoResumenDTO {
 
-    private Habito habito;
+    private HabitoDTO habito;
     private int totalCompletados;
 
     public HabitoResumenDTO(Habito habito, int totalCompletados) {
-        this.habito = habito;
+        this.habito = HabitoDTO.desde(habito);
         this.totalCompletados = totalCompletados;
     }
 
-    public Habito getHabito() { return habito; }
-    public void setHabito(Habito habito) { this.habito = habito; }
+    public HabitoDTO getHabito() { return habito; }
 
     public int getTotalCompletados() { return totalCompletados; }
     public void setTotalCompletados(int totalCompletados) { this.totalCompletados = totalCompletados; }

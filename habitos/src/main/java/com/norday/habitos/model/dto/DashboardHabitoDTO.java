@@ -5,21 +5,20 @@ import java.util.List;
 
 public class DashboardHabitoDTO {
 
-    private Habito habito;
+    private HabitoDTO habito;
     private boolean completadoHoy;
     private int completadosPeriodo;
     private List<String> fechasCompletadas; // fechas ISO (yyyy-MM-dd) para el mini-heatmap
 
     public DashboardHabitoDTO(Habito habito, boolean completadoHoy, int completadosPeriodo,
                               List<String> fechasCompletadas) {
-        this.habito = habito;
+        this.habito = HabitoDTO.desde(habito);
         this.completadoHoy = completadoHoy;
         this.completadosPeriodo = completadosPeriodo;
         this.fechasCompletadas = fechasCompletadas;
     }
 
-    public Habito getHabito() { return habito; }
-    public void setHabito(Habito habito) { this.habito = habito; }
+    public HabitoDTO getHabito() { return habito; }
 
     public boolean isCompletadoHoy() { return completadoHoy; }
     public void setCompletadoHoy(boolean completadoHoy) { this.completadoHoy = completadoHoy; }

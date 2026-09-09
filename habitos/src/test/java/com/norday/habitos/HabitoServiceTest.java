@@ -243,7 +243,8 @@ class HabitoServiceTest {
         conVentanaVacia(h);
 
         List<DashboardHabitoDTO> dashboard = habitoService.obtenerDashboard(usuario);
-        return dashboard.stream().anyMatch(dto -> dto.getHabito().equals(h));
+        return dashboard.stream()
+                .anyMatch(dto -> dto.getHabito().getHabitoId() == h.getHabitoId());
     }
 
     @Test
@@ -312,7 +313,8 @@ class HabitoServiceTest {
 
         assertEquals(7, semana.getDias().size());
         for (DiaSemanaDTO dia : semana.getDias()) {
-            assertTrue(dia.getHabitos().stream().anyMatch(h -> h.getHabito().equals(diario)));
+            assertTrue(dia.getHabitos().stream()
+                    .anyMatch(h -> h.getHabito().getHabitoId() == diario.getHabitoId()));
         }
         assertTrue(semana.getFlexibles().isEmpty());
     }
@@ -333,7 +335,7 @@ class HabitoServiceTest {
 
         for (int i = 0; i < 7; i++) {
             boolean presente = semana.getDias().get(i).getHabitos().stream()
-                    .anyMatch(h -> h.getHabito().equals(semanal));
+                    .anyMatch(h -> h.getHabito().getHabitoId() == semanal.getHabitoId());
             boolean deberiaEstar = diasQueTocan.contains(i + 1); // dias[i] es el ISO (i+1)
             assertEquals(deberiaEstar, presente, "dia ISO " + (i + 1));
         }
@@ -360,7 +362,7 @@ class HabitoServiceTest {
         }
         assertEquals(1, semana.getFlexibles().size());
         HabitoFlexibleDTO dto = semana.getFlexibles().get(0);
-        assertEquals(flexible, dto.getHabito());
+        assertEquals(flexible.getHabitoId(), dto.getHabito().getHabitoId());
         assertEquals(2, dto.getCompletadosSemana());
         assertEquals(3, dto.getMeta());
     }

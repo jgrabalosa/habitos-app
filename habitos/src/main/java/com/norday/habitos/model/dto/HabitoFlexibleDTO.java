@@ -9,18 +9,17 @@ import com.norday.habitos.model.Habito;
  */
 public class HabitoFlexibleDTO {
 
-    private Habito habito;
+    private HabitoDTO habito;
     private int completadosSemana;
     private int meta;
 
     public HabitoFlexibleDTO(Habito habito, int completadosSemana, int meta) {
-        this.habito = habito;
+        this.habito = HabitoDTO.desde(habito);
         this.completadosSemana = completadosSemana;
         this.meta = meta;
     }
 
-    public Habito getHabito() { return habito; }
-    public void setHabito(Habito habito) { this.habito = habito; }
+    public HabitoDTO getHabito() { return habito; }
 
     public int getCompletadosSemana() { return completadosSemana; }
     public void setCompletadosSemana(int completadosSemana) { this.completadosSemana = completadosSemana; }
