@@ -129,7 +129,7 @@ public class ProductoService {
                 "Compra: " + producto.getNombre()
         );
 
-        return otorgarLogroDeIdentidad(usuario, producto);
+        return List.of();
     }
 
     @Transactional
@@ -169,7 +169,7 @@ public class ProductoService {
     }
 
     @Transactional
-    public void equiparProducto(Usuario usuario, int productoId) {
+    public List<String> equiparProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
         if (poseido == null) {
@@ -191,6 +191,8 @@ public class ProductoService {
 
         poseido.setEquipado(true);
         usuarioProductoDAO.update(poseido);
+
+        return otorgarLogroDeIdentidad(usuario, producto);
     }
 
     public void desequiparProducto(Usuario usuario, int productoId) {

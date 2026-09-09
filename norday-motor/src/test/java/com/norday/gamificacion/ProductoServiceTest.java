@@ -141,7 +141,10 @@ class ProductoServiceTest {
     }
 
     @Test
-    void comprarProducto_siEsUnTemaYSeOtorgaElLogro_loDevuelve() {
+    void comprarProducto_siEsUnTema_yaNoOtorgaLogro() {
+        // El logro se mueve de comprar a equipar (ver
+        // equiparProducto_siEsUnTema_otorgaElLogro): comprar ya no llama a
+        // logroService y siempre devuelve lista vacía.
         Producto profundidad = new Producto();
         profundidad.setProductoId(30);
         profundidad.setCodigo("TEMA_PROFUNDIDAD");
@@ -154,9 +157,31 @@ class ProductoServiceTest {
         when(productoDAO.findById(30)).thenReturn(profundidad);
         when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(null);
         when(usuarioMonedaService.consultarSaldo(1)).thenReturn(1000);
-        when(logroService.otorgarSiNoTiene(usuario, "IDENTIDAD_PROFUNDIDAD")).thenReturn(true);
 
         List<String> logrosOtorgados = productoService.comprarProducto(usuario, 30);
+
+        assertEquals(List.of(), logrosOtorgados);
+        verifyNoInteractions(logroService);
+    }
+
+    @Test
+    void equiparProducto_siEsUnTema_otorgaElLogro() {
+        // El logro ahora se otorga aquí, no en comprarProducto.
+        Producto profundidad = new Producto();
+        profundidad.setProductoId(30);
+        profundidad.setCodigo("TEMA_PROFUNDIDAD");
+        profundidad.setCategoria("Tema");
+        profundidad.setTipo("EQUIPABLE");
+        profundidad.setActivo(true);
+        profundidad.setNombre("Profundidad");
+
+        UsuarioProducto poseido = new UsuarioProducto(usuario, profundidad, 1);
+
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(poseido);
+        when(usuarioProductoDAO.findEquipadoPorCategoria(1, "Tema")).thenReturn(null);
+        when(logroService.otorgarSiNoTiene(usuario, "IDENTIDAD_PROFUNDIDAD")).thenReturn(true);
+
+        List<String> logrosOtorgados = productoService.equiparProducto(usuario, 30);
 
         assertEquals(List.of("IDENTIDAD_PROFUNDIDAD"), logrosOtorgados);
     }
