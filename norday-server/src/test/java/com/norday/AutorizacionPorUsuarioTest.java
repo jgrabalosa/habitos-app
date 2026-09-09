@@ -120,19 +120,18 @@ class AutorizacionPorUsuarioTest {
         assertEquals(403, lanzar(metodo, plantilla, ID_AJENO).getResponse().getStatus());
     }
 
+    /**
+     * Sin try/catch a proposito. GlobalExceptionHandler tiene un
+     * @ExceptionHandler(Exception.class) que convierte cualquier fallo en un
+     * 500, asi que de mockMvc.perform nunca sale una excepcion: siempre hay
+     * un codigo que mirar. Con la base de datos de test vacia estos
+     * endpoints devuelven 404, 400 o 500, y todos valen — lo que se afirma
+     * es solo que no fue la autorizacion quien corto la peticion. Tragarse
+     * una excepcion aqui convertiria cualquier fallo futuro en un aprobado.
+     */
     @ParameterizedTest(name = "{0} {1} con el id propio no da 403")
     @MethodSource("endpointsConElUsuarioEnLaUrl")
     void conElIdPropio_noDevuelve403(String metodo, String plantilla) throws Exception {
-        int estado;
-        try {
-            estado = lanzar(metodo, plantilla, ID_DEL_TOKEN).getResponse().getStatus();
-        } catch (Exception e) {
-            // La base de datos de test esta vacia, asi que muchos de estos
-            // endpoints fallan mas abajo con el id propio. Da igual: lo unico
-            // que se afirma aqui es que no fue la autorizacion quien corto la
-            // peticion, y una excepcion posterior ya lo demuestra.
-            return;
-        }
-        assertNotEquals(403, estado);
+        assertNotEquals(403, lanzar(metodo, plantilla, ID_DEL_TOKEN).getResponse().getStatus());
     }
 }
