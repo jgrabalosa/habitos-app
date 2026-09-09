@@ -1,7 +1,7 @@
 package com.norday.gamificacion.controller;
 
 import com.norday.core.model.Usuario;
-import com.norday.core.security.UsuarioAutenticado;
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.service.MascotaService;
@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/mascota")
-public class MascotaController {
+public class MascotaController extends ControladorAutorizado {
 
     @Autowired
     private MascotaService mascotaService;
@@ -54,14 +54,8 @@ public class MascotaController {
         return ResponseEntity.ok("Nombre actualizado correctamente");
     }
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tu propia cuenta");
-    }
-
-    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
-        return authentication != null
-                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
-                && autenticado.usuarioId() == idUrl;
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tu propia cuenta";
     }
 }

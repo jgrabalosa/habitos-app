@@ -1,6 +1,7 @@
 package com.norday.habitos.controller;
 
 import com.norday.core.model.Usuario;
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Categoria;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/categorias")
-public class CategoriaController {
+public class CategoriaController extends ControladorAutorizado {
 
     @Autowired
     private CategoriaService categoriaService;
@@ -90,17 +91,6 @@ public class CategoriaController {
     // categoría global (creador null) es editable ni borrable por esta vía:
     // solo las categorías personales del propio usuario.
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tus propias categorías");
-    }
-
-    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
-        return authentication != null
-                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
-                && autenticado.usuarioId() == idUrl;
-    }
-
     /** ¿El creador de esta categoría es el usuario que trae el token? Las globales (creador null) nunca lo son. */
     private boolean esElCreador(Categoria categoria, Authentication authentication) {
         return authentication != null
@@ -114,5 +104,10 @@ public class CategoriaController {
             return null;
         }
         return usuarioService.buscarPorId(autenticado.usuarioId());
+    }
+
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tus propias categorías";
     }
 }

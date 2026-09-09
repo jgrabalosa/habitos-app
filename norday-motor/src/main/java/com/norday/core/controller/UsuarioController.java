@@ -2,8 +2,8 @@ package com.norday.core.controller;
 
 import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.JwtUtil;
-import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.PreferenciasService;
 import com.norday.core.service.RecuperacionService;
@@ -24,7 +24,7 @@ import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/usuarios")
-public class UsuarioController {
+public class UsuarioController extends ControladorAutorizado {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UsuarioController.class);
 
@@ -282,19 +282,8 @@ public class UsuarioController {
     // authorities y Usuario no tiene campo de rol), así que nadie tiene
     // motivo legítimo para operar sobre el {id} de otro.
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tu propia cuenta");
-    }
-
-    /**
-     * ¿El {id} de la URL es el del usuario que trae el token? El id viene
-     * firmado dentro del JWT, así que basta comparar enteros: ni consulta a
-     * BD, ni depender del email (que el usuario puede cambiar).
-     */
-    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
-        return authentication != null
-                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
-                && autenticado.usuarioId() == idUrl;
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tu propia cuenta";
     }
 }

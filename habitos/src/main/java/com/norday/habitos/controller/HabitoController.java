@@ -1,6 +1,7 @@
 package com.norday.habitos.controller;
 
 import com.norday.core.model.Usuario;
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Habito;
@@ -20,7 +21,7 @@ import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/habitos")
-public class HabitoController {
+public class HabitoController extends ControladorAutorizado {
 
     @Autowired
     private HabitoService habitoService;
@@ -201,18 +202,6 @@ public class HabitoController {
     // authorities y Usuario no tiene campo de rol), así que nadie tiene
     // motivo legítimo para operar sobre hábitos ajenos.
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tus propios hábitos");
-    }
-
-    /** ¿El {usuarioId} de la URL es el del usuario que trae el token? */
-    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
-        return authentication != null
-                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
-                && autenticado.usuarioId() == idUrl;
-    }
-
     /** ¿El propietario de este hábito es el usuario que trae el token? */
     private boolean esElPropietario(Habito habito, Authentication authentication) {
         return authentication != null
@@ -227,5 +216,10 @@ public class HabitoController {
             return null;
         }
         return usuarioService.buscarPorId(autenticado.usuarioId());
+    }
+
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tus propios hábitos";
     }
 }

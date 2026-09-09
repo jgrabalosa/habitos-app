@@ -1,5 +1,6 @@
 package com.norday.habitos.controller;
 
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/registros")
-public class RegistroController {
+public class RegistroController extends ControladorAutorizado {
 
     @Autowired
     private RegistroService registroService;
@@ -130,16 +131,16 @@ public class RegistroController {
     // No existe rol de administrador en el proyecto, así que nadie tiene
     // motivo legítimo para operar sobre registros ajenos.
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tus propios registros");
-    }
-
     /** ¿El propietario del hábito de este registro es el usuario que trae el token? */
     private boolean esElPropietario(Habito habito, Authentication authentication) {
         return authentication != null
                 && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
                 && habito.getPropietario() != null
                 && habito.getPropietario().getUsuarioId() == autenticado.usuarioId();
+    }
+
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tus propios registros";
     }
 }

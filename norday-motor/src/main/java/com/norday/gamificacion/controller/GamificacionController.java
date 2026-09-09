@@ -1,7 +1,7 @@
 package com.norday.gamificacion.controller;
 
 import com.norday.core.model.Usuario;
-import com.norday.core.security.UsuarioAutenticado;
+import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.model.Producto;
@@ -20,7 +20,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/gamificacion")
-public class GamificacionController {
+public class GamificacionController extends ControladorAutorizado {
 
     @Autowired
     private UsuarioService usuarioService;
@@ -199,14 +199,8 @@ public class GamificacionController {
         return ResponseEntity.ok(resultado);
     }
 
-    private ResponseEntity<?> prohibido() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("Solo puedes operar sobre tu propia cuenta");
-    }
-
-    private boolean esElUsuarioAutenticado(int idUrl, Authentication authentication) {
-        return authentication != null
-                && authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
-                && autenticado.usuarioId() == idUrl;
+    @Override
+    protected String mensajeProhibido() {
+        return "Solo puedes operar sobre tu propia cuenta";
     }
 }
