@@ -432,4 +432,42 @@ class HabitoServiceTest {
         assertThrows(RecursoNoEncontradoException.class, () -> habitoService.actualizar(habitoEditado, 7));
         verify(habitoDAO, never()).update(any());
     }
+
+    @Test
+    void crearHabito_conCategoriaGlobal_laAsigna() {
+        Habito nuevo = habito(0, Frecuencia.DIARIO, 1);
+        Categoria global = categoria(3, true, null);
+        when(categoriaDAO.findById(3)).thenReturn(global);
+        when(rachaService.zonaDe(nuevo)).thenReturn(ZONA);
+
+        habitoService.crearHabito(nuevo, 3);
+
+        assertSame(global, nuevo.getTipo());
+        verify(habitoDAO).save(nuevo);
+    }
+
+    @Test
+    void crearHabito_conCategoriaPropia_laAsigna() {
+        Habito nuevo = habito(0, Frecuencia.DIARIO, 1);
+        Categoria propia = categoria(4, false, usuario);
+        when(categoriaDAO.findById(4)).thenReturn(propia);
+        when(rachaService.zonaDe(nuevo)).thenReturn(ZONA);
+
+        habitoService.crearHabito(nuevo, 4);
+
+        assertSame(propia, nuevo.getTipo());
+        verify(habitoDAO).save(nuevo);
+    }
+
+    @Test
+    void crearHabito_sinCategoria_guardaSinConsultarCategorias() {
+        Habito nuevo = habito(0, Frecuencia.DIARIO, 1);
+        when(rachaService.zonaDe(nuevo)).thenReturn(ZONA);
+
+        habitoService.crearHabito(nuevo, null);
+
+        assertNull(nuevo.getTipo());
+        verify(categoriaDAO, never()).findById(anyInt());
+        verify(habitoDAO).save(nuevo);
+    }
 }
