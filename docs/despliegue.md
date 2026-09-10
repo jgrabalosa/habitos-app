@@ -14,8 +14,12 @@
 | Perfil Spring | ninguno activo | `staging` |
 
 Los dos son clones de este repositorio que se compilan en el propio servidor.
-El `application.properties` de producción está en `.gitignore` y sólo existe en
-la máquina; `application-staging.properties` tampoco está versionado.
+El `application.properties` de producción está en `.gitignore` —es la única
+ruta que el `.gitignore` excluye— y sólo existe en la máquina: hay que
+editarlo allí y el `git pull` nunca lo trae. El
+`application-staging.properties`, en cambio, **sí** está versionado: viaja en
+el repositorio y llega a la máquina con el `git pull`, así que se edita aquí y
+no allí.
 
 Existe además una tercera base de datos, `habitos_db_test`, contra la que corren
 los `@SpringBootTest`. La apunta
