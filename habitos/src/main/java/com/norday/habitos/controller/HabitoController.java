@@ -5,6 +5,7 @@ import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.dto.HabitoDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
 import com.norday.habitos.service.HabitoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +40,9 @@ public class HabitoController extends ControladorAutorizado {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
         }
-        return ResponseEntity.ok(habitoService.obtenerActivos(usuario));
+        return ResponseEntity.ok(habitoService.obtenerActivos(usuario).stream()
+                .map(HabitoDTO::desde)
+                .toList());
     }
 
     @GetMapping("/usuario/{usuarioId}/resumen")
@@ -99,7 +102,7 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        return ResponseEntity.ok(habito);
+        return ResponseEntity.ok(HabitoDTO.desde(habito));
     }
 
     @PostMapping
