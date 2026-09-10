@@ -2,6 +2,7 @@ package com.norday.habitos.service;
 
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
@@ -65,8 +66,20 @@ public class HabitoService {
         }
     }
 
+    /** Transitorio: reproduce el comportamiento actual, la categoría sin
+     *  comprobar. Lo sustituye resolverCategoria en el commit siguiente. */
+    private Categoria referenciaSinValidar(Integer categoriaId) {
+        if (categoriaId == null) {
+            return null;
+        }
+        Categoria categoria = new Categoria();
+        categoria.setCategoriaId(categoriaId);
+        return categoria;
+    }
+
     @Transactional
-    public List<String> crearHabito(Habito habito) {
+    public List<String> crearHabito(Habito habito, Integer categoriaId) {
+        habito.setTipo(referenciaSinValidar(categoriaId));
         normalizarPlanificacion(habito);
         LocalDate hoy = LocalDate.now(rachaService.zonaDe(habito));
         habito.setFechaInicio(hoy);
@@ -99,11 +112,12 @@ public class HabitoService {
     }
 
     @Transactional
-    public void actualizar(Habito habito) {
+    public void actualizar(Habito habito, Integer categoriaId) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
+        habito.setTipo(referenciaSinValidar(categoriaId));
 
         boolean cambioFrecuencia = existente.getFrecuencia() != habito.getFrecuencia();
 

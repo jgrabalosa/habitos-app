@@ -112,7 +112,8 @@ public class HabitoController extends ControladorAutorizado {
             return prohibido();
         }
         habito.setPropietario(autenticado);
-        List<String> logrosOtorgados = habitoService.crearHabito(habito);
+        Integer categoriaId = habito.getTipo() == null ? null : habito.getTipo().getCategoriaId();
+        List<String> logrosOtorgados = habitoService.crearHabito(habito, categoriaId);
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Hábito creado correctamente");
         respuesta.put("logrosOtorgados", logrosOtorgados);
@@ -135,7 +136,8 @@ public class HabitoController extends ControladorAutorizado {
         // Mismo motivo que en crear(): el propietario no se toca desde
         // el body, se conserva el que ya tenía el hábito en BD.
         habito.setPropietario(existente.getPropietario());
-        habitoService.actualizar(habito);
+        Integer categoriaId = habito.getTipo() == null ? null : habito.getTipo().getCategoriaId();
+        habitoService.actualizar(habito, categoriaId);
         return ResponseEntity.ok("Hábito actualizado correctamente");
     }
 
