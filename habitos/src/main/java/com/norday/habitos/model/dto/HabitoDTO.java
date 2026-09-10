@@ -7,13 +7,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * El habito tal y como viaja dentro del JSON de /dashboard, /resumen y
- * /semana.
+ * El habito tal y como sale hacia el cliente en /{id}, /activos,
+ * /dashboard, /resumen y /semana.
  *
- * Reproduce los mismos nombres y los mismos tipos que hoy serializa la
- * entidad Habito en esos endpoints, para que el JSON salga identico.
- * `propietario` no esta porque la entidad lo lleva @JsonIgnore. `tipo`
- * sigue siendo la entidad Categoria: aplanarla es un paso posterior.
+ * La categoria viaja aplanada en tres campos, los tres null si el habito no
+ * tiene. `propietario` no esta: el cliente ya sabe de quien son sus habitos.
  */
 public class HabitoDTO {
 
@@ -27,7 +25,9 @@ public class HabitoDTO {
     private final boolean recordatorioActivo;
     private final LocalTime recordatorioHora;
     private final boolean activo;
-    private final Categoria tipo;
+    private final Integer categoriaId;
+    private final String categoriaCodigo;
+    private final String categoriaNombre;
 
     private HabitoDTO(Habito habito) {
         this.habitoId = habito.getHabitoId();
@@ -40,7 +40,10 @@ public class HabitoDTO {
         this.recordatorioActivo = habito.isRecordatorioActivo();
         this.recordatorioHora = habito.getRecordatorioHora();
         this.activo = habito.isActivo();
-        this.tipo = habito.getTipo();
+        Categoria tipo = habito.getTipo();
+        this.categoriaId = tipo == null ? null : tipo.getCategoriaId();
+        this.categoriaCodigo = tipo == null ? null : tipo.getCodigo();
+        this.categoriaNombre = tipo == null ? null : tipo.getNombre();
     }
 
     public static HabitoDTO desde(Habito habito) {
@@ -57,5 +60,7 @@ public class HabitoDTO {
     public boolean isRecordatorioActivo() { return recordatorioActivo; }
     public LocalTime getRecordatorioHora() { return recordatorioHora; }
     public boolean isActivo() { return activo; }
-    public Categoria getTipo() { return tipo; }
+    public Integer getCategoriaId() { return categoriaId; }
+    public String getCategoriaCodigo() { return categoriaCodigo; }
+    public String getCategoriaNombre() { return categoriaNombre; }
 }

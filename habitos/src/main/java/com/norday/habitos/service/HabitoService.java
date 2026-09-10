@@ -2,6 +2,7 @@ package com.norday.habitos.service;
 
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
@@ -15,6 +16,7 @@ import com.norday.habitos.model.dto.HabitoResumenDTO;
 import com.norday.habitos.model.dto.RegistroDiaDTO;
 import com.norday.habitos.model.dto.RegistroResumenDTO;
 import com.norday.habitos.model.dto.SemanaDashboardDTO;
+import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -51,6 +53,9 @@ public class HabitoService {
     @Autowired
     private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
 
+    @Autowired
+    private ICategoriaDAO categoriaDAO;
+
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
      *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos. */
     private void normalizarPlanificacion(Habito habito) {
@@ -65,8 +70,30 @@ public class HabitoService {
         }
     }
 
+    /**
+     * Resuelve la categoría que pide el cliente. Solo valen las globales y
+     * las del propio propietario. Una ajena responde lo mismo que una que no
+     * existe, para no revelar qué ids hay.
+     */
+    private Categoria resolverCategoria(Integer categoriaId, Usuario propietario) {
+        if (categoriaId == null) {
+            return null;
+        }
+        Categoria categoria = categoriaDAO.findById(categoriaId);
+        boolean permitida = categoria != null
+                && (categoria.isEsGlobal()
+                    || (categoria.getCreador() != null
+                        && propietario != null
+                        && categoria.getCreador().getUsuarioId() == propietario.getUsuarioId()));
+        if (!permitida) {
+            throw new RecursoNoEncontradoException("Categoría no encontrada");
+        }
+        return categoria;
+    }
+
     @Transactional
-    public List<String> crearHabito(Habito habito) {
+    public List<String> crearHabito(Habito habito, Integer categoriaId) {
+        habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
         normalizarPlanificacion(habito);
         LocalDate hoy = LocalDate.now(rachaService.zonaDe(habito));
         habito.setFechaInicio(hoy);
@@ -99,11 +126,12 @@ public class HabitoService {
     }
 
     @Transactional
-    public void actualizar(Habito habito) {
+    public void actualizar(Habito habito, Integer categoriaId) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
+        habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
 
         boolean cambioFrecuencia = existente.getFrecuencia() != habito.getFrecuencia();
 

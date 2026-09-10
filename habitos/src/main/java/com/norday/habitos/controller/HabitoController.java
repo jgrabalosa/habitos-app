@@ -5,7 +5,9 @@ import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.dto.HabitoDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
+import com.norday.habitos.model.dto.HabitoEntradaDTO;
 import com.norday.habitos.service.HabitoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -39,7 +41,9 @@ public class HabitoController extends ControladorAutorizado {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
         }
-        return ResponseEntity.ok(habitoService.obtenerActivos(usuario));
+        return ResponseEntity.ok(habitoService.obtenerActivos(usuario).stream()
+                .map(HabitoDTO::desde)
+                .toList());
     }
 
     @GetMapping("/usuario/{usuarioId}/resumen")
@@ -99,11 +103,11 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        return ResponseEntity.ok(habito);
+        return ResponseEntity.ok(HabitoDTO.desde(habito));
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Habito habito, Authentication authentication) {
+    public ResponseEntity<?> crear(@RequestBody HabitoEntradaDTO entrada, Authentication authentication) {
         // El propietario nunca se toma del body: si viene, se ignora. Se
         // fija siempre desde el token, para que nadie pueda crear un
         // hábito a nombre de otro usuario mandando su usuarioId en el JSON.
@@ -111,8 +115,9 @@ public class HabitoController extends ControladorAutorizado {
         if (autenticado == null) {
             return prohibido();
         }
+        Habito habito = entrada.aHabito();
         habito.setPropietario(autenticado);
-        List<String> logrosOtorgados = habitoService.crearHabito(habito);
+        List<String> logrosOtorgados = habitoService.crearHabito(habito, entrada.getCategoriaId());
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Hábito creado correctamente");
         respuesta.put("logrosOtorgados", logrosOtorgados);
@@ -121,7 +126,7 @@ public class HabitoController extends ControladorAutorizado {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable int id,
-                                        @RequestBody Habito habito,
+                                        @RequestBody HabitoEntradaDTO entrada,
                                         Authentication authentication) {
         Habito existente = habitoService.buscarPorId(id);
         if (existente == null) {
@@ -131,11 +136,12 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(existente, authentication)) {
             return prohibido();
         }
+        Habito habito = entrada.aHabito();
         habito.setHabitoId(id);
         // Mismo motivo que en crear(): el propietario no se toca desde
         // el body, se conserva el que ya tenía el hábito en BD.
         habito.setPropietario(existente.getPropietario());
-        habitoService.actualizar(habito);
+        habitoService.actualizar(habito, entrada.getCategoriaId());
         return ResponseEntity.ok("Hábito actualizado correctamente");
     }
 
