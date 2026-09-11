@@ -4,6 +4,7 @@ import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
+import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
@@ -65,6 +67,9 @@ class RegistroServiceTest {
     private ILogroDAO logroDAO;
 
     @Mock
+    private IUsuarioLogroDAO usuarioLogroDAO;
+
+    @Mock
     private IReversionRegistroDAO reversionRegistroDAO;
 
     @InjectMocks
@@ -89,6 +94,7 @@ class RegistroServiceTest {
         racha = new Racha(habito, HOY);
 
         lenient().when(rachaService.zonaDe(any(Habito.class))).thenReturn(ZONA);
+        lenient().when(rachaService.hoyDe(any(Habito.class))).thenReturn(HOY);
         // La instantánea de deshacer lee el estado previo de la mascota antes
         // de crear el Registro: sin este stub, mascotaPrevia sale null.
         lenient().when(mascotaService.obtenerOCrear(anyInt())).thenReturn(new Mascota(usuario));
@@ -115,23 +121,31 @@ class RegistroServiceTest {
 
     @Test
     void alCompletarUnaFechaPasada_seGuardaLaFechaYActualizaSuPeriodo() {
-        LocalDate ayer = HOY.minusDays(1);
-        List<Registro> registros = List.of(new Registro(habito, true, "", ayer));
+        // Día fijo a propósito: con el límite de la semana en curso, un
+        // miércoles siempre tiene un martes válido detrás. Contra el reloj
+        // real este test sería imposible los lunes.
+        LocalDate miercoles = LocalDate.of(2026, 9, 9);
+        LocalDate martes = miercoles.minusDays(1);
+        when(rachaService.hoyDe(any(Habito.class))).thenReturn(miercoles);
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(registroDAO.findByHabito(habito)).thenReturn(registros);
+        when(registroDAO.findByHabito(habito))
+                .thenReturn(List.of(new Registro(habito, true, "", martes)));
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
                 .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
-        registroService.completarHabito(habito, "", ayer);
+        registroService.completarHabito(habito, "", martes);
 
-        assertEquals(ayer, registros.get(0).getFecha());
+        ArgumentCaptor<Registro> capturado = ArgumentCaptor.forClass(Registro.class);
+        verify(registroDAO).save(capturado.capture());
+        assertEquals(martes, capturado.getValue().getFecha());
         assertEquals(1, racha.getRachaActual());
-        assertEquals(habito.getFrecuencia().rangoPeriodo(ayer)[0], racha.getPeriodoMetaAlcanzada());
+        assertEquals(habito.getFrecuencia().rangoPeriodo(martes)[0],
+                racha.getPeriodoMetaAlcanzada());
     }
 
     @Test

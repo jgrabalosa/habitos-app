@@ -7,6 +7,7 @@ import com.norday.habitos.repository.IRachaDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 
 /**
@@ -32,6 +33,17 @@ public class RachaService {
 
     public ZoneId zonaDe(Habito habito) {
         return zonaUsuarioService.zonaDe(habito != null ? habito.getPropietario() : null);
+    }
+
+    /**
+     * El "hoy" del hábito, en su zona. Única lectura del reloj para
+     * RegistroService: así los tests pueden fijar el día sin depender de
+     * cuándo se ejecuten. Con el límite de la semana en curso, un test de
+     * fecha pasada es imposible de escribir contra el reloj real: los
+     * lunes no existe ninguna fecha pasada válida.
+     */
+    public LocalDate hoyDe(Habito habito) {
+        return LocalDate.now(zonaDe(habito));
     }
 
     /**

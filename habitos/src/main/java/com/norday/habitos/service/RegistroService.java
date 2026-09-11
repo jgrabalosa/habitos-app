@@ -23,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -77,8 +76,7 @@ public class RegistroService {
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota, LocalDate fechaSolicitada) {
-        ZoneId zona = rachaService.zonaDe(habito);
-        LocalDate hoy = LocalDate.now(zona);
+        LocalDate hoy = rachaService.hoyDe(habito);
         LocalDate fecha = fechaSolicitada != null ? fechaSolicitada : hoy;
         if (fecha.isAfter(hoy)) {
             throw new ConflictoException("No se puede completar un hábito en una fecha futura");
@@ -148,7 +146,7 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, zona, fecha);
+        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, hoy, fecha);
         if (metaAlcanzadaAhora) {
             puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
         }
@@ -206,7 +204,6 @@ public class RegistroService {
 
     private Set<Integer> idsLogros(Usuario usuario) {
         Set<Integer> ids = new HashSet<>();
-        if (usuarioLogroDAO == null) return ids;
         usuarioLogroDAO.findByUsuario(usuario).forEach(ul -> {
             if (ul.getLogro() != null) ids.add(ul.getLogro().getLogroId());
         });
@@ -214,7 +211,7 @@ public class RegistroService {
     }
 
     public int contarCompletadosPeriodoActual(Habito habito) {
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(rachaService.zonaDe(habito));
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(rachaService.hoyDe(habito));
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 
@@ -223,7 +220,7 @@ public class RegistroService {
      * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
      */
     private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta,
-                                    ZoneId zona, LocalDate fecha) {
+                                    LocalDate hoy, LocalDate fecha) {
         Racha racha = rachaDAO.findByHabito(habito);
         if (racha == null) return false;
 
@@ -236,8 +233,8 @@ public class RegistroService {
         }
 
         if (completadosEnPeriodo >= meta) {
-            if (!fecha.equals(LocalDate.now(zona))) {
-                return recalcularRachaTrasFechaPasada(habito, racha, meta, zona, actualAntes);
+            if (!fecha.equals(hoy)) {
+                return recalcularRachaTrasFechaPasada(habito, racha, meta, hoy, actualAntes);
             }
             racha.setRachaActual(actualAntes + 1);
             if (racha.getRachaActual() > racha.getRachaMaxima()) racha.setRachaMaxima(racha.getRachaActual());
@@ -257,7 +254,7 @@ public class RegistroService {
      * ReversionRegistro conserva el estado anterior para poder deshacerlo.
      */
     private boolean recalcularRachaTrasFechaPasada(Habito habito, Racha racha, int meta,
-                                                   ZoneId zona, int actualAntes) {
+                                                   LocalDate hoy, int actualAntes) {
         Map<LocalDate, Integer> completadosPorPeriodo = new HashMap<>();
         for (Registro registro : registroDAO.findByHabito(habito)) {
             if (!registro.isCompletado()) continue;
@@ -272,7 +269,7 @@ public class RegistroService {
         if (cumplidos.isEmpty()) return false;
 
         LocalDate ultimoPeriodo = cumplidos.stream().max(Comparator.naturalOrder()).orElseThrow();
-        LocalDate periodoAnterior = habito.getFrecuencia().inicioPeriodoAnterior(zona);
+        LocalDate periodoAnterior = habito.getFrecuencia().inicioPeriodoAnterior(hoy);
         int actual = 0;
         if (!ultimoPeriodo.isBefore(periodoAnterior)) {
             LocalDate cursor = ultimoPeriodo;
@@ -334,7 +331,7 @@ public class RegistroService {
     }
 
     public boolean estaCompletadoHoy(Habito habito) {
-        return registroDAO.existeRegistroEnFecha(habito, LocalDate.now(rachaService.zonaDe(habito)));
+        return registroDAO.existeRegistroEnFecha(habito, rachaService.hoyDe(habito));
     }
 
     public List<Registro> obtenerRegistros(Habito habito) {
