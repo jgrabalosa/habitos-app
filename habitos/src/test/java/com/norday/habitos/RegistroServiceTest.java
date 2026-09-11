@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.DayOfWeek;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -137,6 +138,16 @@ class RegistroServiceTest {
     void alCompletarUnaFechaFutura_seRechaza() {
         assertThrows(ConflictoException.class,
                 () -> registroService.completarHabito(habito, "", HOY.plusDays(1)));
+        verify(registroDAO, never()).save(any(Registro.class));
+    }
+
+    @Test
+    void alCompletarUnaFechaAnteriorAlLunes_seRechaza() {
+        LocalDate lunes = HOY.with(DayOfWeek.MONDAY);
+        LocalDate fechaAnterior = lunes.minusDays(1);
+
+        assertThrows(ConflictoException.class,
+                () -> registroService.completarHabito(habito, "", fechaAnterior));
         verify(registroDAO, never()).save(any(Registro.class));
     }
 

@@ -83,6 +83,14 @@ public class RegistroService {
         if (fecha.isAfter(hoy)) {
             throw new ConflictoException("No se puede completar un hábito en una fecha futura");
         }
+        // Suelo del completado retroactivo: el lunes de la semana en curso.
+        // Sin límite, rellenar meses enteros dispara puntos, XP y logros de
+        // racha a voluntad. El lunes se calcula explícito porque
+        // rangoPeriodo(hoy) devuelve el propio día en DIARIO.
+        LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
+        if (fecha.isBefore(lunesDeEstaSemana)) {
+            throw new ConflictoException("Solo se puede completar una fecha de la semana en curso");
+        }
         Usuario usuario = habito.getPropietario();
 
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
