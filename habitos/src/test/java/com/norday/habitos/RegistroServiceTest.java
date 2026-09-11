@@ -112,6 +112,34 @@ class RegistroServiceTest {
         assertTrue(racha.metaAlcanzadaEnPeriodoActual(ZONA));
     }
 
+    @Test
+    void alCompletarUnaFechaPasada_seGuardaLaFechaYActualizaSuPeriodo() {
+        LocalDate ayer = HOY.minusDays(1);
+        List<Registro> registros = List.of(new Registro(habito, true, "", ayer));
+
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(registroDAO.findByHabito(habito)).thenReturn(registros);
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "", ayer);
+
+        assertEquals(ayer, registros.get(0).getFecha());
+        assertEquals(1, racha.getRachaActual());
+        assertEquals(habito.getFrecuencia().rangoPeriodo(ayer)[0], racha.getPeriodoMetaAlcanzada());
+    }
+
+    @Test
+    void alCompletarUnaFechaFutura_seRechaza() {
+        assertThrows(ConflictoException.class,
+                () -> registroService.completarHabito(habito, "", HOY.plusDays(1)));
+        verify(registroDAO, never()).save(any(Registro.class));
+    }
+
 
     @Test
     void alCompletarHabitoDiarioMetaMultiple_laRachaNoSubeHastaAlcanzarLaMeta() {
