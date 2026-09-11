@@ -94,16 +94,6 @@ módulos de dominio, y cada uno de ellos cuelga de `norday-motor`. Una app
 futura del ecosistema añadiría su propio módulo de dominio junto a
 `habitos` y `conocimiento`, colgando igualmente de `norday-motor`.
 
-El `Dockerfile` copia el pom raíz, los cuatro poms de módulo y las cuatro
-carpetas `src/`, y toma el jar de `norday-server/target/`.
-
-⚠️ **El `Dockerfile` no es la vía de despliegue y está desfasado.**
-Producción y staging son clones de este repositorio compilados en el propio
-servidor y arrancados con systemd — ver `docs/despliegue.md`. El
-`Dockerfile` viene de un alojamiento anterior, compila con `-DskipTests`
-(que contradice la regla del proyecto) y fija `ENV TZ=UTC`, que por lo tanto
-hoy no se aplica en ningún sitio.
-
 ## Borrado de cuenta: patrón LimpiadorDatosUsuario
 
 `UsuarioService.eliminarCuenta()` **no** conoce las tablas de cada módulo.
@@ -212,7 +202,9 @@ caducidades absolutas (código de recuperación) son instantes, no días, y no
 se tocan.
 
 La JVM **no** fija zona por defecto — se eliminó el `TimeZone.setDefault`.
-La fija el contenedor a UTC (`ENV TZ=UTC` en el `Dockerfile`).
+Toma la del sistema operativo: en el VPS es `Europe/Madrid`. Nada del
+código debe depender de ese valor. Lo que necesite UTC lo pide explícito,
+como hacen los sellos de auditoría del párrafo anterior.
 
 La racha no depende de ningún cron: `Racha` guarda `periodoMetaAlcanzada`
 (el inicio del periodo en que se cumplió la meta) y el sello se autocaduca
