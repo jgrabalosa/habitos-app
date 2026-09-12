@@ -17,13 +17,17 @@ public enum Frecuencia {
      * veinticuatro, y el servidor no sabe cuál es la de este usuario.
      */
     public LocalDate[] rangoPeriodoActual(ZoneId zona) {
-        LocalDate hoy = LocalDate.now(zona);
+        return rangoPeriodo(LocalDate.now(zona));
+    }
+
+    /** Rango del periodo que contiene la fecha indicada. */
+    public LocalDate[] rangoPeriodo(LocalDate fecha) {
         return switch (this) {
             case SEMANAL -> {
-                LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
+                LocalDate lunes = fecha.with(DayOfWeek.MONDAY);
                 yield new LocalDate[]{lunes, lunes.plusDays(6)};
             }
-            case DIARIO -> new LocalDate[]{hoy, hoy};
+            case DIARIO -> new LocalDate[]{fecha, fecha};
         };
     }
 
@@ -33,7 +37,12 @@ public enum Frecuencia {
      * actual o en el anterior.
      */
     public LocalDate inicioPeriodoAnterior(ZoneId zona) {
-        LocalDate inicioActual = rangoPeriodoActual(zona)[0];
+        return inicioPeriodoAnterior(LocalDate.now(zona));
+    }
+
+    /** Inicio del periodo anterior al que contiene la fecha indicada. */
+    public LocalDate inicioPeriodoAnterior(LocalDate fecha) {
+        LocalDate inicioActual = rangoPeriodo(fecha)[0];
         return switch (this) {
             case SEMANAL -> inicioActual.minusWeeks(1);
             case DIARIO -> inicioActual.minusDays(1);

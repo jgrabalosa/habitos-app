@@ -13,6 +13,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 @RestController
 @RequestMapping("/api/registros")
@@ -37,7 +39,15 @@ public class RegistroController extends ControladorAutorizado {
             return prohibido();
         }
         String nota = body != null ? body.get("nota") : null;
-        Map<String, Object> resultado = registroService.completarHabito(habito, nota);
+        LocalDate fecha = null;
+        if (body != null && body.get("fecha") != null && !body.get("fecha").isBlank()) {
+            try {
+                fecha = LocalDate.parse(body.get("fecha"));
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest().body("Formato de fecha inválido, se espera YYYY-MM-DD");
+            }
+        }
+        Map<String, Object> resultado = registroService.completarHabito(habito, nota, fecha);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
                         "mensaje", "Hábito completado correctamente",

@@ -23,10 +23,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class RegistroService {
@@ -64,21 +67,41 @@ public class RegistroService {
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
+    /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
+    private static final int[][] HITOS_RACHA = {
+            {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
+    };
     private static final int XP_POR_DIA_COMPLETADO = 5;
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
-        ZoneId zona = rachaService.zonaDe(habito);
-        LocalDate hoy = LocalDate.now(zona);
+        return completarHabito(habito, nota, null);
+    }
+
+    @Transactional
+    public Map<String, Object> completarHabito(Habito habito, String nota, LocalDate fechaSolicitada) {
+        LocalDate hoy = rachaService.hoyDe(habito);
+        LocalDate fecha = fechaSolicitada != null ? fechaSolicitada : hoy;
+        if (fecha.isAfter(hoy)) {
+            throw new ConflictoException("No se puede completar un hábito en una fecha futura");
+        }
+        // Suelo del completado retroactivo: el lunes de la semana en curso.
+        // Sin límite, rellenar meses enteros dispara puntos, XP y logros de
+        // racha a voluntad. El lunes se calcula explícito porque
+        // rangoPeriodo(hoy) devuelve el propio día en DIARIO.
+        LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
+        if (fecha.isBefore(lunesDeEstaSemana)) {
+            throw new ConflictoException("Solo se puede completar una fecha de la semana en curso");
+        }
         Usuario usuario = habito.getPropietario();
 
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
         if (habito.getFrecuencia() == Frecuencia.SEMANAL
-                && registroDAO.existeRegistroEnFecha(habito, hoy)) {
-            throw new ConflictoException("Este hábito ya se ha completado hoy");
+                && registroDAO.existeRegistroEnFecha(habito, fecha)) {
+            throw new ConflictoException("Este hábito ya se ha completado en esa fecha");
         }
 
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(fecha);
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
         int meta = habito.getMeta();
 
@@ -87,7 +110,7 @@ public class RegistroService {
         // coincide justo con el punto en que se alcanza la meta, otorga
         // puntos por partida doble.
         if (habito.getFrecuencia() == Frecuencia.DIARIO && completadosAntes >= meta) {
-            throw new ConflictoException("Este hábito ya se ha completado hoy");
+            throw new ConflictoException("Este hábito ya ha alcanzado la meta de esa fecha");
         }
 
         // Instantánea del estado previo, para poder deshacer este completado con
@@ -96,6 +119,14 @@ public class RegistroService {
         // abajo y aquí leeríamos ya los valores nuevos.
         int saldoAntes = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
         Racha rachaPrevia = rachaDAO.findByHabito(habito);
+        // La rotura perezosa se materializa aquí, antes de la instantánea.
+        // La regla vive en Racha.sigueViva y la materializa
+        // RachaService.rachaActualVigente: no se duplica en este servicio.
+        // Si la racha ya no está viva queda en 0 en BD, y tanto la
+        // instantánea como actualizarRacha parten de ese 0. Sin esto,
+        // completar tras dos semanas de abandono continúa la racha vieja
+        // y cobra hitos que no corresponden.
+        rachaService.rachaActualVigente(rachaPrevia);
         Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
         Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
         LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
@@ -103,8 +134,9 @@ public class RegistroService {
         Mascota mascotaPrevia = mascotaService.obtenerOCrear(usuario.getUsuarioId());
         int mascotaExperienciaPrevia = mascotaPrevia.getExperiencia();
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
+        Set<Integer> logrosPrevios = idsLogros(usuario);
 
-        Registro registro = new Registro(habito, true, nota, hoy);
+        Registro registro = new Registro(habito, true, nota, fecha);
         registroDAO.save(registro);
 
         int puntosGanados = 0;
@@ -126,15 +158,15 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, zona, hoy);
+        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, hoy, fecha);
         if (metaAlcanzadaAhora) {
-            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
+            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaActualPrevia);
         }
 
         // Con este registro puede haberse cerrado el día entero. Va después de
         // guardar el Registro a propósito: la consulta de esDiaCompleto es JPQL,
         // así que Hibernate hace flush antes y el registro recién creado cuenta.
-        if (habitoService.esDiaCompleto(usuario)) {
+        if (fecha.equals(hoy) && habitoService.esDiaCompleto(usuario)) {
             mascotaService.registrarDiaCompleto(usuario.getUsuarioId());
         }
 
@@ -145,8 +177,9 @@ public class RegistroService {
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
-        boolean mostrarValoracion = habito.getFrecuencia() == Frecuencia.SEMANAL
-                || (completadosAntes + 1) >= meta;
+        boolean mostrarValoracion = fecha.equals(hoy)
+                && (habito.getFrecuencia() == Frecuencia.SEMANAL
+                || (completadosAntes + 1) >= meta);
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
         // saldo recoge de una vez el completado, el hito de racha y los logros.
@@ -158,6 +191,15 @@ public class RegistroService {
             Logro logro = logroDAO.findByCodigo(codigo);
             if (logro != null) {
                 reversion.getLogros().add(new ReversionLogro(reversion, logro.getLogroId()));
+            }
+        }
+        // También captura logros disparados indirectamente por la mascota
+        // (por ejemplo, al cambiar de fase al ganar XP), que no forman parte
+        // de la lista devuelta por LogrosHabitosService.
+        for (Integer logroId : idsLogros(usuario)) {
+            if (!logrosPrevios.contains(logroId)
+                    && reversion.getLogros().stream().noneMatch(r -> r.getLogroRef() == logroId)) {
+                reversion.getLogros().add(new ReversionLogro(reversion, logroId));
             }
         }
         reversionRegistroDAO.save(reversion);
@@ -172,8 +214,16 @@ public class RegistroService {
         );
     }
 
+    private Set<Integer> idsLogros(Usuario usuario) {
+        Set<Integer> ids = new HashSet<>();
+        usuarioLogroDAO.findByUsuario(usuario).forEach(ul -> {
+            if (ul.getLogro() != null) ids.add(ul.getLogro().getLogroId());
+        });
+        return ids;
+    }
+
     public int contarCompletadosPeriodoActual(Habito habito) {
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(rachaService.zonaDe(habito));
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(rachaService.hoyDe(habito));
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 
@@ -182,24 +232,26 @@ public class RegistroService {
      * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
      */
     private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta,
-                                    ZoneId zona, LocalDate hoy) {
+                                    LocalDate hoy, LocalDate fecha) {
         Racha racha = rachaDAO.findByHabito(habito);
         if (racha == null) return false;
 
-        if (racha.metaAlcanzadaEnPeriodoActual(zona)) {
+        int actualAntes = racha.getRachaActual();
+        LocalDate[] periodoObjetivo = habito.getFrecuencia().rangoPeriodo(fecha);
+
+        if (racha.getPeriodoMetaAlcanzada() != null
+                && racha.getPeriodoMetaAlcanzada().equals(periodoObjetivo[0])) {
             return false; // ya subió este periodo, completar de más no hace nada
         }
 
         if (completadosEnPeriodo >= meta) {
-            // Rotura perezosa: si se saltó un periodo entero, la racha no
-            // continúa desde el valor viejo — vuelve a empezar en 1.
-            int base = racha.sigueViva(zona) ? racha.getRachaActual() : 0;
-            racha.setRachaActual(base + 1);
-            if (racha.getRachaActual() > racha.getRachaMaxima()) {
-                racha.setRachaMaxima(racha.getRachaActual());
+            if (!fecha.equals(hoy)) {
+                return recalcularRachaTrasFechaPasada(habito, racha, meta, hoy, actualAntes);
             }
-            racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().rangoPeriodoActual(zona)[0]);
-            racha.setUltimaFecha(hoy);
+            racha.setRachaActual(actualAntes + 1);
+            if (racha.getRachaActual() > racha.getRachaMaxima()) racha.setRachaMaxima(racha.getRachaActual());
+            racha.setPeriodoMetaAlcanzada(periodoObjetivo[0]);
+            racha.setUltimaFecha(fecha);
             rachaDAO.update(racha);
             return true;
         }
@@ -207,19 +259,93 @@ public class RegistroService {
         return false;
     }
 
-    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
+    /**
+     * Una fecha pasada puede rellenar un hueco y conectar dos tramos. En ese
+     * caso no basta con sumar uno al valor materializado: se reconstruyen las
+     * rachas de periodos a partir de los registros existentes. El snapshot de
+     * ReversionRegistro conserva el estado anterior para poder deshacerlo.
+     */
+    private boolean recalcularRachaTrasFechaPasada(Habito habito, Racha racha, int meta,
+                                                   LocalDate hoy, int actualAntes) {
+        Map<LocalDate, Integer> completadosPorPeriodo = new HashMap<>();
+        for (Registro registro : registroDAO.findByHabito(habito)) {
+            if (!registro.isCompletado()) continue;
+            LocalDate inicio = habito.getFrecuencia().rangoPeriodo(registro.getFecha())[0];
+            completadosPorPeriodo.merge(inicio, 1, Integer::sum);
+        }
+
+        Set<LocalDate> cumplidos = new HashSet<>();
+        for (Map.Entry<LocalDate, Integer> entrada : completadosPorPeriodo.entrySet()) {
+            if (entrada.getValue() >= meta) cumplidos.add(entrada.getKey());
+        }
+        if (cumplidos.isEmpty()) return false;
+
+        LocalDate ultimoPeriodo = cumplidos.stream().max(Comparator.naturalOrder()).orElseThrow();
+        LocalDate periodoAnterior = habito.getFrecuencia().inicioPeriodoAnterior(hoy);
+        int actual = 0;
+        if (!ultimoPeriodo.isBefore(periodoAnterior)) {
+            LocalDate cursor = ultimoPeriodo;
+            while (cumplidos.contains(cursor)) {
+                actual++;
+                cursor = habito.getFrecuencia() == Frecuencia.SEMANAL
+                        ? cursor.minusWeeks(1) : cursor.minusDays(1);
+            }
+        }
+
+        int maxima = 0;
+        int tramo = 0;
+        LocalDate cursor = cumplidos.stream().min(Comparator.naturalOrder()).orElseThrow();
+        LocalDate limite = ultimoPeriodo;
+        while (!cursor.isAfter(limite)) {
+            if (cumplidos.contains(cursor)) {
+                tramo++;
+                maxima = Math.max(maxima, tramo);
+            } else {
+                tramo = 0;
+            }
+            cursor = habito.getFrecuencia() == Frecuencia.SEMANAL
+                    ? cursor.plusWeeks(1) : cursor.plusDays(1);
+        }
+
+        racha.setRachaActual(actual);
+        racha.setRachaMaxima(Math.max(racha.getRachaMaxima(), maxima));
+        racha.setPeriodoMetaAlcanzada(ultimoPeriodo);
+        List<Registro> registros = registroDAO.findByHabito(habito);
+        registros.stream()
+                .filter(r -> habito.getFrecuencia().rangoPeriodo(r.getFecha())[0].equals(ultimoPeriodo))
+                .max(Comparator.comparing(Registro::getFecha).thenComparing(Registro::getRegistroId))
+                .ifPresent(r -> racha.setUltimaFecha(r.getFecha()));
+        rachaDAO.update(racha);
+        return actual > actualAntes;
+    }
+
+    /**
+     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
+     * el del valor exacto. Con el completado retroactivo la racha puede saltar
+     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
+     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
+     *
+     * En el camino normal la racha sube de uno en uno, así que el intervalo
+     * (previa, actual] contiene un único valor y el comportamiento es idéntico
+     * al de antes. El límite de la semana en curso acota el salto máximo.
+     *
+     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
+     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
+     */
+    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Integer rachaPrevia) {
         Racha racha = rachaDAO.findByHabito(habito);
         if (racha == null) return 0;
 
         int actual = racha.getRachaActual();
-        int puntos = switch (actual) {
-            case 3 -> 50;
-            case 7 -> 100;
-            case 30 -> 300;
-            case 100 -> 750;
-            case 365 -> 2000;
-            default -> 0;
-        };
+        int desde = rachaPrevia != null ? rachaPrevia : 0;
+        if (actual <= desde) return 0;
+
+        int puntos = 0;
+        for (int[] hito : HITOS_RACHA) {
+            if (hito[0] > desde && hito[0] <= actual) {
+                puntos += hito[1];
+            }
+        }
 
         if (puntos > 0) {
             usuarioMonedaService.registrarMovimiento(
@@ -231,7 +357,7 @@ public class RegistroService {
     }
 
     public boolean estaCompletadoHoy(Habito habito) {
-        return registroDAO.existeRegistroEnFecha(habito, LocalDate.now(rachaService.zonaDe(habito)));
+        return registroDAO.existeRegistroEnFecha(habito, rachaService.hoyDe(habito));
     }
 
     public List<Registro> obtenerRegistros(Habito habito) {
@@ -268,9 +394,10 @@ public class RegistroService {
 
     /**
      * Deshace un hábito completado, revirtiendo con exactitud a partir de la
-     * instantánea capturada al completarlo. Solo el último registro del
-     * hábito, y solo si es de hoy: fuera de eso la instantánea no es fiel y
-     * el endpoint corrompería datos en silencio.
+     * instantánea capturada al completarlo. Se mantiene la restricción de que
+     * debe ser el último registro del hábito: así una reversión nunca pisa los
+     * efectos de acciones posteriores independientes. La fecha puede ser hoy
+     * o cualquier fecha pasada.
      */
     @Transactional
     public Map<String, Object> deshacerRegistro(int registroId) {
@@ -293,10 +420,15 @@ public class RegistroService {
             throw new ConflictoException("Solo se puede deshacer el último completado");
         }
 
-        // Y solo si es de hoy, en la zona horaria del hábito.
-        ZoneId zona = rachaService.zonaDe(habito);
-        if (!registro.getFecha().equals(LocalDate.now(zona))) {
-            throw new ConflictoException("Solo se puede deshacer un completado de hoy");
+        // Mismo suelo que el completado retroactivo: la semana en curso. Sin
+        // esto se puede deshacer un registro de hace meses y romper la racha
+        // hacia atrás, que es justo lo que el límite de completar protege. Las
+        // dos puertas al mismo sitio: lo que no se puede marcar, tampoco se
+        // desmarca.
+        LocalDate hoy = rachaService.hoyDe(habito);
+        LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
+        if (registro.getFecha().isBefore(lunesDeEstaSemana)) {
+            throw new ConflictoException("Solo se puede deshacer un completado de la semana en curso");
         }
 
         ReversionRegistro reversion = reversionRegistroDAO.findByRegistro(registroId);
