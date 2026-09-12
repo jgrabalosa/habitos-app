@@ -67,6 +67,10 @@ public class RegistroService {
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
     private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
+    /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
+    private static final int[][] HITOS_RACHA = {
+            {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
+    };
     private static final int XP_POR_DIA_COMPLETADO = 5;
 
     @Transactional
@@ -148,7 +152,7 @@ public class RegistroService {
 
         boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, hoy, fecha);
         if (metaAlcanzadaAhora) {
-            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito);
+            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaActualPrevia);
         }
 
         // Con este registro puede haberse cerrado el día entero. Va después de
@@ -307,19 +311,33 @@ public class RegistroService {
         return actual > actualAntes;
     }
 
-    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito) {
+    /**
+     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
+     * el del valor exacto. Con el completado retroactivo la racha puede saltar
+     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
+     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
+     *
+     * En el camino normal la racha sube de uno en uno, así que el intervalo
+     * (previa, actual] contiene un único valor y el comportamiento es idéntico
+     * al de antes. El límite de la semana en curso acota el salto máximo.
+     *
+     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
+     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
+     */
+    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Integer rachaPrevia) {
         Racha racha = rachaDAO.findByHabito(habito);
         if (racha == null) return 0;
 
         int actual = racha.getRachaActual();
-        int puntos = switch (actual) {
-            case 3 -> 50;
-            case 7 -> 100;
-            case 30 -> 300;
-            case 100 -> 750;
-            case 365 -> 2000;
-            default -> 0;
-        };
+        int desde = rachaPrevia != null ? rachaPrevia : 0;
+        if (actual <= desde) return 0;
+
+        int puntos = 0;
+        for (int[] hito : HITOS_RACHA) {
+            if (hito[0] > desde && hito[0] <= actual) {
+                puntos += hito[1];
+            }
+        }
 
         if (puntos > 0) {
             usuarioMonedaService.registrarMovimiento(
@@ -392,6 +410,17 @@ public class RegistroService {
         }
         if (ultimo == null || ultimo.getRegistroId() != registroId) {
             throw new ConflictoException("Solo se puede deshacer el último completado");
+        }
+
+        // Mismo suelo que el completado retroactivo: la semana en curso. Sin
+        // esto se puede deshacer un registro de hace meses y romper la racha
+        // hacia atrás, que es justo lo que el límite de completar protege. Las
+        // dos puertas al mismo sitio: lo que no se puede marcar, tampoco se
+        // desmarca.
+        LocalDate lunesDeEstaSemana = rachaService.hoyDe(habito)
+                .minusDays(rachaService.hoyDe(habito).getDayOfWeek().getValue() - 1L);
+        if (registro.getFecha().isBefore(lunesDeEstaSemana)) {
+            throw new ConflictoException("Solo se puede deshacer un completado de la semana en curso");
         }
 
         ReversionRegistro reversion = reversionRegistroDAO.findByRegistro(registroId);
