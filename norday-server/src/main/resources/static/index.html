@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="es" data-tema="profundidad">
+<!-- La web va sólo en español (decidido el 12-sep-2026). La aplicación tiene
+     textos en es/en/pt; traducir la web es funcionalidad nueva, no una
+     tarea pendiente de esta. -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -309,7 +312,12 @@ a{color:inherit}
 .spec__p{display:flex;gap:6px;margin-top:16px}
 .spec__p i{width:22px;height:22px;border-radius:50%;display:block}
 
-/* Cada espécimen se pinta con SUS valores, no con los de la identidad activa. */
+/* Cada espécimen se pinta con SUS valores, no con los de la identidad activa.
+   Los colores están duplicados a mano desde norday_flutter_core: Profundidad
+   sale de lib/theme/app_theme.dart y las otras tres de
+   lib/theme/identidades_paleta.dart. No se pueden compartir (repos y
+   lenguajes distintos), así que al tocar una identidad en el core hay que
+   revisar este bloque o la landing enseñará colores viejos. */
 .spec[data-id="profundidad"]{background:#1E2E4C;border-color:rgba(255,255,255,.07);border-radius:24px;clip-path:none}
 .spec[data-id="profundidad"] .spec__aa,.spec[data-id="profundidad"] .spec__n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-style:normal;color:#EEF2F6}
 .spec[data-id="profundidad"] .spec__d{font-family:'Manrope',sans-serif;color:#C7CFDA}
