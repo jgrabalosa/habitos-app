@@ -45,10 +45,12 @@ public class SecurityConfig {
                                 "/",
                                 // Estáticos: sólo la landing y las dos páginas
                                 // legales que exige Google Play. El dashboard
-                                // web antiguo se borró el 12-sep-2026. No se
-                                // añade nada más aquí: si algún día hay app
-                                // web, se empieza de cero.
+                                // web antiguo se borró el 12-sep-2026. /js/
+                                // guarda únicamente el script de la landing.
+                                // No se añade nada más aquí: si algún día hay
+                                // app web, se empieza de cero.
                                 "/index.html",
+                                "/js/**",
                                 "/img/**",
                                 "/favicon.ico",
                                 "/eliminar-cuenta.html",
