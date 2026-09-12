@@ -387,6 +387,37 @@ class HabitoServiceTest {
         }
     }
 
+    @Test
+    void laSemanaDeclaraElHoyDelUsuarioAunquePidaOtraSemana() {
+        Habito diario = habito(33, Frecuencia.DIARIO, 1);
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(diario));
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
+        conRegistrosSemana(diario, List.of());
+
+        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, HOY.minusWeeks(3));
+
+        assertEquals(LocalDate.now(ZONA).toString(), semana.getHoy());
+        // Esta es la que importa: si alguien devuelve la fecha de la semana
+        // pedida en vez de hoy, este test cae.
+        assertTrue(semana.getDias().stream()
+                .noneMatch(dia -> dia.getFecha().equals(semana.getHoy())));
+    }
+
+    @Test
+    void elHoyDeLaSemanaDependeDeLaZonaDelUsuario() {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of());
+
+        // Estas dos zonas están siempre a 25 horas de diferencia entre sí,
+        // así que su fecha local nunca coincide, a ninguna hora del día.
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZoneId.of("Pacific/Kiritimati"));
+        SemanaDashboardDTO semanaKiritimati = habitoService.obtenerSemana(usuario, null);
+
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZoneId.of("Pacific/Niue"));
+        SemanaDashboardDTO semanaNiue = habitoService.obtenerSemana(usuario, null);
+
+        assertNotEquals(semanaKiritimati.getHoy(), semanaNiue.getHoy());
+    }
+
     // ── categoría del hábito ─────────────────────────────────────────────
     // Solo valen las globales y las del propio usuario. Una ajena responde
     // igual que una inexistente, 404, y no se guarda nada.
