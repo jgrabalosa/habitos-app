@@ -119,6 +119,14 @@ public class RegistroService {
         // abajo y aquí leeríamos ya los valores nuevos.
         int saldoAntes = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
         Racha rachaPrevia = rachaDAO.findByHabito(habito);
+        // La rotura perezosa se materializa aquí, antes de la instantánea.
+        // La regla vive en Racha.sigueViva y la materializa
+        // RachaService.rachaActualVigente: no se duplica en este servicio.
+        // Si la racha ya no está viva queda en 0 en BD, y tanto la
+        // instantánea como actualizarRacha parten de ese 0. Sin esto,
+        // completar tras dos semanas de abandono continúa la racha vieja
+        // y cobra hitos que no corresponden.
+        rachaService.rachaActualVigente(rachaPrevia);
         Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
         Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
         LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
@@ -417,8 +425,8 @@ public class RegistroService {
         // hacia atrás, que es justo lo que el límite de completar protege. Las
         // dos puertas al mismo sitio: lo que no se puede marcar, tampoco se
         // desmarca.
-        LocalDate lunesDeEstaSemana = rachaService.hoyDe(habito)
-                .minusDays(rachaService.hoyDe(habito).getDayOfWeek().getValue() - 1L);
+        LocalDate hoy = rachaService.hoyDe(habito);
+        LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
         if (registro.getFecha().isBefore(lunesDeEstaSemana)) {
             throw new ConflictoException("Solo se puede deshacer un completado de la semana en curso");
         }

@@ -11,6 +11,7 @@ import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.ReversionRegistro;
 import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -335,5 +336,96 @@ class RegistroServiceTest {
         );
     }
 
+    @Test
+    void alCompletarHoyConLaRachaMuerta_laInstantaneaGuardaCero() {
+        // Racha de 6 abandonada hace dos semanas: al completar hoy no
+        // continúa desde 6, vuelve a empezar en 1.
+        racha.setRachaActual(6);
+        racha.setUltimaFecha(HOY.minusDays(14));
+        racha.setPeriodoMetaAlcanzada(HOY.minusDays(14));
+
+        // rachaActualVigente es quien materializa la rotura. Aquí se emula
+        // su contrato, que está probado de verdad en RachaServiceTest.
+        doAnswer(invocacion -> {
+            racha.setRachaActual(0);
+            return 0;
+        }).when(rachaService).rachaActualVigente(racha);
+
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        assertEquals(1, racha.getRachaActual());
+
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(0, captor.getValue().getRachaActualPrevia());
+    }
+
+    @Test
+    void alRellenarUnHuecoQueSaltaElHito_seCobraElHitoIntermedio() {
+        // Mismo patrón de día fijo que alCompletarUnaFechaPasada_seGuardaLaFechaYActualizaSuPeriodo:
+        // un miércoles siempre tiene margen hacia atrás hasta el lunes de su semana.
+        LocalDate miercoles = LocalDate.of(2026, 9, 9);
+        LocalDate martes = miercoles.minusDays(1);
+        LocalDate lunes = miercoles.minusDays(2);
+        LocalDate domingo = lunes.minusDays(1);
+        LocalDate sabado = lunes.minusDays(2);
+        when(rachaService.hoyDe(any(Habito.class))).thenReturn(miercoles);
+
+        racha.setRachaActual(2); // por debajo del hito 3
+
+        // Sábado a miércoles están completados salvo el martes: rellenar ese
+        // hueco une los dos tramos y la racha pasa de 2 a 5 de un salto,
+        // cruzando el hito de 3 sin caer justo en él.
+        List<Registro> historico = List.of(
+                new Registro(habito, true, "", sabado),
+                new Registro(habito, true, "", domingo),
+                new Registro(habito, true, "", lunes),
+                new Registro(habito, true, "", martes),
+                new Registro(habito, true, "", miercoles)
+        );
+        when(registroDAO.findByHabitoAndRango(eq(habito), eq(martes), eq(martes)))
+                .thenReturn(new ArrayList<>());
+        when(registroDAO.findByHabito(habito)).thenReturn(historico);
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "", martes);
+
+        assertEquals(5, racha.getRachaActual());
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(50), eq("HITO_RACHA"), eq(habito.getHabitoId()), anyString()
+        );
+    }
+
+    @Test
+    void alDeshacerUnRegistroAnteriorAlLunes_seRechaza() {
+        LocalDate lunes = HOY.with(DayOfWeek.MONDAY);
+        LocalDate fechaAnterior = lunes.minusDays(1);
+        Registro registro = new Registro(habito, true, "", fechaAnterior);
+        registro.setRegistroId(99);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        // Nunca debería llegar a leerse: el suelo del lunes corta antes. Se
+        // deja preparado en modo lenient para que, si algún día ese corte se
+        // rompe, el test siga señalando el fallo real en vez de un
+        // NullPointerException encubierto.
+        lenient().when(reversionRegistroDAO.findByRegistro(99))
+                .thenReturn(new ReversionRegistro(registro, null, null, null, null, null, null, 0));
+
+        assertThrows(ConflictoException.class, () -> registroService.deshacerRegistro(99));
+    }
 
 }
