@@ -31,21 +31,6 @@ public class HabitoController extends ControladorAutorizado {
     @Autowired
     private UsuarioService usuarioService;
 
-    @GetMapping("/usuario/{usuarioId}/activos")
-    public ResponseEntity<?> obtenerActivos(@PathVariable int usuarioId, Authentication authentication) {
-        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
-            return prohibido();
-        }
-        Usuario usuario = usuarioService.buscarPorId(usuarioId);
-        if (usuario == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Usuario no encontrado");
-        }
-        return ResponseEntity.ok(habitoService.obtenerActivos(usuario).stream()
-                .map(HabitoDTO::desde)
-                .toList());
-    }
-
     @GetMapping("/usuario/{usuarioId}/resumen")
     public ResponseEntity<?> obtenerResumen(@PathVariable int usuarioId, Authentication authentication) {
         if (!esElUsuarioAutenticado(usuarioId, authentication)) {
