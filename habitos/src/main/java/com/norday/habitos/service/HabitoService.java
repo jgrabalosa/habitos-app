@@ -422,6 +422,7 @@ public class HabitoService {
             dias.add(new DiaSemanaDTO(lunes.plusDays(i).toString(), habitosPorDia.get(i)));
         }
 
-        return new SemanaDashboardDTO(dias, flexibles);
+        // Hoy del usuario: ni el de la semana pedida ni el del servidor.
+        return new SemanaDashboardDTO(dias, flexibles, LocalDate.now(zona).toString());
     }
 }
