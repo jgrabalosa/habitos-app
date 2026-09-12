@@ -43,18 +43,14 @@ public class SecurityConfig {
                                 "/api/usuarios/login",
                                 "/api/usuarios/login-google",
                                 "/",
+                                // Estáticos: sólo la landing y las dos páginas
+                                // legales que exige Google Play. El dashboard
+                                // web antiguo se borró el 12-sep-2026. No se
+                                // añade nada más aquí: si algún día hay app
+                                // web, se empieza de cero.
                                 "/index.html",
-                                // El dashboard web antiguo, congelado pero
-                                // disponible: /index.html ya es la landing.
-                                "/app.html",
-                                "/login.html",
-                                "/habito.html",
-                                "/css/**",
-                                "/js/**",
                                 "/img/**",
                                 "/favicon.ico",
-                                "/habito-detalle.html",
-                                "/logros.html",
                                 "/eliminar-cuenta.html",
                                 "/privacidad.html",
                                 "/api/usuarios/recuperar",
