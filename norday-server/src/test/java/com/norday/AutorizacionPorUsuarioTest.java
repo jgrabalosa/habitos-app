@@ -87,7 +87,6 @@ class AutorizacionPorUsuarioTest {
                 Arguments.of("POST",   "/api/gamificacion/productos/desequipar/%d/1"),
                 Arguments.of("POST",   "/api/gamificacion/productos/usar/%d/1"),
 
-                Arguments.of("GET",    "/api/habitos/usuario/%d/activos"),
                 Arguments.of("GET",    "/api/habitos/usuario/%d/resumen"),
                 Arguments.of("GET",    "/api/habitos/usuario/%d/dashboard"),
                 Arguments.of("GET",    "/api/habitos/usuario/%d/semana"),

@@ -94,16 +94,6 @@ módulos de dominio, y cada uno de ellos cuelga de `norday-motor`. Una app
 futura del ecosistema añadiría su propio módulo de dominio junto a
 `habitos` y `conocimiento`, colgando igualmente de `norday-motor`.
 
-El `Dockerfile` copia el pom raíz, los cuatro poms de módulo y las cuatro
-carpetas `src/`, y toma el jar de `norday-server/target/`.
-
-⚠️ **El `Dockerfile` no es la vía de despliegue y está desfasado.**
-Producción y staging son clones de este repositorio compilados en el propio
-servidor y arrancados con systemd — ver `docs/despliegue.md`. El
-`Dockerfile` viene de un alojamiento anterior, compila con `-DskipTests`
-(que contradice la regla del proyecto) y fija `ENV TZ=UTC`, que por lo tanto
-hoy no se aplica en ningún sitio.
-
 ## Borrado de cuenta: patrón LimpiadorDatosUsuario
 
 `UsuarioService.eliminarCuenta()` **no** conoce las tablas de cada módulo.
@@ -212,7 +202,9 @@ caducidades absolutas (código de recuperación) son instantes, no días, y no
 se tocan.
 
 La JVM **no** fija zona por defecto — se eliminó el `TimeZone.setDefault`.
-La fija el contenedor a UTC (`ENV TZ=UTC` en el `Dockerfile`).
+Toma la del sistema operativo: en el VPS es `Europe/Madrid`. Nada del
+código debe depender de ese valor. Lo que necesite UTC lo pide explícito,
+como hacen los sellos de auditoría del párrafo anterior.
 
 La racha no depende de ningún cron: `Racha` guarda `periodoMetaAlcanzada`
 (el inicio del periodo en que se cumplió la meta) y el sello se autocaduca
@@ -318,3 +310,30 @@ suite esté verde.
   decidir — no asumir.
 - Nunca hacer push ni tocar sistemas externos —el VPS, la base de datos de
   producción, el repositorio remoto— sin confirmación explícita.
+
+## La web antigua no se toca
+
+En `norday-server/src/main/resources/static/` sólo viven la landing
+(`index.html`), las dos páginas legales (`privacidad.html`,
+`eliminar-cuenta.html`), `js/nori.js` y las imágenes.
+
+El dashboard web antiguo —`app.html`, `login.html`, `habito.html`,
+`habito-detalle.html`, `logros.html` y sus `js/` y `css/`— se borró el
+12-sep-2026. No lo enlazaba nadie, no se tocaba desde agosto, y seguía
+servido en producción: un `login.html` vivo que guardaba el token en
+`localStorage`.
+
+**Regla permanente: ahí no se trabaja.** Ni arreglos, ni refactors, ni
+"aprovechar que estamos". Si algún día hace falta la aplicación en formato
+web, se empieza de cero y en su sitio, no reanimando esto.
+
+Consecuencias prácticas:
+
+- No se añaden rutas nuevas al `permitAll` de `SecurityConfig` para servir
+  páginas. Las que hay son las que hay.
+- Los estáticos no llevan JavaScript en línea: lo impide la CSP de Caddy
+  (`script-src 'self'`, sin hashes). Cualquier `<script>` en línea o atributo
+  `onclick` nuevo se bloqueará en el navegador.
+- Al cambiar un DTO de entrada, el único cliente que queda es la aplicación
+  móvil, incluida **la APK ya instalada en los dispositivos**. La web ya no
+  cuenta como cliente del contrato.
