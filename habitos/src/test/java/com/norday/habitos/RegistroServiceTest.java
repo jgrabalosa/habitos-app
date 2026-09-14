@@ -461,9 +461,14 @@ class RegistroServiceTest {
 
         registroService.completarHabito(habito, "");
 
-        // Una racha muerta que se completa hoy empieza de nuevo en 1.
-        // Si sale 7, la segunda lectura no vio el 0 y la racha vieja continuó.
-        assertEquals(1, segunda.getRachaActual());
+        // La racha se lee UNA sola vez: es lo que impide que una normalización
+        // a 0 se pierda por leer otra instancia después.
+        verify(rachaDAO, times(1)).findByHabito(habito);
+
+        // Esa única instancia es la que rachaActualVigente puso a 0 y la que
+        // actualizarRacha sube a 1: una racha muerta que se completa hoy
+        // empieza de nuevo, no continúa.
+        assertEquals(1, primera.getRachaActual());
     }
 
 }
