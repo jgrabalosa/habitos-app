@@ -268,4 +268,16 @@ class MascotaServiceTest {
 
         assertNull(mascota.getFaseElegida());
     }
+
+    @Test
+    void elDtoLlevaLaFaseRealAunqueSeMuestreOtra() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(100000); // ADULTO
+        mascota.setFaseElegida("HUEVO");
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        MascotaDTO dto = mascotaService.obtenerDTO(1);
+        assertEquals("HUEVO", dto.getFase());
+        assertEquals("ADULTO", dto.getFaseReal());
+    }
 }

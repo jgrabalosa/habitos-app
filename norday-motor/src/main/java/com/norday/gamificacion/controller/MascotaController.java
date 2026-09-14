@@ -54,6 +54,26 @@ public class MascotaController extends ControladorAutorizado {
         return ResponseEntity.ok("Nombre actualizado correctamente");
     }
 
+    /**
+     * El cuerpo no se valida aquí a propósito: MascotaService.elegirFase
+     * rechaza una fase inexistente o no desbloqueada con
+     * IllegalArgumentException, y GlobalExceptionHandler la convierte en 400.
+     */
+    @PutMapping("/{usuarioId}/fase")
+    public ResponseEntity<?> elegirFase(@PathVariable int usuarioId,
+                                        @RequestBody Map<String, String> body,
+                                        Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        mascotaService.elegirFase(usuarioId, body.get("fase"));
+        return ResponseEntity.ok("Fase actualizada correctamente");
+    }
+
     @Override
     protected String mensajeProhibido() {
         return "Solo puedes operar sobre tu propia cuenta";
