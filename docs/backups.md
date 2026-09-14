@@ -46,11 +46,6 @@ Detalles que costaron encontrarse:
 - **La tarea corre "al iniciar sesión" con retraso, no "al iniciar el
   equipo".** Al arrancar correría como SYSTEM y no vería la clave SSH del
   usuario.
-
-**Consecuencia: la copia externa no es diaria.** Si el equipo no se enciende,
-ese día no hay copia. El 13-sep-2026 no hubo ninguna ejecución. Mientras la
-tarea dependa del inicio de sesión, los dumps del VPS son la única copia
-garantizada, y la de Windows es un refuerzo, no un segundo respaldo fiable.
 - `ssh` lanzado desde una tarea programada puede quedarse colgado con la
   sesión remota ya terminada. Va con `-n`, la entrada redirigida a un fichero
   vacío y un límite de tiempo que lo mate con sus hijos (`taskkill /T /F`:
@@ -61,6 +56,11 @@ garantizada, y la de Windows es un refuerzo, no un segundo respaldo fiable.
   o guardado con BOM.
 - El patrón de fecha tolera `_` y `-` entre fecha y hora, así que los dumps
   manuales conviven con los del cron sin romper la retención.
+
+**Consecuencia: la copia externa no es diaria.** Si el equipo no se enciende,
+ese día no hay copia. El 13-sep-2026 no hubo ninguna ejecución. Mientras la
+tarea dependa del inicio de sesión, los dumps del VPS son la única copia
+garantizada, y la de Windows es un refuerzo, no un segundo respaldo fiable.
 
 ## Qué demuestra cada comprobación
 
