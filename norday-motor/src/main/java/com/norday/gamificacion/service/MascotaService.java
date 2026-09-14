@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 public class MascotaService {
@@ -60,6 +61,26 @@ public class MascotaService {
         return "ADULTO";
     }
 
+    /** Orden de evolución. El índice es lo que hace comparables las fases. */
+    private static final List<String> FASES = List.of("HUEVO", "CRIA", "ADULTO");
+
+    /**
+     * Si el usuario puede ver esa fase con el nivel que tiene ahora. Vale
+     * cualquiera anterior o igual a la real: quien tiene la adulta puede
+     * mostrar el huevo, y al revés no.
+     *
+     * Se comprueba también al leer, no sólo al guardar, porque el nivel puede
+     * bajar: restaurarProgreso devuelve la experiencia a un valor anterior
+     * cuando se deshace un completado. La elección se conserva en la BD, así
+     * que si el usuario vuelve a subir recupera lo que había elegido.
+     */
+    private boolean faseDesbloqueada(String fase, int nivel) {
+        if (fase == null) return false;
+        int pedida = FASES.indexOf(fase);
+        if (pedida < 0) return false;
+        return pedida <= FASES.indexOf(calcularFase(nivel));
+    }
+
     /**
      * El ánimo sale de cuánto hace que el usuario cumplió todo lo del día.
      * Código, no texto: el cliente lo traduce.
@@ -91,13 +112,16 @@ public class MascotaService {
     private MascotaDTO construirDTO(Mascota mascota) {
         int nivel = calcularNivel(mascota.getExperiencia());
         int xpInicioNivel = xpAcumuladoInicioNivel(nivel);
+        // La elegida manda si sigue desbloqueada; si no, la que toca por nivel.
+        String elegida = mascota.getFaseElegida();
+        String faseAMostrar = faseDesbloqueada(elegida, nivel) ? elegida : calcularFase(nivel);
         return new MascotaDTO(
                 mascota.getNombre(),
                 mascota.getExperiencia(),
                 nivel,
                 mascota.getExperiencia() - xpInicioNivel,
                 costoNivel(nivel + 1),
-                calcularFase(nivel),
+                faseAMostrar,
                 calcularEstado(mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
@@ -130,6 +154,12 @@ public class MascotaService {
             String faseAntes = calcularFase(nivelAntes);
             String faseDespues = calcularFase(nivelDespues);
             if (!faseAntes.equals(faseDespues)) {
+                // Al evolucionar se descarta la elección: se muestra la fase
+                // nueva, que es como el usuario se entera de que ha cambiado.
+                // Después puede volver a elegir la que prefiera.
+                mascota.setFaseElegida(null);
+                mascotaDAO.update(mascota);
+
                 Usuario usuario = usuarioDAO.findById(usuarioId);
                 if (usuario != null) {
                     if ("CRIA".equals(faseDespues)) {
@@ -147,6 +177,20 @@ public class MascotaService {
     public void ponerNombre(int usuarioId, String nuevoNombre) {
         Mascota mascota = obtenerOCrear(usuarioId);
         mascota.setNombre(nuevoNombre);
+        mascotaDAO.update(mascota);
+    }
+
+    /**
+     * Guarda qué fase quiere ver el usuario. Sólo afecta a la imagen: no toca
+     * XP, evolución ni logros. Se rechaza una fase que no exista o que aún no
+     * esté desbloqueada — ver la adulta sin haberla ganado sería regalarla.
+     */
+    public void elegirFase(int usuarioId, String fase) {
+        Mascota mascota = obtenerOCrear(usuarioId);
+        if (!faseDesbloqueada(fase, calcularNivel(mascota.getExperiencia()))) {
+            throw new IllegalArgumentException("Fase no válida o no desbloqueada");
+        }
+        mascota.setFaseElegida(fase);
         mascotaDAO.update(mascota);
     }
 

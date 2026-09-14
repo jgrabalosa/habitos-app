@@ -209,4 +209,63 @@ class MascotaServiceTest {
 
         verify(logroService, never()).otorgarSiNoTiene(any(), anyString());
     }
+
+    // ── Fase elegida por el usuario (4.4) ─────────────────────────────────
+
+    @Test
+    void laFaseElegidaSeMuestraEnLugarDeLaReal() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(100000); // ADULTO
+        mascota.setFaseElegida("HUEVO");
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        assertEquals("HUEVO", mascotaService.obtenerDTO(1).getFase());
+    }
+
+    @Test
+    void sinEleccionSeMuestraLaFaseReal() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(100000);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        assertEquals("ADULTO", mascotaService.obtenerDTO(1).getFase());
+    }
+
+    @Test
+    void unaEleccionQueYaNoEstaDesbloqueadaNoSeMuestra_elNivelPuedeBajar() {
+        // Eligió ADULTO y luego deshizo completados hasta volver a CRIA.
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(100); // CRIA
+        mascota.setFaseElegida("ADULTO");
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        assertEquals("CRIA", mascotaService.obtenerDTO(1).getFase());
+        // La elección no se borra: si vuelve a subir, la recupera.
+        assertEquals("ADULTO", mascota.getFaseElegida());
+    }
+
+    @Test
+    void elegirUnaFaseNoDesbloqueadaSeRechaza() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(0); // nivel 1, sólo HUEVO
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> mascotaService.elegirFase(1, "ADULTO"));
+        assertNull(mascota.getFaseElegida());
+        verify(mascotaDAO, never()).update(any());
+    }
+
+    @Test
+    void alEvolucionarSeDescartaLaEleccionParaQueElCambioSeVea() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(15); // nivel 2, HUEVO
+        mascota.setFaseElegida("HUEVO");
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+        when(usuarioDAO.findById(1)).thenReturn(usuario);
+
+        mascotaService.ganarExperiencia(1, 30); // 45 XP = nivel 3, CRIA
+
+        assertNull(mascota.getFaseElegida());
+    }
 }
