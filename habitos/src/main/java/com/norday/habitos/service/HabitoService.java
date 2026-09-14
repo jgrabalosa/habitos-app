@@ -20,6 +20,7 @@ import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IReversionRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,9 @@ public class HabitoService {
 
     @Autowired
     private IRegistroDAO registroDAO;
+
+    @Autowired
+    private IReversionRegistroDAO reversionRegistroDAO;
 
     @Autowired
     private LogrosHabitosService logrosHabitosService;
@@ -164,6 +168,7 @@ public class HabitoService {
 
     @Transactional
     public void eliminar(int id) {
+        reversionRegistroDAO.deleteByHabito(id);
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);
         habitoDAO.delete(id);
