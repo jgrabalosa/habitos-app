@@ -158,9 +158,9 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, completadosAntes + 1, meta, hoy, fecha);
+        boolean metaAlcanzadaAhora = actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
         if (metaAlcanzadaAhora) {
-            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaActualPrevia);
+            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaPrevia, rachaActualPrevia);
         }
 
         // Con este registro puede haberse cerrado el día entero. Va después de
@@ -231,9 +231,13 @@ public class RegistroService {
      * Actualiza la racha SOLO si se alcanza la meta del periodo por primera vez en ese periodo.
      * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
      */
-    private boolean actualizarRacha(Habito habito, int completadosEnPeriodo, int meta,
-                                    LocalDate hoy, LocalDate fecha) {
-        Racha racha = rachaDAO.findByHabito(habito);
+    // La Racha llega como parámetro, no se relee: completarHabito ya la leyó
+    // y rachaService.rachaActualVigente pudo normalizarla a 0. Releerla aquí
+    // devolvería otra instancia sin ese 0 si las lecturas no comparten
+    // contexto de persistencia, y una racha muerta continuaría en vez de
+    // reiniciarse.
+    private boolean actualizarRacha(Habito habito, Racha racha, int completadosEnPeriodo,
+                                    int meta, LocalDate hoy, LocalDate fecha) {
         if (racha == null) return false;
 
         int actualAntes = racha.getRachaActual();
@@ -332,8 +336,9 @@ public class RegistroService {
      * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
      * se vuelven a pagar. Eso ya era así y no se cambia aquí.
      */
-    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Integer rachaPrevia) {
-        Racha racha = rachaDAO.findByHabito(habito);
+    // Misma razón que en actualizarRacha: la instancia la da quien llama.
+    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Racha racha,
+                                          Integer rachaPrevia) {
         if (racha == null) return 0;
 
         int actual = racha.getRachaActual();
