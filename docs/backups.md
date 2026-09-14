@@ -9,8 +9,13 @@ Ninguna de las dos demuestra nada por sí sola.
 ## En el VPS
 
 `/root/backup_bd.sh`, cron `0 3 * * *`. Vuelca **las dos bases**, producción
-y staging, a `/root/backups/`, con retención de 7 días. El log es
-`/root/backups/backup.log`.
+y staging, a `/root/backups/`, con retención real de **ocho o nueve días**. El
+log es `/root/backups/backup.log`.
+
+**No son siete.** `find -mtime +7` borra lo que supera estrictamente ocho
+períodos de 24 h contados desde el instante en que corre el `find`, y ese
+instante depende de cuánto tarden los dos `pg_dump` de esa madrugada. El
+script está bien: lo que estaba mal era la cifra escrita aquí.
 
 Cada dump se escribe a `.tmp` y sólo se renombra si `pg_dump` termina bien.
 Sin eso, un fichero a medias con nombre de dump válido se copia y se da por
@@ -41,6 +46,11 @@ Detalles que costaron encontrarse:
 - **La tarea corre "al iniciar sesión" con retraso, no "al iniciar el
   equipo".** Al arrancar correría como SYSTEM y no vería la clave SSH del
   usuario.
+
+**Consecuencia: la copia externa no es diaria.** Si el equipo no se enciende,
+ese día no hay copia. El 13-sep-2026 no hubo ninguna ejecución. Mientras la
+tarea dependa del inicio de sesión, los dumps del VPS son la única copia
+garantizada, y la de Windows es un refuerzo, no un segundo respaldo fiable.
 - `ssh` lanzado desde una tarea programada puede quedarse colgado con la
   sesión remota ya terminada. Va con `-n`, la entrada redirigida a un fichero
   vacío y un límite de tiempo que lo mate con sus hijos (`taskkill /T /F`:
@@ -75,6 +85,12 @@ eso el script comprueba además la antigüedad de la última copia.
 ## Prueba de restauración
 
 Una vez al mes, y después de cada migración de Flyway que cambie el esquema.
+
+**Última: 11-sep-2026**, con el dump `habitos_db_2026-09-11_0300.dump`. Salió
+bien: 21 tablas en el índice del dump y 21 en la base restaurada, 6 usuarios,
+10 hábitos y 38 registros. Siguiente, hacia el 11-oct-2026 o antes si entra una
+migración que cambie el esquema. Anotar aquí cada una con su fecha y sus
+cifras: sin eso no se sabe si toca.
 
 Contra el PostgreSQL 18 local, **puerto 5434**, sobre una base desechable —
 nunca contra `habitos_db` local. `pg_restore --no-owner --no-acl
