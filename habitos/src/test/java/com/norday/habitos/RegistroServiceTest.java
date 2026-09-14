@@ -428,4 +428,42 @@ class RegistroServiceTest {
         assertThrows(ConflictoException.class, () -> registroService.deshacerRegistro(99));
     }
 
+    @Test
+    void siLasLecturasDeRachaNoCompartenInstancia_laRachaMuertaNoContinua() {
+        // Tres instancias distintas de la misma racha muerta: 6 días, última
+        // fecha hace un mes. Simula lo que devolvería el DAO si cada lectura
+        // abriera su propia transacción y la entidad saliera desconectada.
+        Racha primera = new Racha(habito, HOY);
+        primera.setRachaActual(6);
+        primera.setUltimaFecha(HOY.minusMonths(1));
+        Racha segunda = new Racha(habito, HOY);
+        segunda.setRachaActual(6);
+        segunda.setUltimaFecha(HOY.minusMonths(1));
+        Racha tercera = new Racha(habito, HOY);
+        tercera.setRachaActual(6);
+        tercera.setUltimaFecha(HOY.minusMonths(1));
+
+        when(rachaDAO.findByHabito(habito)).thenReturn(primera, segunda, tercera);
+
+        // La normalización toca sólo la instancia que recibe, como en producción.
+        when(rachaService.rachaActualVigente(any(Racha.class))).thenAnswer(inv -> {
+            Racha r = inv.getArgument(0);
+            r.setRachaActual(0);
+            return 0;
+        });
+
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        // Una racha muerta que se completa hoy empieza de nuevo en 1.
+        // Si sale 7, la segunda lectura no vio el 0 y la racha vieja continuó.
+        assertEquals(1, segunda.getRachaActual());
+    }
+
 }
