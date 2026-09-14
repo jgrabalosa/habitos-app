@@ -133,6 +133,37 @@ java -jar norday-server/target/*.jar --spring.jpa.hibernate.ddl-auto=validate
 
 Y sólo si arranca, se edita el `application.properties` de la máquina.
 
+## Los backends escuchan sólo en loopback
+
+Los dos servicios llevan `server.address=127.0.0.1`, así que sólo aceptan
+conexiones desde la propia máquina. Caddy les habla por loopback y no se ve
+afectado.
+
+- **Staging**: en `/opt/norday-backend-staging/config/application.properties`,
+  el fichero externo. Sobrevive a `git pull` y a las recompilaciones.
+- **Producción**: en
+  `norday-server/src/main/resources/application.properties`, junto al
+  `server.port`. **Ese fichero se empaqueta en el jar al compilar**, así que
+  el cambio sólo surte efecto tras `mvn clean package`: un `systemctl restart`
+  a secas arrancaría el jar anterior. Y como ese fichero sólo existe en la
+  máquina, la línea se perdería sin ningún aviso si se restaurara desde otra
+  copia.
+
+Se verifica en dos sitios. Dónde escucha el proceso, desde el VPS:
+
+    ss -ltnp | grep -E '8080|8081'
+
+Debe mostrar `[::ffff:127.0.0.1]:8080` y `[::ffff:127.0.0.1]:8081`, no `*:8080`
+ni `*:8081`. Esa notación es IPv6 mapeando una dirección IPv4 y equivale a
+`127.0.0.1`.
+
+Y qué ve internet, **desde fuera del VPS**, nunca desde dentro:
+
+    Test-NetConnection -ComputerName api.norday.app -Port 8080
+    Test-NetConnection -ComputerName api.norday.app -Port 443
+
+El 8080 debe dar `TcpTestSucceeded : False` y el 443 `True`.
+
 ## Cuidado con `application-default.properties`
 
 Ese fichero **sí** está versionado y Spring lo carga cuando no hay perfil
@@ -264,19 +295,19 @@ usuarios.** Si algún día se le vuelca un dump de producción para reproducir
 un fallo, esta decisión deja de ser válida y hay que restringir el acceso
 antes de hacerlo.
 
-### El filtrado de puertos vive fuera de la máquina
+### El filtrado de puertos: dos barreras independientes
 
-En el VPS no hay cortafuegos: `ufw` está inactivo, `iptables -S` devuelve las
-tres políticas en `ACCEPT` sin una sola regla, y `nft` no tiene ruleset. Lo
-que impide llegar al 8080 y al 8081 desde internet es el cortafuegos del
-panel de Contabo.
+En el VPS no hay cortafuegos propio: `ufw` está inactivo, `iptables -S`
+devuelve las tres políticas en `ACCEPT` sin una sola regla, y `nft` no tiene
+ruleset. El cortafuegos del panel de Contabo cierra el 8080 y el 8081 desde
+internet.
 
-Funciona —comprobado desde fuera, los dos puertos dan
-`TcpTestSucceeded : False` y el ping tampoco responde— pero es un punto
-único: si alguien cambia una regla en ese panel, las dos APIs quedan
-accesibles en HTTP en claro, saltándose Caddy y con ellas el HSTS, las
-cabeceras y el límite de 1 MB. Nada en el servidor lo impediría ni lo
-avisaría.
+Desde el 14-sep-2026 ése ya no es el único filtro: los dos backends escuchan
+sólo en loopback (ver «Los backends escuchan sólo en loopback»). Aunque
+alguien abriera esos puertos en el panel de Contabo, no habría nada
+escuchando en la interfaz pública. Antes de ese cambio, el panel era un punto
+único: una regla mal tocada dejaba las dos APIs accesibles en HTTP en claro,
+saltándose Caddy y con él el HSTS, las cabeceras y el límite de 1 MB.
 
 Se verifica **desde fuera del VPS**, nunca desde dentro (desde dentro siempre
 conecta):
