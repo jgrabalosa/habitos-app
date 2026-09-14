@@ -152,14 +152,58 @@ Ver la sección de staging al final.
 (`includeSubDomains`), `Referrer-Policy` y el borrado de `Server` y `Via`,
 más `request_body max_size 1MB`, el log de acceso y el `reverse_proxy`.
 
-La `Content-Security-Policy` va en un bloque aparte con matcher, no en el
-`header *`: se aplica sólo a `/`, `/index.html`, `/privacidad.html` y
-`/eliminar-cuenta.html`. En las respuestas JSON de la API no pinta nada.
+La `Content-Security-Policy` va en un bloque aparte con matcher
+(`@estaticos`), no en el `header *`: se aplica sólo a `/`,
+`/index.html`, `/privacidad.html` y `/eliminar-cuenta.html`. En las
+respuestas JSON de la API no pinta nada. Desde el 14-sep-2026 está en
+los dos bloques, producción y staging, porque staging sirve los mismos
+estáticos.
+
+**Estuvo documentada desde el 12-sep-2026 pero no aplicada.** El cambio
+de aquel día no llegó a guardarse: `Caddyfile.antes-csp` y
+`Caddyfile.antes-staging` eran idénticos byte a byte, y
+`curl -sI https://api.norday.app/` no devolvía la cabecera. Se aplicó de
+verdad el 14-sep. Lección: una cabecera se verifica con `curl` contra el
+servidor, nunca leyendo el fichero de configuración ni dando por hecho
+que un cambio descrito se aplicó.
+
+El valor exacto que se sirve hoy:
+
+    default-src 'none'; script-src 'self'; style-src 'self'
+    'unsafe-inline' https://fonts.googleapis.com; font-src
+    https://fonts.gstatic.com; img-src 'self'; base-uri 'none';
+    form-action 'none'
+
+(en el Caddyfile va todo en una sola línea).
 
 `script-src 'self'` va limpio y sin hashes porque desde el 12-sep-2026 no
 queda JavaScript en línea en ningún estático: el de la landing vive en
-`js/nori.js`. `'unsafe-inline'` sobrevive sólo en `style-src`, por los
-atributos `style=` de la landing, que no se pueden hashear.
+`js/nori.js`. No hay ningún atributo `onclick` en las tres páginas.
+
+`'unsafe-inline'` sobrevive sólo en `style-src`, y por dos motivos, no
+uno: los 60 atributos `style=` de la landing, y un bloque `<style>` en
+cada una de las tres páginas. Quitar los atributos no bastaría para
+retirarlo.
+
+`style-src` incluye además `https://fonts.googleapis.com` y hay un
+`font-src https://fonts.gstatic.com`: las tres páginas cargan fuentes de
+Google (la landing ocho familias, las dos legales sólo Manrope). **Sin
+esas dos directivas la tipografía se rompe en silencio**, que es el
+riesgo real de `default-src 'none'`. Las directivas no se deducen de la
+prosa: se derivan de lo que las páginas cargan de verdad, mirando los
+`src=` y `href=` de cada fichero.
+
+`img-src 'self'` cubre el favicon y los tres iconos de `/img/`. No hace
+falta `connect-src`: `js/nori.js` no hace `fetch` ni `XMLHttpRequest`.
+
+Comprobación después de cualquier cambio:
+
+    curl -sI https://api.norday.app/ | grep -i content-security-policy
+    curl -sI https://api.norday.app/api/habitos | grep -i content-security-policy
+
+La primera debe devolver la cabecera; la segunda, nada. Y abrir las
+páginas en el navegador con la consola abierta: una directiva que falte
+se ve ahí y en ningún otro sitio.
 
 `default-src 'none'` implica que **cualquier cosa nueva que se añada a la
 landing —un iframe, un vídeo, una fuente de otro origen— se bloqueará en
