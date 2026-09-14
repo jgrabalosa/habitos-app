@@ -143,8 +143,10 @@ dependa del entorno: rompería el aislamiento de la base de datos de test.
 
 ## Cabeceras y CSP (Caddy)
 
-Caddy proxya sólo producción; staging escucha en el 8081 y no pasa por él,
-así que **las cabeceras no se pueden probar en staging**.
+Desde el 14-sep-2026 Caddy proxya los dos: producción en
+`api.norday.app` → 8080, y staging en `staging-api.norday.app` → 8081.
+Los dos bloques llevan las mismas cabeceras y el mismo límite de cuerpo.
+Ver la sección de staging al final.
 
 `/etc/caddy/Caddyfile` tiene un bloque `header *` con HSTS
 (`includeSubDomains`), `Referrer-Policy` y el borrado de `Server` y `Via`,
@@ -170,3 +172,92 @@ Al validar: `caddy validate` ejecutado como root puede crear el fichero de
 log como root, y entonces el servicio, que corre como `caddy`, no puede
 abrirlo y el `reload` falla. Comprobar el propietario del log antes de
 recargar.
+
+## Staging en `staging-api.norday.app` (14-sep-2026)
+
+### Qué hay montado
+
+`norday-backend-staging.service` corre en el VPS y escucha en el 8081, junto
+a `norday-backend.service` en el 8080. Los dos escuchan en todas las
+interfaces (`*:8080`, `*:8081`), no en `localhost`.
+
+El Caddyfile tiene dos bloques independientes, uno por dominio. **No heredan
+nada el uno del otro**: cada bloque repite sus cabeceras, su
+`request_body max_size 1MB` y su `log`. El de staging escribe en
+`/var/log/caddy/staging-access.log`, aparte del de producción, para que el
+tráfico de pruebas no se mezcle con el real.
+
+### El DNS está en Cloudflare y va sin proxy
+
+La zona `norday.app` la sirven `lucy.ns.cloudflare.com` y
+`vicente.ns.cloudflare.com`. Los dos registros A —`api` y `staging-api`—
+apuntan a `169.58.80.239` en modo **DNS only** (nube gris, `cf-proxied:false`
+en la exportación de zona).
+
+**Tiene que ser gris.** Con el proxy activado, Cloudflare termina el TLS por
+su cuenta, Caddy no puede validar el dominio y no emite certificado. Si
+`Resolve-DnsName` devuelve dos IPs que empiezan por `104.`, `172.` o `188.`,
+el registro quedó proxificado: hay que apagar la nube antes de tocar Caddy.
+
+Crear el registro antes que el bloque de Caddy, nunca al revés: si Caddy pide
+certificado para un nombre que no resuelve, falla contra Let's Encrypt y esos
+intentos tienen límite por dominio.
+
+### Staging es público, y se asume
+
+A los siete segundos de emitirse el certificado, un rastreador
+(`ForestEngine`, 167.172.43.159) ya había pedido `/favicon.ico` al
+subdominio. No es una filtración: cada certificado que emite Let's Encrypt se
+publica en los registros de Certificate Transparency, y hay bots que los leen
+en tiempo real.
+
+Se ha decidido dejarlo público en vez de restringir por IP (la IP doméstica
+cambia y el móvil por datos no entraría) o poner autenticación básica de
+Caddy (la app móvil tendría que mandarla, y eso toca el cliente).
+
+**La decisión se apoya en una condición: staging no contiene datos reales de
+usuarios.** Si algún día se le vuelca un dump de producción para reproducir
+un fallo, esta decisión deja de ser válida y hay que restringir el acceso
+antes de hacerlo.
+
+### El filtrado de puertos vive fuera de la máquina
+
+En el VPS no hay cortafuegos: `ufw` está inactivo, `iptables -S` devuelve las
+tres políticas en `ACCEPT` sin una sola regla, y `nft` no tiene ruleset. Lo
+que impide llegar al 8080 y al 8081 desde internet es el cortafuegos del
+panel de Contabo.
+
+Funciona —comprobado desde fuera, los dos puertos dan
+`TcpTestSucceeded : False` y el ping tampoco responde— pero es un punto
+único: si alguien cambia una regla en ese panel, las dos APIs quedan
+accesibles en HTTP en claro, saltándose Caddy y con ellas el HSTS, las
+cabeceras y el límite de 1 MB. Nada en el servidor lo impediría ni lo
+avisaría.
+
+Se verifica **desde fuera del VPS**, nunca desde dentro (desde dentro siempre
+conecta):
+
+    Test-NetConnection -ComputerName api.norday.app -Port 8080
+    Test-NetConnection -ComputerName api.norday.app -Port 8081
+
+Lo que importa es la línea `TcpTestSucceeded`, que debe ser `False` en ambos.
+Repetir esta comprobación después de cualquier cambio en el panel de Contabo.
+
+### Cómo se comprobó que staging responde de verdad
+
+Un 403 en `/api/habitos` no distingue staging de producción: los dos
+devuelven lo mismo sin token. Lo que lo demuestra es que la petición aparezca
+en `/var/log/caddy/staging-access.log`, que sólo escribe el bloque nuevo.
+
+    curl -s -o /dev/null -w "%{http_code}\n" https://api.norday.app/
+    curl -s -o /dev/null -w "%{http_code}\n" https://staging-api.norday.app/
+    curl -s -o /dev/null -w "%{http_code}\n" https://staging-api.norday.app/api/habitos
+    tail -3 /var/log/caddy/staging-access.log
+
+Esperado: 200, 200, 403, y las tres peticiones en el log de staging.
+**Producción se comprueba primero**, antes de mirar el subdominio nuevo.
+
+### Respaldo
+
+`/etc/caddy/Caddyfile.antes-staging`, del 14-sep. Borrarlo tras unos días de
+staging sirviendo sin incidencias, igual que los dos anteriores.
