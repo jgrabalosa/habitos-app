@@ -10,6 +10,7 @@ import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDiaDTO;
+import com.norday.habitos.model.dto.HabitoDetalleDTO;
 import com.norday.habitos.model.dto.HabitoFlexibleDTO;
 import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.ICategoriaDAO;
@@ -28,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -500,5 +502,43 @@ class HabitoServiceTest {
         assertNull(nuevo.getTipo());
         verify(categoriaDAO, never()).findById(anyInt());
         verify(habitoDAO).save(nuevo);
+    }
+
+    @Test
+    void obtenerDetalle_leeLaRachaUnaSolaVezYNormalizaEsaInstancia() {
+        // Racha muerta: 5 días, última fecha hace un mes. Es el estado en el
+        // que la normalización perezosa tiene que actuar.
+        Racha rachaMuerta = new Racha(existente, HOY);
+        rachaMuerta.setRachaActual(5);
+        rachaMuerta.setRachaMaxima(9);
+        rachaMuerta.setUltimaFecha(HOY.minusMonths(1));
+
+        when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.zonaDe(existente)).thenReturn(ZONA);
+        when(rachaDAO.findByHabito(existente)).thenReturn(rachaMuerta);
+        when(registroDAO.findByHabito(existente)).thenReturn(new ArrayList<>());
+        when(registroDAO.findByHabitoAndRango(eq(existente), any(), any()))
+                .thenReturn(new ArrayList<>());
+
+        // La normalización toca sólo la instancia que recibe, como en producción.
+        when(rachaService.rachaActualVigente(any(Racha.class))).thenAnswer(inv -> {
+            Racha r = inv.getArgument(0);
+            r.setRachaActual(0);
+            return 0;
+        });
+
+        HabitoDetalleDTO dto = habitoService.obtenerDetalle(20, YearMonth.now(ZONA));
+
+        // Una sola lectura: es lo que hace que la instancia normalizada a 0 sea
+        // la misma que se lee después para rachaMaxima.
+        verify(rachaDAO, times(1)).findByHabito(existente);
+
+        // La sobrecarga que recibe el Habito relee por dentro (RachaService:69)
+        // y devolvería otra instancia sin el 0. Aquí no debe usarse nunca.
+        verify(rachaService, never()).rachaActualVigente(any(Habito.class));
+
+        // La racha muerta sale a 0, y el máximo histórico se conserva.
+        assertEquals(0, dto.getRachaActual());
+        assertEquals(9, dto.getRachaMaxima());
     }
 }
