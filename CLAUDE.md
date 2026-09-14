@@ -337,3 +337,94 @@ Consecuencias prácticas:
 - Al cambiar un DTO de entrada, el único cliente que queda es la aplicación
   móvil, incluida **la APK ya instalada en los dispositivos**. La web ya no
   cuenta como cliente del contrato.
+
+## Lecciones aprendidas
+
+Errores que ya se cometieron una vez. No se vuelven a cometer.
+
+### Persistencia y entidades
+
+- **`LAZY` en una asociación no basta para `open-in-view=false`**: los DAO son
+  `@Transactional` por clase y las entidades salen desconectadas. Hace falta
+  transacción en quien lee la asociación.
+- **Nombres de columna, del repositorio, nunca de memoria.** La FK de
+  `registro` es `habito_ref`, no `habito_id`.
+- **El nombre real de la base es `habitos_db`**, no `habitas_db`.
+
+### Servicios y reglas de negocio
+
+- **Una aserción sobre el objeto que ha construido el propio test no prueba
+  nada.** Para comprobar lo que el servicio guarda hace falta `ArgumentCaptor`
+  sobre el `save` del DAO.
+- **Una guarda de nulo sobre un campo inyectado es una señal de alarma.**
+  `if (dao == null) return ...` sólo existe para que los tests viejos no
+  revienten, y su efecto es que el camino nuevo no se prueba.
+- **Un `switch` sobre un valor exacto deja de valer en cuanto ese valor puede
+  saltar.** Los hitos de racha (3, 7, 30, 100, 365) eran seguros mientras la
+  racha subía de uno en uno; la comparación correcta no es `actual == umbral`.
+- **Al refactorizar, la regla perezosa se pierde sin hacer ruido.** La rotura
+  de racha (`sigueViva`) desapareció en un refactor y el efecto era una racha
+  muerta de 6 que seguía a 7 en vez de reiniciarse a 1, repartiendo puntos de
+  hito que no tocaban. Al mover lógica, enumerar qué reglas se aplicaban antes
+  y comprobar una a una que siguen aplicándose.
+- **Test en rojo antes del arreglo.** Si el test nuevo pasa contra el código
+  sin arreglar, no demuestra nada: parar.
+
+### Contrato con los clientes
+
+- **Un cambio de contrato también rompe a los clientes viejos.** Al cambiar un
+  DTO de entrada, el cliente que queda es la aplicación móvil, incluida la APK
+  ya instalada. Si el servidor ignora un campo desconocido, un `null` puede
+  borrar datos (`HabitoService:134`).
+- **Una línea base de contrato sólo se captura antes de desplegar.** Después
+  ya no hay con qué comparar.
+
+### Compilar y desplegar
+
+- **`./mvnw clean test`, no sólo `test`**, después de traer cambios del
+  remoto: si no, se ejecuta contra clases compiladas viejas.
+- **`mvnw package` con el servicio vivo deja el apagado a medias.** Parar el
+  servicio antes de empaquetar.
+- **Staging puede estar por detrás de lo que se da por hecho.** Antes de
+  verificar nada contra staging, comprobar en qué commit está desplegado, no
+  suponerlo.
+- **Spring lee `./application.properties` y `./config/application.properties`**
+  respecto al `WorkingDirectory` del servicio. Un `application.properties` en
+  `./src/main/resources/` no lo lee nadie; dos niveles más arriba habría
+  pisado la configuración entera de producción.
+- **`mvnw` ya es ejecutable (`100755`)**: la lección antigua de que
+  «`./mvnw` no ejecuta en Linux» ya no aplica tal cual.
+
+### Método de trabajo (vale para los cuatro repos)
+
+- **La primera línea de un prompt se comprueba, no se recuerda.** Los cuatro
+  repos están en `C:\Dev\Norday\`.
+- **Un solo agente por repo a la vez.** Codex hizo `dart format` y mergeó a
+  `main` sin revisión aunque el prompt lo prohibía. Todo lo que haga otro
+  agente se revisa en el remoto antes de mergear.
+- **Las cifras de verificación se cuentan contra el repositorio**, nunca se
+  copian del roadmap. Y son cifras exactas, no adjetivos.
+- **Enumerar sin asumir el patrón**: buscar por la forma que ya has visto sólo
+  encuentra lo que ya sabías.
+- **Un filtro que no encuentra nada no es un resultado.** El `grep` de
+  resúmenes de surefire con `$` final no casó y parecía que los tests no
+  habían corrido. Ante una salida vacía, mirar el log completo antes de
+  concluir.
+- **Un fichero de diagnóstico no prueba nada por existir.** Abrirlo y
+  comprobar que contiene el fallo antes de darlo por documentado.
+- **La base de una rama `wip` envejece.** Antes de dar una cifra, comprobar de
+  qué commit sale la rama.
+- **Al sustituir un bloque, incluir el comentario de encima.** Si no, el
+  comentario queda sobre otra declaración y describe algo que ya no es cierto.
+- **No escribir en el código el término cuya ausencia se va a verificar.**
+- **Mirar dónde se pega cada bloque.** Un bloque para la máquina local,
+  lanzado en el VPS, llegó a `git push` y pidió credenciales.
+- **`git diff` y `git log` abren paginador**: `git --no-pager`.
+- **`git diff HEAD~1` compara con el directorio de trabajo**: incluye lo no
+  commiteado. Para ver sólo el commit, `git diff HEAD~1 HEAD` o el remoto.
+- **Git se niega a operar en un repositorio de otro propietario**
+  (`dubious ownership`), como los que deja el sandbox de Codex. En vez de
+  añadir `safe.directory`, traer los commits con
+  `git fetch "<ruta>" rama:rama` desde el repo propio.
+- **PowerShell 5.1 lee los `.ps1` sin BOM como ANSI**: scripts sin acentos, o
+  guardados con BOM.
