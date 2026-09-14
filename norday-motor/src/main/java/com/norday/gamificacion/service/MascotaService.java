@@ -122,6 +122,7 @@ public class MascotaService {
                 mascota.getExperiencia() - xpInicioNivel,
                 costoNivel(nivel + 1),
                 faseAMostrar,
+                calcularFase(nivel),
                 calcularEstado(mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
