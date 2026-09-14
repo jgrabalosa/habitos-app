@@ -35,6 +35,15 @@ public class Mascota {
     @Column(name = "fecha_ultimo_dia_completo")
     private LocalDate fechaUltimoDiaCompleto;
 
+    /**
+     * Fase que el usuario ha elegido ver, o null para «la que toque». La fase
+     * real se sigue derivando del nivel en MascotaService.calcularFase: esto
+     * es sólo la imagen, y no toca XP, evolución ni logros. Se pone a null al
+     * evolucionar, para que el cambio se vea.
+     */
+    @Column(name = "fase_elegida")
+    private String faseElegida;
+
     // Constructor vacío — obligatorio para JPA
     public Mascota() {}
 
@@ -50,6 +59,7 @@ public class Mascota {
         this.nombre = "Nori";
         this.fechaUltimaComida = null;
         this.fechaUltimoDiaCompleto = null;
+        this.faseElegida = null;
     }
 
     public int getMascotaId() { return mascotaId; }
@@ -69,6 +79,9 @@ public class Mascota {
 
     public LocalDate getFechaUltimoDiaCompleto() { return fechaUltimoDiaCompleto; }
     public void setFechaUltimoDiaCompleto(LocalDate fechaUltimoDiaCompleto) { this.fechaUltimoDiaCompleto = fechaUltimoDiaCompleto; }
+
+    public String getFaseElegida() { return faseElegida; }
+    public void setFaseElegida(String faseElegida) { this.faseElegida = faseElegida; }
 
     @Override
     public String toString() {
