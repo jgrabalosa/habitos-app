@@ -6,6 +6,7 @@ import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
+import com.norday.gamificacion.service.CumplimientoDiarioPort;
 import com.norday.gamificacion.service.LogroService;
 import com.norday.gamificacion.service.MascotaService;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,9 @@ class MascotaServiceTest {
 
     @Mock
     private LogroService logroService;
+
+    @Mock
+    private CumplimientoDiarioPort cumplimientoDiario;
 
     @InjectMocks
     private MascotaService mascotaService;
@@ -133,8 +137,15 @@ class MascotaServiceTest {
     }
 
     @Test
-    void elMismoDiaEnQueSeCumpleTodoEstaFeliz() {
-        assertEquals("feliz", dtoConUltimoDiaCompleto(0).getEstado());
+    void siHoyEstaCumplidoLaMascotaEstaFelizSeaCualSeaElSello() {
+        when(cumplimientoDiario.hoyCumplido(1)).thenReturn(true);
+        assertEquals("feliz", dtoConUltimoDiaCompleto(null).getEstado());
+    }
+
+    @Test
+    void conElSelloDeHoyPeroSinHaberCumplidoHoyLaMascotaEstaDormida() {
+        when(cumplimientoDiario.hoyCumplido(1)).thenReturn(false);
+        assertEquals("dormida", dtoConUltimoDiaCompleto(0).getEstado());
     }
 
     @Test

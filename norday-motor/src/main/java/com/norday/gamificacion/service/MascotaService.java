@@ -30,6 +30,9 @@ public class MascotaService {
     @Autowired
     private LogroService logroService;
 
+    @Autowired
+    private CumplimientoDiarioPort cumplimientoDiario;
+
     /** Subir a nivel N cuesta 15×(N-1) XP. */
     private int costoNivel(int nivel) {
         return 15 * (nivel - 1);
@@ -82,13 +85,15 @@ public class MascotaService {
     }
 
     /**
-     * El ánimo sale de cuánto hace que el usuario cumplió todo lo del día.
+     * El ánimo. "feliz" se pregunta al vuelo, para que no pueda quedarse
+     * desfasado cuando algo deshace el día. Los otros dos sí son históricos:
+     * miran cuánto hace que se cumplió por última vez.
      * Código, no texto: el cliente lo traduce.
      */
-    private String calcularEstado(LocalDate fechaUltimoDiaCompleto, ZoneId zona) {
+    private String calcularEstado(int usuarioId, LocalDate fechaUltimoDiaCompleto, ZoneId zona) {
+        if (cumplimientoDiario.hoyCumplido(usuarioId)) return "feliz";
         if (fechaUltimoDiaCompleto == null) return "triste";
         long dias = ChronoUnit.DAYS.between(fechaUltimoDiaCompleto, LocalDate.now(zona));
-        if (dias == 0) return "feliz";
         if (dias < 3) return "dormida";
         return "triste";
     }
@@ -123,7 +128,8 @@ public class MascotaService {
                 costoNivel(nivel + 1),
                 faseAMostrar,
                 calcularFase(nivel),
-                calcularEstado(mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
+                calcularEstado(mascota.getUsuario().getUsuarioId(),
+                        mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
     }
