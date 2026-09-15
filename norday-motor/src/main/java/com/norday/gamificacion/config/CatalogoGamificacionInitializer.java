@@ -88,17 +88,31 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // haría falta un UPDATE manual, igual que con ESCUDO_RACHA.
             // {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1000"},
+            // Los diez avatares, desactivados el 15-sep-2026: no encajaban con
+            // nada de la app y salen de la primera versión. Al salir de este
+            // array, inicializarProductos() los pone activo=false en el próximo
+            // arranque, y el catálogo deja de servirlos — con eso la categoría
+            // Avatar desaparece sola de Tienda y de Colección.
+            //
+            // El esqueleto se conserva entero: catalogoAvatares, AvatarUsuario,
+            // SelectorAvatarGratis y los PNG siguen en norday_flutter_core.
+            //
+            // Ojo al reactivar: descomentar NO basta si el producto ya existe en
+            // la BD con activo=false, porque findByCodigo!=null salta la
+            // creación — haría falta un UPDATE manual, igual que con
+            // ESCUDO_RACHA y TEMA_ALBA.
+            //
             // placeholder hasta que revises los DiceBear reales
-            {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_PERRO", "Perro", "Avatar ilustrado de perro", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_CONEJO", "Conejo", "Avatar ilustrado de conejo", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_KOALA", "Koala", "Avatar ilustrado de koala", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_PINGUINO", "Pingüino", "Avatar ilustrado de pingüino", "Avatar", "EQUIPABLE", "500"},
-            {"AVATAR_LEON", "León", "Avatar ilustrado de león", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_GATO", "Gato", "Avatar ilustrado de gato", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_BUHO", "Búho", "Avatar ilustrado de búho", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_PANDA", "Panda", "Avatar ilustrado de panda", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_TORTUGA", "Tortuga", "Avatar ilustrado de tortuga", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_PERRO", "Perro", "Avatar ilustrado de perro", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_CONEJO", "Conejo", "Avatar ilustrado de conejo", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_KOALA", "Koala", "Avatar ilustrado de koala", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_PINGUINO", "Pingüino", "Avatar ilustrado de pingüino", "Avatar", "EQUIPABLE", "500"},
+            // {"AVATAR_LEON", "León", "Avatar ilustrado de león", "Avatar", "EQUIPABLE", "500"},
             // placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
             {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "50"},
     };
