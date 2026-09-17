@@ -472,16 +472,27 @@ public class RegistroService {
         // monedas: fijarla al valor previo borraría la ganada después por
         // otros hábitos o por la comida. Null = reversión anterior a esta
         // columna: no hay nada fiable que restaurar en la mascota.
-        if (reversion.getMascotaExperienciaOtorgada() != null) {
+        boolean mascotaRegistrada = reversion.getMascotaExperienciaOtorgada() != null;
+        LocalDate diaCompletoPrevio = reversion.getMascotaDiaCompletoPrevio();
+        if (mascotaRegistrada) {
             mascotaService.restarExperiencia(usuario.getUsuarioId(),
                     reversion.getMascotaExperienciaOtorgada());
-            mascotaService.restaurarDiaCompleto(usuario.getUsuarioId(),
-                    reversion.getMascotaDiaCompletoPrevio());
         }
 
         // La reversión primero y el registro después: importa por la FK.
         reversionRegistroDAO.delete(reversion.getReversionId());
         registroDAO.delete(registro.getRegistroId());
+
+        // La fecha del último día completo sólo retrocede si se deshace algo
+        // de hoy y, sin ello, el día deja de estar completo. Completar un día
+        // pasado nunca la pone, y deshacer un semanal no rompe el día
+        // (esDiaCompleto sólo mira los diarios). Va después de borrar a
+        // propósito: la consulta de esDiaCompleto es JPQL, así que Hibernate
+        // hace flush antes y el registro borrado ya no cuenta.
+        if (mascotaRegistrada && registro.getFecha().equals(hoy)
+                && !habitoService.esDiaCompleto(usuario)) {
+            mascotaService.restaurarDiaCompleto(usuario.getUsuarioId(), diaCompletoPrevio);
+        }
 
         return Map.of(
                 "monedasDevueltas", monedasOtorgadas,

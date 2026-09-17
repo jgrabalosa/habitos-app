@@ -502,6 +502,47 @@ class RegistroServiceTest {
     }
 
     @Test
+    void alDeshacerAlgoDeHoySinRomperElDia_laFechaNoRetrocede() {
+        Registro registro = new Registro(habito, true, "", HOY);
+        registro.setRegistroId(99);
+        ReversionRegistro reversion =
+                new ReversionRegistro(registro, null, null, null, null, 5, HOY.minusDays(1), 0);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(reversionRegistroDAO.findByRegistro(99)).thenReturn(reversion);
+        when(habitoService.esDiaCompleto(usuario)).thenReturn(true);
+
+        registroService.deshacerRegistro(99);
+
+        verify(mascotaService).restarExperiencia(1, 5);
+        verify(mascotaService, never()).restaurarDiaCompleto(anyInt(), any());
+    }
+
+    @Test
+    void alDeshacerUnDiaPasado_laFechaNoSeToca() {
+        // Mismo patrón de día fijo que alRellenarUnHuecoQueSaltaElHito_seCobraElHitoIntermedio:
+        // un miércoles siempre tiene margen hacia atrás hasta el lunes de su semana.
+        LocalDate miercoles = LocalDate.of(2026, 9, 9);
+        LocalDate martes = miercoles.minusDays(1);
+        when(rachaService.hoyDe(any(Habito.class))).thenReturn(miercoles);
+
+        Registro registro = new Registro(habito, true, "", martes);
+        registro.setRegistroId(99);
+        ReversionRegistro reversion =
+                new ReversionRegistro(registro, null, null, null, null, 5, martes.minusDays(1), 0);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(reversionRegistroDAO.findByRegistro(99)).thenReturn(reversion);
+
+        registroService.deshacerRegistro(99);
+
+        verify(mascotaService).restarExperiencia(1, 5);
+        verify(mascotaService, never()).restaurarDiaCompleto(anyInt(), any());
+    }
+
+    @Test
     void siLasLecturasDeRachaNoCompartenInstancia_laRachaMuertaNoContinua() {
         // Tres instancias distintas de la misma racha muerta: 6 días, última
         // fecha hace un mes. Simula lo que devolvería el DAO si cada lectura
