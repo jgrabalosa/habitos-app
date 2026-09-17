@@ -10,6 +10,8 @@ import java.util.List;
  * con exactitud. Los campos _previa/_previo son nullable a propósito: si el
  * hábito no tiene racha o el usuario no tiene mascota, no hay nada que
  * restaurar y null lo dice mejor que un cero.
+ * La XP no es una instantánea sino lo que dio el completado, como las
+ * monedas: al deshacer se resta, para no borrar la ganada después.
  */
 @Entity
 @Table(name = "reversion_registro")
@@ -36,8 +38,8 @@ public class ReversionRegistro {
     @Column(name = "ultima_fecha_previa")
     private LocalDate ultimaFechaPrevia;
 
-    @Column(name = "mascota_experiencia_previa")
-    private Integer mascotaExperienciaPrevia;
+    @Column(name = "mascota_experiencia_otorgada")
+    private Integer mascotaExperienciaOtorgada;
 
     @Column(name = "mascota_dia_completo_previo")
     private LocalDate mascotaDiaCompletoPrevio;
@@ -54,14 +56,14 @@ public class ReversionRegistro {
     // Constructor con parámetros
     public ReversionRegistro(Registro registro, Integer rachaActualPrevia, Integer rachaMaximaPrevia,
                               LocalDate periodoMetaAlcanzadaPrevio, LocalDate ultimaFechaPrevia,
-                              Integer mascotaExperienciaPrevia, LocalDate mascotaDiaCompletoPrevio,
+                              Integer mascotaExperienciaOtorgada, LocalDate mascotaDiaCompletoPrevio,
                               int monedasOtorgadas) {
         this.registro = registro;
         this.rachaActualPrevia = rachaActualPrevia;
         this.rachaMaximaPrevia = rachaMaximaPrevia;
         this.periodoMetaAlcanzadaPrevio = periodoMetaAlcanzadaPrevio;
         this.ultimaFechaPrevia = ultimaFechaPrevia;
-        this.mascotaExperienciaPrevia = mascotaExperienciaPrevia;
+        this.mascotaExperienciaOtorgada = mascotaExperienciaOtorgada;
         this.mascotaDiaCompletoPrevio = mascotaDiaCompletoPrevio;
         this.monedasOtorgadas = monedasOtorgadas;
     }
@@ -84,8 +86,8 @@ public class ReversionRegistro {
     public LocalDate getUltimaFechaPrevia() { return ultimaFechaPrevia; }
     public void setUltimaFechaPrevia(LocalDate ultimaFechaPrevia) { this.ultimaFechaPrevia = ultimaFechaPrevia; }
 
-    public Integer getMascotaExperienciaPrevia() { return mascotaExperienciaPrevia; }
-    public void setMascotaExperienciaPrevia(Integer mascotaExperienciaPrevia) { this.mascotaExperienciaPrevia = mascotaExperienciaPrevia; }
+    public Integer getMascotaExperienciaOtorgada() { return mascotaExperienciaOtorgada; }
+    public void setMascotaExperienciaOtorgada(Integer mascotaExperienciaOtorgada) { this.mascotaExperienciaOtorgada = mascotaExperienciaOtorgada; }
 
     public LocalDate getMascotaDiaCompletoPrevio() { return mascotaDiaCompletoPrevio; }
     public void setMascotaDiaCompletoPrevio(LocalDate mascotaDiaCompletoPrevio) { this.mascotaDiaCompletoPrevio = mascotaDiaCompletoPrevio; }

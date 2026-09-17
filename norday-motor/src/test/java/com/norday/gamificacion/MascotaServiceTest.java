@@ -225,6 +225,51 @@ class MascotaServiceTest {
         verify(mascotaDAO).update(mascota);
     }
 
+    // ── Deshacer ─────────────────────────────────────────────────────────
+
+    @Test
+    void restarExperienciaQuitaSoloLaCantidadIndicada() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(120);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        mascotaService.restarExperiencia(1, 5);
+
+        assertEquals(115, mascota.getExperiencia());
+        verify(mascotaDAO).update(mascota);
+    }
+
+    @Test
+    void restarExperienciaNuncaBajaDeCero() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setExperiencia(3);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        mascotaService.restarExperiencia(1, 5);
+
+        assertEquals(0, mascota.getExperiencia());
+    }
+
+    @Test
+    void restarCeroExperienciaNoEscribe() {
+        mascotaService.restarExperiencia(1, 0);
+
+        verify(mascotaDAO, never()).update(any());
+    }
+
+    @Test
+    void restaurarDiaCompletoDevuelveLaFechaAnterior() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setFechaUltimoDiaCompleto(LocalDate.now(ZONA));
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+        LocalDate anterior = LocalDate.now(ZONA).minusDays(2);
+
+        mascotaService.restaurarDiaCompleto(1, anterior);
+
+        assertEquals(anterior, mascota.getFechaUltimoDiaCompleto());
+        verify(mascotaDAO).update(mascota);
+    }
+
     // ── Logros al cambiar de fase ─────────────────────────────────────────
 
     @Test

@@ -132,7 +132,6 @@ public class RegistroService {
         LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
         LocalDate ultimaFechaPrevia = rachaPrevia != null ? rachaPrevia.getUltimaFecha() : null;
         Mascota mascotaPrevia = mascotaService.obtenerOCrear(usuario.getUsuarioId());
-        int mascotaExperienciaPrevia = mascotaPrevia.getExperiencia();
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
         Set<Integer> logrosPrevios = idsLogros(usuario);
 
@@ -142,6 +141,7 @@ public class RegistroService {
         int puntosGanados = 0;
         boolean subioNivel = false;
         int nivelNuevo = 0;
+        int xpOtorgada = 0;
 
         // Puntos y XP solo en el instante exacto en que se alcanza la meta del día —
         // ni antes, ni de nuevo si sigues completando después de alcanzarla
@@ -154,6 +154,7 @@ public class RegistroService {
 
             ResultadoExperienciaDTO resultadoXp =
                     mascotaService.ganarExperiencia(usuario.getUsuarioId(), XP_POR_DIA_COMPLETADO);
+            xpOtorgada = XP_POR_DIA_COMPLETADO;
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
@@ -185,7 +186,7 @@ public class RegistroService {
         // saldo recoge de una vez el completado, el hito de racha y los logros.
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
         ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
-                periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, mascotaExperienciaPrevia,
+                periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, xpOtorgada,
                 mascotaDiaCompletoPrevio, monedasOtorgadas);
         for (String codigo : logros) {
             Logro logro = logroDAO.findByCodigo(codigo);
@@ -467,9 +468,15 @@ public class RegistroService {
             rachaDAO.update(racha);
         }
 
-        if (reversion.getMascotaExperienciaPrevia() != null) {
-            mascotaService.restaurarProgreso(usuario.getUsuarioId(),
-                    reversion.getMascotaExperienciaPrevia(), reversion.getMascotaDiaCompletoPrevio());
+        // La XP se compensa con lo que dio este completado, igual que las
+        // monedas: fijarla al valor previo borraría la ganada después por
+        // otros hábitos o por la comida. Null = reversión anterior a esta
+        // columna: no hay nada fiable que restaurar en la mascota.
+        if (reversion.getMascotaExperienciaOtorgada() != null) {
+            mascotaService.restarExperiencia(usuario.getUsuarioId(),
+                    reversion.getMascotaExperienciaOtorgada());
+            mascotaService.restaurarDiaCompleto(usuario.getUsuarioId(),
+                    reversion.getMascotaDiaCompletoPrevio());
         }
 
         // La reversión primero y el registro después: importa por la FK.
