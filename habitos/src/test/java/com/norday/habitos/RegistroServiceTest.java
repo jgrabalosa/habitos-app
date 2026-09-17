@@ -429,6 +429,79 @@ class RegistroServiceTest {
     }
 
     @Test
+    void alAlcanzarLaMeta_laInstantaneaGuardaLaXpQueSeDio() {
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        ArgumentCaptor<Integer> xp = ArgumentCaptor.forClass(Integer.class);
+        verify(mascotaService).ganarExperiencia(eq(1), xp.capture());
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(xp.getValue(), captor.getValue().getMascotaExperienciaOtorgada());
+    }
+
+    @Test
+    void sinAlcanzarLaMeta_laInstantaneaGuardaCeroXp() {
+        habito.setMeta(3);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(new Registro(habito, true, "", HOY)));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+
+        registroService.completarHabito(habito, "");
+
+        verify(mascotaService, never()).ganarExperiencia(anyInt(), anyInt());
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(0, captor.getValue().getMascotaExperienciaOtorgada());
+    }
+
+    @Test
+    void alDeshacer_seRestaLaXpQueDioEnVezDeFijarUnValor() {
+        Registro registro = new Registro(habito, true, "", HOY);
+        registro.setRegistroId(99);
+        LocalDate diaPrevio = HOY.minusDays(1);
+        ReversionRegistro reversion =
+                new ReversionRegistro(registro, null, null, null, null, 5, diaPrevio, 0);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(reversionRegistroDAO.findByRegistro(99)).thenReturn(reversion);
+
+        registroService.deshacerRegistro(99);
+
+        verify(mascotaService).restarExperiencia(1, 5);
+        verify(mascotaService).restaurarDiaCompleto(1, diaPrevio);
+    }
+
+    @Test
+    void alDeshacerUnaReversionSinXpRegistrada_noSeTocaLaMascota() {
+        Registro registro = new Registro(habito, true, "", HOY);
+        registro.setRegistroId(99);
+        ReversionRegistro reversion =
+                new ReversionRegistro(registro, null, null, null, null, null, null, 0);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(reversionRegistroDAO.findByRegistro(99)).thenReturn(reversion);
+
+        registroService.deshacerRegistro(99);
+
+        verify(mascotaService, never()).restarExperiencia(anyInt(), anyInt());
+        verify(mascotaService, never()).restaurarDiaCompleto(anyInt(), any());
+    }
+
+    @Test
     void siLasLecturasDeRachaNoCompartenInstancia_laRachaMuertaNoContinua() {
         // Tres instancias distintas de la misma racha muerta: 6 días, última
         // fecha hace un mes. Simula lo que devolvería el DAO si cada lectura

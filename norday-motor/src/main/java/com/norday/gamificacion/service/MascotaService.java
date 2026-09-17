@@ -75,7 +75,7 @@ public class MascotaService {
      * mostrar el huevo, y al revés no.
      *
      * Se comprueba también al leer, no sólo al guardar, porque el nivel puede
-     * bajar: restaurarProgreso devuelve la experiencia a un valor anterior
+     * bajar: restarExperiencia quita la que dio un completado
      * cuando se deshace un completado. La elección se conserva en la BD, así
      * que si el usuario vuelve a subir recupera lo que había elegido.
      */
@@ -234,13 +234,20 @@ public class MascotaService {
     }
 
     /**
-     * Restaura el progreso a un estado anterior. Genérico a propósito: el
-     * motor no sabe por qué se revierte, solo a qué valores volver.
+     * Quita XP al deshacer algo que la dio. Resta, no fija un valor: la XP
+     * ganada después por otros caminos se conserva. Nunca baja de 0.
+     * No retira logros de fase: eso lo hace quien revierte, que sabe cuáles dio.
      */
-    public void restaurarProgreso(int usuarioId, int experiencia,
-                                  LocalDate fechaUltimoDiaCompleto) {
+    public void restarExperiencia(int usuarioId, int cantidad) {
+        if (cantidad <= 0) return;
         Mascota mascota = obtenerOCrear(usuarioId);
-        mascota.setExperiencia(experiencia);
+        mascota.setExperiencia(Math.max(0, mascota.getExperiencia() - cantidad));
+        mascotaDAO.update(mascota);
+    }
+
+    /** Devuelve la fecha del último día completo a un valor anterior. */
+    public void restaurarDiaCompleto(int usuarioId, LocalDate fechaUltimoDiaCompleto) {
+        Mascota mascota = obtenerOCrear(usuarioId);
         mascota.setFechaUltimoDiaCompleto(fechaUltimoDiaCompleto);
         mascotaDAO.update(mascota);
     }
