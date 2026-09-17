@@ -66,7 +66,7 @@ public class RegistroService {
 
     // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
     // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
-    private static final int PUNTOS_POR_DIA_COMPLETADO = 50;
+    private static final int PUNTOS_POR_DIA_COMPLETADO = 25;
     /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
     private static final int[][] HITOS_RACHA = {
             {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}

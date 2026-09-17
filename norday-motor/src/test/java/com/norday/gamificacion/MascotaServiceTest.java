@@ -106,35 +106,43 @@ class MascotaServiceTest {
         assertEquals("ADULTO", dtoConXp(100000).getFase()); // nivel alto
     }
 
-    // ── Curva de XP: costoNivel(n) = 15×(n-1) ─────────────────────────────
-    // Acumulado para llegar a cada nivel: 1→0, 2→15, 3→45, 4→90, 5→150
+    // ── Curva de XP: cada nivel cuesta 35 ─────────────────────────────────
+    // Acumulado para llegar a cada nivel: 1→0, 2→35, 3→70, 4→105, 5→140
 
     @Test
-    void subirAlNivelNCuesta15PorNMenosUno() {
-        // Recién nacida: para el nivel 2 faltan 15
+    void cadaNivelCuesta35() {
         assertEquals(1, dtoConXp(0).getNivel());
-        assertEquals(15, dtoConXp(0).getXpParaSiguienteNivel());
+        assertEquals(35, dtoConXp(0).getXpParaSiguienteNivel());
 
-        // Ya en nivel 2: el 3 cuesta 30
-        assertEquals(2, dtoConXp(15).getNivel());
-        assertEquals(30, dtoConXp(15).getXpParaSiguienteNivel());
+        assertEquals(2, dtoConXp(35).getNivel());
+        assertEquals(35, dtoConXp(35).getXpParaSiguienteNivel());
     }
 
     @Test
     void elNivelSubeJustoAlAlcanzarElAcumulado_niAntesNiDespues() {
-        assertEquals(1, dtoConXp(14).getNivel());
-        assertEquals(2, dtoConXp(15).getNivel());
-        assertEquals(2, dtoConXp(44).getNivel());
-        assertEquals(3, dtoConXp(45).getNivel());
-        assertEquals(4, dtoConXp(90).getNivel());
-        assertEquals(5, dtoConXp(150).getNivel());
+        assertEquals(1, dtoConXp(34).getNivel());
+        assertEquals(2, dtoConXp(35).getNivel());
+        assertEquals(2, dtoConXp(69).getNivel());
+        assertEquals(3, dtoConXp(70).getNivel());
+        assertEquals(4, dtoConXp(105).getNivel());
+        assertEquals(5, dtoConXp(140).getNivel());
     }
 
     @Test
     void laXpDentroDelNivelSeMideDesdeElInicioDeEseNivel() {
-        MascotaDTO dto = dtoConXp(60); // el nivel 3 empieza en 45
+        MascotaDTO dto = dtoConXp(80); // el nivel 3 empieza en 70
         assertEquals(3, dto.getNivel());
-        assertEquals(15, dto.getXpEnNivelActual());
+        assertEquals(10, dto.getXpEnNivelActual());
+    }
+
+    @Test
+    void criaDelNivel3Al10_adultaDesdeEl11() {
+        assertEquals("HUEVO", dtoConXp(69).getFase());   // nivel 2
+        assertEquals("CRIA", dtoConXp(70).getFase());    // nivel 3
+        assertEquals(10, dtoConXp(349).getNivel());
+        assertEquals("CRIA", dtoConXp(349).getFase());
+        assertEquals(11, dtoConXp(350).getNivel());
+        assertEquals("ADULTO", dtoConXp(350).getFase());
     }
 
     // ── Estado de ánimo: sale de fechaUltimoDiaCompleto ───────────────────
@@ -275,11 +283,11 @@ class MascotaServiceTest {
     @Test
     void alPasarDeHuevoACriaSeOtorgaElLogroDeCria() {
         Mascota mascota = new Mascota(usuario);
-        mascota.setExperiencia(15); // nivel 2, HUEVO
+        mascota.setExperiencia(35); // nivel 2, HUEVO
         when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
         when(usuarioDAO.findById(1)).thenReturn(usuario);
 
-        mascotaService.ganarExperiencia(1, 30); // 45 XP = nivel 3, CRIA
+        mascotaService.ganarExperiencia(1, 35); // 70 XP = nivel 3, CRIA
 
         verify(logroService).otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
     }
@@ -287,7 +295,7 @@ class MascotaServiceTest {
     @Test
     void alSubirDeNivelDentroDeLaMismaFaseNoSeOtorgaNingunLogroDeMascota() {
         Mascota mascota = new Mascota(usuario);
-        mascota.setExperiencia(90); // nivel 4, CRIA
+        mascota.setExperiencia(90); // nivel 3, CRIA
         when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
 
         mascotaService.ganarExperiencia(1, 60); // 150 XP = nivel 5, sigue CRIA
@@ -344,12 +352,12 @@ class MascotaServiceTest {
     @Test
     void alEvolucionarSeDescartaLaEleccionParaQueElCambioSeVea() {
         Mascota mascota = new Mascota(usuario);
-        mascota.setExperiencia(15); // nivel 2, HUEVO
+        mascota.setExperiencia(35); // nivel 2, HUEVO
         mascota.setFaseElegida("HUEVO");
         when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
         when(usuarioDAO.findById(1)).thenReturn(usuario);
 
-        mascotaService.ganarExperiencia(1, 30); // 45 XP = nivel 3, CRIA
+        mascotaService.ganarExperiencia(1, 35); // 70 XP = nivel 3, CRIA
 
         assertNull(mascota.getFaseElegida());
     }

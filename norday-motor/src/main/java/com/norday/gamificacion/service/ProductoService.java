@@ -25,10 +25,13 @@ public class ProductoService {
 
     /** XP que da consumir una comida. El cliente lo recibe en la respuesta
      *  de `usarProducto`, no lo cablea: ver `xpGanada`. */
-    private static final int XP_POR_COMIDA = 10;
+    private static final int XP_POR_COMIDA = 15;
 
     /** La que se otorga si algo falla y el usuario se queda sin ninguna. */
     private static final String CODIGO_IDENTIDAD_POR_DEFECTO = "TEMA_PROFUNDIDAD";
+
+    /** La que se regala al elegir identidad en el onboarding. */
+    private static final String CODIGO_COMIDA_BIENVENIDA = "COMIDA_BASICA";
 
     @Autowired
     private IProductoDAO productoDAO;
@@ -283,7 +286,47 @@ public class ProductoService {
                 "Identidad de bienvenida: " + producto.getNombre()
         );
 
+        regalarComidaDeBienvenida(usuario);
+
         return otorgarLogroDeIdentidad(usuario, producto);
+    }
+
+    /**
+     * Una comida gratis al acabar el onboarding: su último paso señala el
+     * botón de alimentar, que sin comida sale apagado. Va aquí y no en el
+     * alta porque este método ya garantiza "una sola vez por cuenta" y lo
+     * recorren tanto el registro por email como el de Google.
+     *
+     * Nunca puede tumbar la elección de identidad: si la comida no está en
+     * el catálogo activo, se avisa en el log y se sigue, igual que
+     * asegurarIdentidad. No reutiliza otorgarProducto porque ése lanza
+     * excepción y marcaría la transacción entera.
+     *
+     * La red de seguridad (asegurarIdentidad) no la regala a propósito:
+     * quien llega por ahí no ha visto el onboarding.
+     */
+    private void regalarComidaDeBienvenida(Usuario usuario) {
+        Producto comida = productoDAO.findByCodigo(CODIGO_COMIDA_BIENVENIDA);
+        if (comida == null || !comida.isActivo()) {
+            log.warn("Comida de bienvenida: {} no está en el catálogo activo, "
+                            + "el usuario {} se queda sin ella",
+                    CODIGO_COMIDA_BIENVENIDA, usuario.getUsuarioId());
+            return;
+        }
+
+        UsuarioProducto existente = usuarioProductoDAO.findByUsuarioYProducto(
+                usuario.getUsuarioId(), comida.getProductoId());
+        if (existente != null) {
+            existente.setCantidad(existente.getCantidad() + 1);
+            usuarioProductoDAO.update(existente);
+        } else {
+            usuarioProductoDAO.save(new UsuarioProducto(usuario, comida, 1));
+        }
+
+        usuarioMonedaService.registrarMovimiento(
+                usuario, 0, "REGALO", comida.getProductoId(),
+                "Comida de bienvenida"
+        );
     }
 
     /**

@@ -101,7 +101,7 @@ class ProductoServiceTest {
 
     @Test
     void elegirIdentidad_otorgaTambienElLogroDeEsaIdentidad() {
-        // Es la decisión de regalar el primer tema con sus 500 puntos: si
+        // Es la decisión de regalar el primer tema con sus 250 puntos: si
         // alguien quita la llamada a otorgarLogroDeIdentidad, el usuario
         // nuevo se queda sin su primera victoria sin que ningún test se
         // entere.
@@ -119,6 +119,41 @@ class ProductoServiceTest {
         productoService.otorgarIdentidadElegida(usuario, 30);
 
         verify(logroService).otorgarSiNoTiene(usuario, "IDENTIDAD_PROFUNDIDAD");
+    }
+
+    @Test
+    void elegirIdentidad_regalaUnaComidaDeBienvenida() {
+        Producto comida = new Producto();
+        comida.setProductoId(40);
+        comida.setCodigo("COMIDA_BASICA");
+        comida.setCategoria("Consumible");
+        comida.setTipo("CONSUMIBLE");
+        comida.setActivo(true);
+
+        when(usuarioProductoDAO.poseeAlgunoDeCategoria(1, "Tema")).thenReturn(false);
+        when(productoDAO.findById(10)).thenReturn(identidad);
+        when(productoDAO.findByCodigo("COMIDA_BASICA")).thenReturn(comida);
+
+        productoService.otorgarIdentidadElegida(usuario, 10);
+
+        ArgumentCaptor<UsuarioProducto> captor = ArgumentCaptor.forClass(UsuarioProducto.class);
+        verify(usuarioProductoDAO, times(2)).save(captor.capture());
+        UsuarioProducto regalada = captor.getAllValues().get(1);
+        assertEquals(comida, regalada.getProducto());
+        assertEquals(1, regalada.getCantidad());
+        verify(usuarioMonedaService).registrarMovimiento(
+                usuario, 0, "REGALO", 40, "Comida de bienvenida");
+    }
+
+    @Test
+    void elegirIdentidad_sinComidaEnElCatalogo_laIdentidadSeOtorgaIgual() {
+        when(usuarioProductoDAO.poseeAlgunoDeCategoria(1, "Tema")).thenReturn(false);
+        when(productoDAO.findById(10)).thenReturn(identidad);
+        when(productoDAO.findByCodigo("COMIDA_BASICA")).thenReturn(null);
+
+        assertDoesNotThrow(() -> productoService.otorgarIdentidadElegida(usuario, 10));
+
+        verify(usuarioProductoDAO, times(1)).save(any());
     }
 
     @Test

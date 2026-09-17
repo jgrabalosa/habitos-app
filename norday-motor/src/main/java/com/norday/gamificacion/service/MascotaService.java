@@ -35,9 +35,15 @@ public class MascotaService {
     @Autowired
     private CumplimientoDiarioPort cumplimientoDiario;
 
-    /** Subir a nivel N cuesta 15×(N-1) XP. */
+    /**
+     * Subir de nivel cuesta siempre lo mismo. Con 2 hábitos al día (10 XP)
+     * y sin comida: cría el día 7 (nivel 3, 70 XP) y adulta el día 35
+     * (nivel 11, 350 XP).
+     */
+    private static final int XP_POR_NIVEL = 35;
+
     private int costoNivel(int nivel) {
-        return 15 * (nivel - 1);
+        return XP_POR_NIVEL;
     }
 
     private int xpAcumuladoInicioNivel(int nivel) {
@@ -62,7 +68,7 @@ public class MascotaService {
      */
     private String calcularFase(int nivel) {
         if (nivel <= 2) return "HUEVO";
-        if (nivel <= 9) return "CRIA";
+        if (nivel <= 10) return "CRIA";
         return "ADULTO";
     }
 
@@ -164,7 +170,7 @@ public class MascotaService {
 
         // La fase no se guarda: se deriva del nivel en calcularFase. Compararla
         // antes y después es lo que convierte un cálculo en un evento, y evita
-        // cablear aquí los niveles 3 y 10 —si calcularFase cambia sus umbrales,
+        // cablear aquí los niveles 3 y 11 —si calcularFase cambia sus umbrales,
         // esto sigue siendo correcto sin tocarlo.
         //
         // El logro no viaja en ResultadoExperienciaDTO: aparecerá en la

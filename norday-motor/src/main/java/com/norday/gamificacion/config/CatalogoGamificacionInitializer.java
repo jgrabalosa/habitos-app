@@ -36,8 +36,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
     // {codigo, nombre, descripcion, categoria, nivel, puntos}
     private static final String[][] LOGROS = {
             // Inicio
-            {"BIENVENIDO", "Bienvenido/a", "Personaliza tu perfil de usuario", "Inicio", "Facil", "100"},
-            {"LOGIN_GOOGLE", "Conectado con Google", "Inicia sesión usando tu cuenta de Google", "Inicio", "Facil", "100"},
+            {"BIENVENIDO", "Bienvenido/a", "Personaliza tu perfil de usuario", "Inicio", "Facil", "50"},
+            {"LOGIN_GOOGLE", "Conectado con Google", "Inicia sesión usando tu cuenta de Google", "Inicio", "Facil", "50"},
             // Exploración
             // INTERACCION_RESENA desactivado el 24-ago-2026: incentivar la interacción
             // con el diálogo de reseña de Play va contra la política de Google (ver
@@ -47,17 +47,17 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // Identidad
             // Uno por tema, otorgado al conseguirlo por cualquiera de las tres
             // vías (compra, regalo, elección gratuita del onboarding). El premio
-            // (500) es estrictamente menor que el precio de un tema (1000): si
+            // (250) es estrictamente menor que el precio de un tema (1000): si
             // se igualaran, comprar temas fabricaría puntos.
-            {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "500"},
-            {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "500"},
-            {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "500"},
-            {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "500"},
+            {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "250"},
+            {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "250"},
+            {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "250"},
+            {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "250"},
             // Mascota. Se otorgan en MascotaService.ganarExperiencia al cambiar
             // de fase. Los códigos se comparan literalmente allí: renombrarlos
             // aquí los deja inalcanzables sin que nada falle.
-            {"MASCOTA_CRIA", "Ha salido del cascarón", "Tu mascota evoluciona de huevo a cría", "Mascota", "Medio", "200"},
-            {"MASCOTA_ADULTO", "Nori ha crecido", "Tu mascota evoluciona de cría a adulto", "Mascota", "Medio", "200"},
+            {"MASCOTA_CRIA", "Ha salido del cascarón", "Tu mascota evoluciona de huevo a cría", "Mascota", "Medio", "100"},
+            {"MASCOTA_ADULTO", "Nori ha crecido", "Tu mascota evoluciona de cría a adulto", "Mascota", "Medio", "100"},
     };
 
     // {codigo, nombre, descripcion, categoria, tipo, precio}
