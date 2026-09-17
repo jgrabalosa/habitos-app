@@ -51,7 +51,13 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // se igualaran, comprar temas fabricaría puntos.
             {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "250"},
             {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "250"},
-            {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "250"},
+            // IDENTIDAD_ALBA retirado el 17-sep-2026: su producto TEMA_ALBA está
+            // comentado desde el 6-sep, así que el logro era inalcanzable. Al salir
+            // de este array, inicializarLogros() lo pone activo=false en el próximo
+            // arranque. A diferencia de ESCUDO_RACHA y TEMA_ALBA, aquí basta con
+            // descomentar para reactivarlo: la BD se reinicia antes de la salida,
+            // así que el logro nunca llegará a existir con activo=false.
+            // {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "250"},
             {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "250"},
             // Mascota. Se otorgan en MascotaService.ganarExperiencia al cambiar
             // de fase. Los códigos se comparan literalmente allí: renombrarlos
