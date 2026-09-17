@@ -11,7 +11,9 @@ import com.norday.gamificacion.service.LogroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -88,12 +90,21 @@ public class MascotaService {
      * El ánimo. "feliz" se pregunta al vuelo, para que no pueda quedarse
      * desfasado cuando algo deshace el día. Los otros dos sí son históricos:
      * miran cuánto hace que se cumplió por última vez.
+     * Sin ningún día completo, la referencia es la fecha de registro: quien
+     * acaba de llegar la ve dormida, no triste. Mismo plazo de 3 días.
      * Código, no texto: el cliente lo traduce.
      */
-    private String calcularEstado(int usuarioId, LocalDate fechaUltimoDiaCompleto, ZoneId zona) {
+    private String calcularEstado(int usuarioId, LocalDate fechaUltimoDiaCompleto,
+                                  LocalDateTime fechaRegistro, ZoneId zona) {
         if (cumplimientoDiario.hoyCumplido(usuarioId)) return "feliz";
-        if (fechaUltimoDiaCompleto == null) return "triste";
-        long dias = ChronoUnit.DAYS.between(fechaUltimoDiaCompleto, LocalDate.now(zona));
+        LocalDate referencia = fechaUltimoDiaCompleto;
+        if (referencia == null && fechaRegistro != null) {
+            // fechaRegistro se guarda en UTC; el "hoy" es el del usuario.
+            referencia = fechaRegistro.atZone(ZoneOffset.UTC)
+                    .withZoneSameInstant(zona).toLocalDate();
+        }
+        if (referencia == null) return "triste";
+        long dias = ChronoUnit.DAYS.between(referencia, LocalDate.now(zona));
         if (dias < 3) return "dormida";
         return "triste";
     }
@@ -129,7 +140,9 @@ public class MascotaService {
                 faseAMostrar,
                 calcularFase(nivel),
                 calcularEstado(mascota.getUsuario().getUsuarioId(),
-                        mascota.getFechaUltimoDiaCompleto(), zonaDeMascota(mascota)),
+                        mascota.getFechaUltimoDiaCompleto(),
+                        mascota.getUsuario().getFechaRegistro(),
+                        zonaDeMascota(mascota)),
                 mascota.getFechaUltimaComida()
         );
     }

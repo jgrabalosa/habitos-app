@@ -17,7 +17,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -74,6 +76,12 @@ class MascotaServiceTest {
         }
         when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
         return mascotaService.obtenerDTO(1);
+    }
+
+    /** Sin ningún día completo, registrado hace diasAtras días. */
+    private MascotaDTO dtoRegistradoHace(int diasAtras) {
+        usuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC).minusDays(diasAtras));
+        return dtoConUltimoDiaCompleto(null);
     }
 
     @Test
@@ -158,6 +166,27 @@ class MascotaServiceTest {
     void alTercerDiaSinCumplirVuelveAEstarTriste() {
         assertEquals("triste", dtoConUltimoDiaCompleto(3).getEstado());
         assertEquals("triste", dtoConUltimoDiaCompleto(30).getEstado());
+    }
+
+    @Test
+    void recienRegistradoSinNingunDiaCompletoLaMascotaEstaDormida() {
+        assertEquals("dormida", dtoRegistradoHace(0).getEstado());
+    }
+
+    @Test
+    void sinNingunDiaCompletoSigueDormidaHastaDosDiasTrasElRegistro() {
+        assertEquals("dormida", dtoRegistradoHace(2).getEstado());
+    }
+
+    @Test
+    void sinNingunDiaCompletoAlTercerDiaTrasElRegistroEstaTriste() {
+        assertEquals("triste", dtoRegistradoHace(3).getEstado());
+    }
+
+    @Test
+    void conAlgunDiaCompletoLaFechaDeRegistroYaNoCuenta() {
+        usuario.setFechaRegistro(LocalDateTime.now(ZoneOffset.UTC));
+        assertEquals("triste", dtoConUltimoDiaCompleto(5).getEstado());
     }
 
     // ── registrarDiaCompleto ─────────────────────────────────────────────
