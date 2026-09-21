@@ -1,130 +1,300 @@
 # HábitosApp — Cálculos y Lógica de Negocio
 
-*Última actualización: julio 2026*
+*Última actualización: septiembre 2026*
 
-> ⚠️ Muchos de los valores numéricos de este documento son **provisionales**, pensados para desarrollar y probar el flujo técnico, no para un lanzamiento real. Están marcados explícitamente donde aplica. Se reequilibrarán antes de V1.
-
----
-
-## Rachas (lógica ACTUAL — pendiente de rediseño en la Fase Crítica)
-
-> ⚠️ Esta sección describe cómo funciona el sistema **hoy**, antes del rediseño. Se sabe que tiene un fallo: solo funciona correctamente para hábitos `DIARIO`. Ver sección siguiente para el diseño nuevo, aún no implementado.
-
-- **Racha actual (`rachaActual`):** al completar un hábito, si la última fecha completada fue exactamente "ayer", suma +1. Si no fue ni ayer ni hoy, se resetea a 1.
-- **Mejor racha (`rachaMaxima`):** el valor más alto que `rachaActual` ha alcanzado. Se actualiza automáticamente cuando `rachaActual` la supera. Nunca disminuye.
-- **Total completados:** `COUNT` de todos los registros del hábito con `completado = true`, sin límite de tiempo.
-- **Completados este mes:** igual que el total, filtrado al mes consultado.
-- **Porcentaje del mes:** solo se calcula para hábitos `DIARIO` (para `SEMANAL`/`MENSUAL` devuelve `null` actualmente). Fórmula: `(completados del mes / días transcurridos) × 100` si es el mes actual, o `(completados / días totales del mes) × 100` si es un mes pasado.
-
-## Rachas — DISEÑO NUEVO (Fase Crítica, pendiente de implementar)
-
-- **Regla unificada de cumplimiento de periodo:** un periodo (día o semana) se considera cumplido si `registros_completados_en_el_periodo >= meta` del hábito
-- **Cierre de periodos** (huso horario del usuario): `DIARIO` cierra a las 00:00 cada día; `SEMANAL` cierra el lunes a las 00:00
-- **Primer periodo:** se regala — no rompe la racha si no se cumple
-- **Evaluación:** proactiva, mediante un proceso programado que revisa al cierre de cada periodo (no reactiva como hoy)
-- **Frecuencias soportadas en V1:** solo `DIARIO` y `SEMANAL` (`MENSUAL` y `PERSONALIZADO` van a V2)
-- **Cambiar la meta a mitad de periodo:** permitido, no rompe la racha; el periodo en curso pasa a exigir la nueva meta
+> Este documento describe la lógica funcional actualmente implementada. Los valores indicados aquí se basan en el código actual del backend y no deben interpretarse como promesas de producto distintas de lo que esté disponible en la aplicación.
 
 ---
 
-## Sistema de Puntos (Gamificación — Fase 9)
+## Rachas
 
-### Fuentes de puntos
+### Regla general
 
-| Fuente | Puntos | Estado |
-|---|---|---|
-| Completar un hábito | 100 | Provisional — se espera bajar a 5-10 pts al reequilibrar |
-| Hito de racha (3) | 20 | Provisional |
-| Hito de racha (7) | 50 | Provisional |
-| Hito de racha (30) | 200 | Provisional |
-| Hito de racha (100) | 500 | Provisional |
-| Hito de racha (365) | 1000 | Provisional |
-| Logro nivel Fácil | 100 | Provisional |
-| Logro nivel Medio | 200 | Provisional |
-| Logro nivel Difícil | 500 | Provisional |
+La racha representa periodos consecutivos en los que el hábito alcanza su `meta`.
 
-**Principio de diseño:** los puntos ganados por hitos de racha son irrevocables — si la racha se rompe después, los puntos ya ganados no se retiran.
+- `DIARIO`: el periodo es un día.
+- `SEMANAL`: el periodo es una semana.
+- Un periodo se considera cumplido cuando `registros_completados_en_el_periodo >= meta`.
+- La racha se incrementa una vez por periodo cumplido, aunque se realicen más registros después de alcanzar la meta.
+- La zona horaria del usuario determina el día actual y el cálculo de los periodos.
+- `RachaService` es la puerta de lectura de la racha actual.
 
-**Problema conocido a reequilibrar:** con los valores actuales, completar 2-3 hábitos diarios ya iguala o supera el valor de un logro "Difícil" (500 pts) en 1-2 días de uso, lo que infla la economía. Se corregirá antes de V1.
+### Rotura perezosa
 
-### Cálculo del saldo
+La racha no se pone a cero mediante un proceso programado.
 
-`saldo = SUM(cantidad)` de todos los movimientos en `UsuarioMoneda` del usuario. Se calcula al vuelo en cada consulta — nunca se guarda un valor cacheado, para que el ledger sea siempre la fuente de verdad única.
+`RachaService.rachaActualVigente(...)` comprueba si la racha almacenada sigue viva. Si ha muerto:
 
-### Compra de productos
+1. establece `rachaActual = 0`;
+2. persiste el cambio;
+3. devuelve `0`.
 
-Al comprar, se valida `saldo actual >= precio del producto` antes de crear el movimiento. Si no hay saldo suficiente, la compra se rechaza sin modificar nada.
+`rachaMaxima` no se modifica al romperse una racha.
 
----
+La rotura, por tanto, es **perezosa**: se materializa cuando se consulta o utiliza la racha.
 
-## Catálogo de Logros (25 logros)
+### Completados retroactivos
 
-Cada logro pertenece a una de 5 categorías y un nivel de dificultad (Fácil/Medio/Difícil), que determina sus puntos.
+Se permite completar una fecha anterior únicamente dentro de la semana en curso.
 
-### Inicio (todos Fácil / 100 pts)
-| Código | Nombre | Condición |
-|---|---|---|
-| `PRIMER_HABITO` | Tu primer hábito propio | Crear el primer hábito personalizado |
-| `BIENVENIDO` | Bienvenido/a | Actualizar el perfil de usuario por primera vez |
-| `PRIMERA_CATEGORIA` | Organizado desde el día 1 | Crear la primera categoría personalizada |
-| `LOGIN_GOOGLE` | Conectado con Google | Iniciar sesión con Google |
-| `PRIMEROS_PASOS` | Primeros pasos | Completar el primer hábito (primer registro total) |
+No se permiten:
 
-### Constancia
-| Código | Nombre | Nivel | Condición |
-|---|---|---|---|
-| `RACHA_3` | En racha | Fácil | Racha actual = 3 y máxima = actual |
-| `RACHA_7` | Buen ritmo | Medio | Racha actual = 7 |
-| `RACHA_RECUPERADA` | Resiliencia | Medio | Racha actual = 3 y máxima > actual (indica que hubo una racha rota antes) |
-| `RACHA_30` | Imparable | Difícil | Racha actual = 30 |
-| `RACHA_100` | Maestro de la constancia | Difícil | Racha actual = 100 |
-| `RACHA_365` | Leyenda | Difícil | Racha actual = 365 |
+- fechas futuras;
+- fechas anteriores al lunes de la semana actual.
 
-### Volumen
-| Código | Nombre | Nivel | Condición |
-|---|---|---|---|
-| `HABITOS_ACTIVOS_3` | Coleccionista de hábitos | Fácil | 3 hábitos activos simultáneos |
-| `HABITOS_ACTIVOS_5` | Vida equilibrada | Medio | 5 hábitos activos simultáneos |
-| `REGISTROS_100` | Cien no es nada | Medio | 100 registros completados en total |
-| `REGISTROS_500` | Quinientos y contando | Difícil | 500 registros completados en total |
-| `REGISTROS_1000` | Mil pasos | Difícil | 1000 registros completados en total |
+Cuando un registro retroactivo rellena un hueco y conecta dos tramos de racha, la racha se reconstruye a partir de los registros existentes.
 
-### Variedad
-| Código | Nombre | Nivel | Condición |
-|---|---|---|---|
-| `CATEGORIAS_3` | Explorador de categorías | Fácil | 3 categorías distintas en uso |
-| `CATEGORIAS_5` | Todoterreno | Medio | 5 categorías distintas en uso |
-| `FRECUENCIAS_MIXTAS` | Mezcla de frecuencias | Medio | Un hábito diario + semanal + mensual activos a la vez* |
-| `CATEGORIAS_PERSONALIZADAS_3` | Diseñador de hábitos | Medio | 3 categorías personalizadas propias creadas |
+### Cambio de meta
 
-*Nota: `FRECUENCIAS_MIXTAS` referencia `MENSUAL`, que se elimina en la Fase Crítica — este logro necesitará revisión cuando se implemente el rediseño de rachas.
-
-### Exploración
-| Código | Nombre | Nivel | Condición |
-|---|---|---|---|
-| `PRIMERA_NOTA` | Historias que contar | Fácil | Añadir una nota a un registro |
-| `NOTAS_10` | Diario detallado | Medio | Notas en 10 registros distintos |
-| `VER_DETALLE_HABITO` | Vista completa | Fácil | Consultar el detalle/heatmap de un hábito |
-| `EDITAR_HABITO` | Perfeccionista | Fácil | Editar un hábito existente |
-| `INTERACCION_RESENA` | Tu opinión cuenta | Fácil | Interactuar con el diálogo de valoración de Google Play |
+La meta forma parte del cumplimiento del periodo. El comportamiento concreto ante cambios de meta se mantiene en `HabitoService` y `RegistroService`; este documento no añade reglas que no estén implementadas.
 
 ---
 
-## Catálogo de Productos (Tienda)
+## Sistema de puntos
 
-| Producto | Tipo | Precio | Efecto |
-|---|---|---|---|
-| Escudo de racha | Consumible | 300 (provisional) | Protege 1 pérdida de racha *(lógica de activación aún no implementada — pendiente de la Fase Crítica)* |
+Los puntos se almacenan como movimientos en `UsuarioMoneda`. El saldo se obtiene sumando los movimientos.
 
-**Tipos de producto soportados:**
-- **Consumible:** se compra y se gasta al usar (ej. Escudo de racha)
-- **Equipable:** se puede poseer varios, pero solo uno activo a la vez (ej. futuro tema de color)
-- **Coleccionable:** se posee todo lo comprado, sin exclusión (ej. futuros iconos de perfil)
+### Completar un hábito
+
+Al alcanzar exactamente la meta del periodo correspondiente:
+
+- **25 puntos**
+- **5 XP**
+
+Los puntos y el XP no se conceden por cada registro individual cuando todavía no se ha alcanzado la meta.
+
+Para un hábito diario con meta 3, por ejemplo, los puntos y XP se conceden al tercer completado de ese día.
+
+Una vez alcanzada la meta, completar registros adicionales no vuelve a conceder los puntos de ese periodo.
+
+### Hitos de racha
+
+Los hitos actualmente implementados son:
+
+| Racha | Puntos |
+|---:|---:|
+| 3 | 50 |
+| 7 | 100 |
+| 30 | 300 |
+| 100 | 750 |
+| 365 | 2000 |
+
+Si una reconstrucción retroactiva hace que una racha salte varios valores, se pagan todos los hitos cruzados en ese salto.
+
+Los puntos de los hitos se registran mediante movimientos `HITO_RACHA`.
+
+Si posteriormente la racha se rompe, esos puntos no se eliminan por el mero hecho de romperse la racha.
+
+Si una racha se rompe y posteriormente vuelve a alcanzar un hito, ese hito puede volver a generar puntos.
+
+### Saldo
+
+El saldo se basa en el ledger de movimientos de `UsuarioMoneda`.
+
+Las operaciones de gamificación registran movimientos en lugar de mantener un saldo independiente como única fuente de verdad.
+
+### Reversión de un completado
+
+Los completados pueden disponer de una `ReversionRegistro` que conserva el estado necesario para deshacer el efecto del completado.
+
+La reversión puede contemplar:
+
+- monedas otorgadas;
+- XP otorgada;
+- estado anterior de la racha;
+- periodo de meta alcanzado;
+- última fecha de la racha;
+- estado relacionado con el día completo de la mascota;
+- logros obtenidos como consecuencia del completado.
+
+El sistema también conserva los logros disparados indirectamente por la mascota para que puedan revertirse correctamente.
 
 ---
 
-## Notificaciones push
+## Experiencia y mascota
 
-- Recordatorio diario fijo, disparado por `NotificacionScheduler` (cron)
-- Horario actual de prueba: 15:37 Europe/Madrid — pendiente de definir horario definitivo
-- Contenido: mensaje fijo genérico (personalización dinámica aplazada a V2)
+Al alcanzar la meta del periodo se conceden **5 XP** a la mascota.
+
+La experiencia se gestiona mediante `MascotaService`.
+
+Cuando la mascota cambia de fase, puede disparar logros propios del motor:
+
+- `MASCOTA_CRIA`
+- `MASCOTA_ADULTO`
+
+Estos logros son independientes de los logros específicos del dominio de hábitos.
+
+---
+
+## Catálogo de logros
+
+Los logros están divididos entre:
+
+1. logros específicos del dominio `hábitos`;
+2. logros genéricos del motor de gamificación.
+
+El dominio de hábitos decide qué código corresponde a cada evento mediante `LogrosHabitosService`. El otorgamiento efectivo lo realiza el `LogroService` genérico.
+
+### Logros de hábitos
+
+Actualmente existen **33 logros** específicos de Hábitos.
+
+#### Inicio
+
+| Código | Nombre | Nivel | Puntos | Condición |
+|---|---|---|---:|---|
+| `PRIMER_HABITO` | Tu primer hábito propio | Fácil | 50 | Crear el primer hábito activo |
+| `PRIMERA_CATEGORIA` | Organizado desde el día 1 | Fácil | 50 | Crear la primera categoría personalizada |
+| `PRIMEROS_PASOS` | Primeros pasos | Fácil | 50 | Completar el primer registro |
+
+#### Constancia
+
+| Código | Nombre | Nivel | Puntos |
+|---|---|---|---:|
+| `RACHA_3` | En racha | Fácil | 50 |
+| `RACHA_7` | Buen ritmo | Medio | 100 |
+| `RACHA_RECUPERADA` | Resiliencia | Medio | 100 |
+| `RACHA_10` | Dos dígitos | Medio | 100 |
+| `RACHA_15` | Quince firmes | Medio | 100 |
+| `RACHA_20` | Veinte sin fallar | Medio | 100 |
+| `RACHA_25` | Cuarto de cien | Medio | 100 |
+| `RACHA_30` | Imparable | Difícil | 250 |
+| `RACHA_35` | Más allá del mes | Medio | 100 |
+| `RACHA_40` | Cuarenta | Medio | 100 |
+| `RACHA_45` | Constancia probada | Medio | 100 |
+| `RACHA_50` | Medio centenar | Difícil | 250 |
+| `RACHA_55` | Sin mirar atrás | Medio | 100 |
+| `RACHA_60` | Dos meses | Medio | 100 |
+| `RACHA_65` | Rutina asentada | Medio | 100 |
+| `RACHA_70` | Diez semanas | Medio | 100 |
+| `RACHA_75` | Tres cuartos de cien | Medio | 100 |
+| `RACHA_80` | Ochenta | Medio | 100 |
+| `RACHA_85` | Recta final | Medio | 100 |
+| `RACHA_90` | Noventa días | Difícil | 250 |
+| `RACHA_100` | Maestro de la constancia | Difícil | 250 |
+| `RACHA_365` | Leyenda | Difícil | 250 |
+
+`RACHA_3` se concede cuando la racha actual es 3 y además coincide con la máxima, es decir, representa la primera racha de 3.
+
+`RACHA_RECUPERADA` se concede cuando la racha actual vuelve a ser 3 pero la máxima anterior es superior a 3.
+
+Los demás hitos de racha se comprueban mediante igualdad con el valor actual de la racha. Por tanto, la lógica actual no utiliza `>=` para conceder esos logros.
+
+#### Volumen
+
+| Código | Nombre | Nivel | Puntos | Condición |
+|---|---|---|---:|---|
+| `HABITOS_ACTIVOS_3` | Coleccionista de hábitos | Fácil | 50 | 3 hábitos activos |
+| `HABITOS_ACTIVOS_5` | Vida equilibrada | Medio | 100 | 5 hábitos activos |
+| `REGISTROS_100` | Cien no es nada | Medio | 100 | 100 registros completados |
+| `REGISTROS_500` | Quinientos y contando | Difícil | 250 | 500 registros completados |
+| `REGISTROS_1000` | Mil pasos | Difícil | 250 | 1000 registros completados |
+
+#### Variedad
+
+| Código | Nombre | Nivel | Puntos | Condición |
+|---|---|---|---:|---|
+| `CATEGORIAS_3` | Explorador de categorías | Fácil | 50 | 3 categorías distintas en hábitos activos |
+| `CATEGORIAS_5` | Todoterreno | Medio | 100 | 5 categorías distintas en hábitos activos |
+
+#### Exploración
+
+| Código | Nombre | Nivel | Puntos | Condición |
+|---|---|---|---:|---|
+| `PRIMERA_NOTA` | Historias que contar | Fácil | 50 | Añadir una nota a un registro |
+
+### Logros genéricos del motor
+
+Actualmente el catálogo genérico contiene:
+
+| Código | Nombre | Nivel | Puntos | Condición |
+|---|---|---|---:|---|
+| `BIENVENIDO` | Bienvenido/a | Fácil | 50 | Personalizar el perfil |
+| `LOGIN_GOOGLE` | Conectado con Google | Fácil | 50 | Iniciar sesión mediante Google |
+| `IDENTIDAD_PROFUNDIDAD` | Bajo las estrellas | Fácil | 250 | Conseguir Profundidad |
+| `IDENTIDAD_NEOTOKYO_PLUS` | Luces de neón | Fácil | 250 | Conseguir Neotokyo+ |
+| `IDENTIDAD_DULCE` | Con cariño | Fácil | 250 | Conseguir Dulce |
+| `MASCOTA_CRIA` | Ha salido del cascarón | Medio | 100 | Evolucionar de huevo a cría |
+| `MASCOTA_ADULTO` | Nori ha crecido | Medio | 100 | Evolucionar de cría a adulto |
+
+`IDENTIDAD_ALBA` está retirado.
+
+### Total actual
+
+- **33 logros específicos de Hábitos**
+- **7 logros genéricos del motor**
+- **40 logros activos en el catálogo actual**
+
+El número de logros activos puede cambiar en futuras versiones si se añaden o retiran entradas del catálogo.
+
+---
+
+## Catálogo de productos
+
+Actualmente el catálogo contiene:
+
+| Código | Producto | Tipo | Precio | Función |
+|---|---|---|---:|---|
+| `TEMA_PROFUNDIDAD` | Profundidad | Equipable | 1000 | Identidad visual |
+| `TEMA_NEOTOKYO_PLUS` | Neotokyo+ | Equipable | 1000 | Identidad visual |
+| `TEMA_DULCE` | Dulce | Equipable | 1000 | Identidad visual |
+| `COMIDA_BASICA` | Comida | Consumible | 50 | Alimentar a la mascota y ganar experiencia |
+
+`TEMA_ALBA` está retirado.
+
+El `Escudo de racha` está retirado porque su funcionalidad de protección no estaba implementada.
+
+Los diez avatares del catálogo anterior también están retirados del catálogo actual.
+
+El esqueleto técnico relacionado con avatares puede seguir existiendo en el código, pero eso no implica que los avatares estén disponibles como producto de la tienda.
+
+### Identidades
+
+La identidad `Profundidad` es el producto por defecto utilizado por el sistema.
+
+Al conseguir una identidad mediante producto, el sistema deriva el logro correspondiente a partir del código del tema:
+
+`TEMA_X` → `IDENTIDAD_X`
+
+---
+
+## Notificaciones de racha
+
+La antigua lógica que reseteaba las rachas mediante un scheduler ya no existe.
+
+Actualmente `NotificadorRachaEnPeligro` únicamente envía avisos.
+
+- El proceso se ejecuta cada hora.
+- Cada usuario se evalúa en su propia zona horaria.
+- El aviso se intenta enviar cuando son las **21:00 hora local del usuario**.
+- Solo se avisa si existe una racha viva que todavía no ha sido renovada en el periodo actual.
+- Se utiliza el token FCM del usuario.
+- Si no hay token FCM, no se envía la notificación.
+
+El scheduler, por tanto, **no decide ni modifica el estado de la racha**. Su función es exclusivamente informativa.
+
+---
+
+## Principios de implementación relevantes
+
+### Fuente de verdad
+
+La lógica funcional debe mantenerse alineada con el código implementado. Este documento no debe conservar reglas históricas como si fueran funcionalidad actual.
+
+### Catálogo por código
+
+Los logros y productos se identifican mediante códigos técnicos estables.
+
+Los initializers comprueban los códigos individualmente para crear las entradas que falten.
+
+Los logros genéricos retirados del catálogo pueden desactivarse automáticamente por el initializer del motor. Los logros propios de cada aplicación se gestionan desde su propio módulo.
+
+### Reversiones
+
+Las operaciones de gamificación relacionadas con un completado deben poder reconstruirse y revertirse a partir de la información conservada por `ReversionRegistro`.
+
+### Estado implementado frente a estado planificado
+
+Una característica que exista únicamente como comentario, placeholder, asset o estructura técnica no debe documentarse como funcionalidad disponible.
+
+---

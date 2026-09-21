@@ -1,8 +1,10 @@
 # HábitosApp — Diagramas UML de Clases
 
-*Última actualización: julio 2026*
+*Última actualización: septiembre 2026*
 
-Se presentan dos diagramas separados por dominio, para mantener la legibilidad: **Núcleo de hábitos** y **Gamificación**. `Usuario` aparece en ambos como punto de conexión entre dominios.
+Los diagramas se separan por responsabilidad para mantener la legibilidad: **Núcleo de hábitos**, **Gamificación** y **Arquitectura de servicios**.
+
+> Los diagramas representan el modelo funcional actualmente documentado a partir del backend. No incluyen estructuras futuras ni clases retiradas.
 
 ---
 
@@ -15,9 +17,7 @@ classDiagram
         -String nombre
         -String username
         -String email
-        -String contrasena
         -String proveedorAuth
-        -LocalDateTime fechaRegistro
         -String fcmToken
     }
 
@@ -41,7 +41,7 @@ classDiagram
         -LocalDate fechaInicio
         -boolean activo
         -Usuario propietario
-        -Categoria tipo
+        -Categoria categoria
     }
 
     class Racha {
@@ -64,19 +64,19 @@ classDiagram
         <<enumeration>>
         DIARIO
         SEMANAL
-        MENSUAL
-        PERSONALIZADO
     }
 
     Usuario "1" --> "0..*" Habito : propietario
     Usuario "1" --> "0..*" Categoria : creador
-    Categoria "0..1" --> "0..*" Habito : tipo
+    Categoria "0..1" --> "0..*" Habito : categoria
     Habito "1" --> "1" Racha
     Habito "1" --> "0..*" Registro
     Habito ..> Frecuencia
 ```
 
-> ⚠️ **Pendiente (Fase Crítica):** el enum `Frecuencia` perderá `MENSUAL` y `PERSONALIZADO` en V1 — quedarán solo `DIARIO` y `SEMANAL`. Este diagrama refleja el estado actual del código, aún sin modificar.
+La frecuencia representada aquí se limita a los valores actualmente documentados para la lógica de rachas: `DIARIO` y `SEMANAL`.
+
+La `meta` del hábito determina cuándo se considera cumplido el periodo correspondiente.
 
 ---
 
@@ -98,6 +98,7 @@ classDiagram
         -int puntos
         -String icono
         -boolean activo
+        -String origenApp
     }
 
     class UsuarioLogro {
@@ -137,44 +138,95 @@ classDiagram
         -boolean equipado
     }
 
+    class Mascota {
+        -Usuario usuario
+        -int nivel
+        -int experiencia
+        -String fase
+    }
+
     Usuario "1" --> "0..*" UsuarioLogro
     Logro "1" --> "0..*" UsuarioLogro
     Usuario "1" --> "0..*" UsuarioMoneda
     Usuario "1" --> "0..*" UsuarioProducto
     Producto "1" --> "0..*" UsuarioProducto
+    Usuario "1" --> "1" Mascota
 ```
 
-> `PerfilGamificacion` aparecía aquí como clase colgando de `Usuario` con relación `0..1`. Se eliminó: nunca la usó ningún DAO, servicio ni controller, era código muerto. Lo que iba a guardar lo cubren `UsuarioMoneda`, `UsuarioProducto`, `UsuarioLogro` y `Mascota` — esta última con el nivel y la XP que eran el motivo original de reservarla. Ver la nota en [04-modelo-entidad-relacion.md](04-modelo-entidad-relacion.md).
+Los logros se dividen entre el motor común y los logros específicos de la aplicación de hábitos. Los específicos de hábitos utilizan `origenApp = "habitos"`.
+
+El modelo no incluye `PerfilGamificacion`: esta estructura fue retirada y sus responsabilidades quedaron cubiertas por las entidades de moneda, productos, logros y mascota.
+
+La mascota forma parte de la gamificación compartida y mantiene información relacionada con evolución, experiencia y nivel.
 
 ---
 
-## Arquitectura de capas (backend)
-
-No es UML de clases estricto, pero ayuda a visualizar cómo se conectan las piezas de la Fase 9:
+## Arquitectura de módulos del backend
 
 ```mermaid
 flowchart TD
-    Controller[GamificacionController] --> LogroService
-    Controller --> ProductoService
-    Controller --> UsuarioMonedaService
+    Server[norday-server] --> Motor[norday-motor]
+    Server --> Habitos[habitos]
+    Server --> Conocimiento[conocimiento]
 
-    RegistroService --> MotorLogrosService
-    RegistroService --> UsuarioMonedaService
-    HabitoService --> MotorLogrosService
-    CategoriaService --> MotorLogrosService
-    UsuarioService --> MotorLogrosService
+    Motor --> Auth[Autenticación y usuarios]
+    Motor --> Gamificacion[Gamificación]
+    Motor --> Preferencias[Preferencias]
+    Motor --> Notificaciones[Notificaciones]
 
-    MotorLogrosService --> LogroService
-    LogroService --> UsuarioMonedaService
+    Habitos --> HabitosCore[Hábitos y categorías]
+    Habitos --> Registros[Registros y rachas]
+    Habitos --> LogrosHabitos[Logros específicos de hábitos]
 
-    LogroService --> ILogroDAO
-    LogroService --> IUsuarioLogroDAO
-    ProductoService --> IProductoDAO
-    ProductoService --> IUsuarioProductoDAO
-    UsuarioMonedaService --> IUsuarioMonedaDAO
-    MotorLogrosService --> IHabitoDAO
-    MotorLogrosService --> IRegistroDAO
-    MotorLogrosService --> IRachaDAO
+    Conocimiento --> CategoriasConocimiento[Categorías]
+    Conocimiento --> Pildoras[Píldoras]
+    Conocimiento --> PreferenciasConocimiento[Preferencias y valoraciones]
 ```
 
-**Lectura del diagrama:** `MotorLogrosService` es el punto central de evaluación — se llama desde los 4 servicios de negocio (`RegistroService`, `HabitoService`, `CategoriaService`, `UsuarioService`) cada vez que ocurre una acción relevante, y a su vez usa `LogroService` para otorgar logros, que internamente ya dispara el registro de puntos correspondiente en `UsuarioMonedaService`.
+Los módulos mantienen responsabilidades separadas. La gamificación común pertenece al motor, mientras que los servicios de hábitos evalúan los eventos específicos del dominio y utilizan los servicios genéricos correspondientes.
+
+---
+
+## Flujo de gamificación de un registro
+
+```mermaid
+flowchart TD
+    Registro[Registro de hábito] --> RegistroService
+    RegistroService --> Cumplimiento[Comprobar meta del periodo]
+    Cumplimiento --> Racha[RachaService]
+    Cumplimiento --> Logros[LogrosHabitosService]
+    Cumplimiento --> Moneda[Movimientos de UsuarioMoneda]
+    Logros --> LogroService[LogroService]
+    LogroService --> UsuarioLogro[UsuarioLogro]
+    Logros --> Mascota[Mascota]
+```
+
+`LogrosHabitosService` se ocupa de determinar los logros propios del dominio de hábitos. La concesión genérica de logros corresponde a `LogroService`.
+
+Los movimientos de moneda forman parte del ledger de gamificación y no dependen de un saldo almacenado como única fuente de verdad.
+
+---
+
+## Reversión de un registro
+
+```mermaid
+flowchart TD
+    Registro[Registro completado] --> Reversion[ReversionRegistro]
+    Reversion --> Monedas[Monedas otorgadas]
+    Reversion --> XP[XP otorgada]
+    Reversion --> Racha[Estado anterior de racha]
+    Reversion --> Periodo[Periodo alcanzado]
+    Reversion --> Logros[Logros derivados]
+    Reversion --> Mascota[Estado de mascota relacionado]
+```
+
+La reversión conserva el estado necesario para deshacer los efectos asociados al completado cuando la operación está disponible.
+
+---
+
+## Notas
+
+- `RachaService` aplica una estrategia de **rotura perezosa**: la racha se normaliza cuando se consulta o utiliza y no mediante un proceso que resetee todas las rachas a una hora fija.
+- `NotificadorRachaEnPeligro` se ocupa de las notificaciones de racha en riesgo; no es responsable de romper ni modificar la racha.
+- El modelo de gamificación es compartido por el ecosistema, mientras que los eventos que generan logros de hábitos pertenecen al módulo `habitos`.
+- No se representan aquí clases retiradas ni estructuras marcadas únicamente como futuras.
