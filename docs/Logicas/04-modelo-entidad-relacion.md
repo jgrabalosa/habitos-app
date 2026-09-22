@@ -1,4 +1,4 @@
-# HábitosApp — Modelo Entidad-Relación
+# Norday Habits — Modelo Entidad-Relación
 
 *Última actualización: septiembre 2026*
 
