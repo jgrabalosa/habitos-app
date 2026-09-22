@@ -253,8 +253,8 @@ recargar.
 ### Qué hay montado
 
 `norday-backend-staging.service` corre en el VPS y escucha en el 8081, junto
-a `norday-backend.service` en el 8080. Los dos escuchan en todas las
-interfaces (`*:8080`, `*:8081`), no en `localhost`.
+a `norday-backend.service` en el 8080. Los dos escuchan en loopback
+(`127.0.0.1:8080`, `127.0.0.1:8081`), no en todas las interfaces.
 
 El Caddyfile tiene dos bloques independientes, uno por dominio. **No heredan
 nada el uno del otro**: cada bloque repite sus cabeceras, su
@@ -266,7 +266,7 @@ tráfico de pruebas no se mezcle con el real.
 
 La zona `norday.app` la sirven `lucy.ns.cloudflare.com` y
 `vicente.ns.cloudflare.com`. Los dos registros A —`api` y `staging-api`—
-apuntan a `169.58.80.239` en modo **DNS only** (nube gris, `cf-proxied:false`
+apuntan a la IP del VPS en modo **DNS only** (nube gris, `cf-proxied:false`
 en la exportación de zona).
 
 **Tiene que ser gris.** Con el proxy activado, Cloudflare termina el TLS por
