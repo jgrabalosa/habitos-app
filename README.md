@@ -42,10 +42,10 @@ dependencias hacia ellos.
 2. Crear la base de datos de los tests. El build **no** se salta los tests,
    así que sin ella no compila:
 
-```bash
+   ```bash
    psql -U postgres -c "CREATE USER norday_test WITH PASSWORD 'norday_test';"
    psql -U postgres -c "CREATE DATABASE habitos_db_test OWNER norday_test;"
-```
+   ```
 
 3. `./mvnw clean package` (en Windows, `mvnw.cmd clean package`).
 
