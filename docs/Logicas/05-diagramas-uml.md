@@ -1,4 +1,4 @@
-# HábitosApp — Diagramas UML de Clases
+# Norday Habits — Diagramas UML de Clases
 
 *Última actualización: septiembre 2026*
 

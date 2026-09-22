@@ -1,4 +1,4 @@
-# HábitosApp — Cálculos y Lógica de Negocio
+# Norday Habits — Cálculos y Lógica de Negocio
 
 *Última actualización: septiembre 2026*
 
