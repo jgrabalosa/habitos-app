@@ -76,7 +76,7 @@ agregador (`packaging=pom`, sin dependencias propias) que hereda de
   técnicas: JPA, web, security, JWT, validación, bucket4j, mail, OAuth2,
   Google/Firebase, Flyway, PostgreSQL. Es el módulo que se extraerá tal
   cual cuando exista la segunda app del ecosistema.
-- **`habitos/`** — el dominio de Norday Hábitos: `com.norday.habitos`.
+- **`habitos/`** — el dominio de Norday Habits: `com.norday.habitos`.
   Librería también. Su única dependencia de producción es `norday-motor`,
   y las hereda todas por transitividad.
 - **`conocimiento/`** — el dominio de Norday Conocimiento:
