@@ -17,6 +17,8 @@ El backend de Norday está organizado en módulos:
 
 La cuenta de usuario y la gamificación son compartidas por las aplicaciones del ecosistema.
 
+Este documento cubre el motor y el dominio de Norday Habits. Las entidades de `conocimiento` (`Categoria`, `Pildora`, `PildoraCategoria`, `UsuarioPildora`, `UsuarioCategoriaPreferencia` y `ValoracionPildora`) pertenecen a Norday Conocimiento y se describen en su propio módulo, en `conocimiento/src/main/java/com/norday/conocimiento/model/`.
+
 ---
 
 ## 2. Entidades principales
@@ -38,6 +40,10 @@ Entre sus datos y relaciones se encuentran:
 - datos de autenticación y recuperación de contraseña.
 
 El backend es la fuente de verdad para el estado persistente del usuario.
+
+### CodigoRecuperacion
+
+Código temporal para restablecer la contraseña. Va ligado al email, no al usuario, y tiene una fecha de caducidad. Es parte del motor de cuenta.
 
 ### Hábito
 
@@ -73,6 +79,18 @@ Un registro se relaciona con:
 
 La lógica de registros es responsable de aplicar los efectos de gamificación derivados del cumplimiento.
 
+### ReversionRegistro y ReversionLogro
+
+Permiten deshacer un completado con exactitud. Cada completado guarda una `ReversionRegistro` ligada a su `Registro` con:
+
+- las monedas que otorgó ese completado (el propio completado, el hito de racha y los logros) y la experiencia que dio a la mascota;
+- el estado previo de la racha: `rachaActual`, `rachaMaxima`, periodo de meta alcanzada y última fecha;
+- el día completo previo de la mascota.
+
+Las monedas y la experiencia se guardan como lo que dio el completado, no como una instantánea: al deshacer se restan, para no borrar lo ganado después. Los campos de estado previo admiten nulo cuando no hay nada que restaurar (un hábito sin racha, un usuario sin mascota).
+
+Cada logro desbloqueado por ese completado, incluidos los que dispara indirectamente la mascota, queda en una `ReversionLogro` que cuelga de la reversión, para poder retirarlo si el completado se deshace.
+
 ### Racha
 
 Representa la continuidad de periodos cumplidos de un hábito.
@@ -87,7 +105,7 @@ La racha se normaliza de forma perezosa mediante `RachaService`; no depende de u
 
 ### Logro
 
-Representa un logro concedido al usuario.
+Es el catálogo de logros: código, nombre, descripción, categoría, nivel, puntos, icono y `origenApp`. Un logro del catálogo no pertenece a ningún usuario.
 
 Existen dos grandes grupos:
 
@@ -97,6 +115,10 @@ Existen dos grandes grupos:
 Los logros específicos de hábitos utilizan `origenApp = "habitos"`.
 
 El servicio de dominio determina qué logro corresponde y el servicio genérico de gamificación gestiona su concesión.
+
+### UsuarioLogro
+
+Representa la concesión de un logro a un usuario: qué usuario, qué logro y cuándo lo consiguió. La pareja usuario-logro es única (`UQ_usuario_logro`): un usuario no puede tener el mismo logro dos veces.
 
 ### Moneda / movimientos
 
@@ -130,13 +152,17 @@ El backend mantiene la información de productos/equipamiento como fuente de ver
 
 La mascota forma parte de la gamificación compartida del ecosistema.
 
-Su estado se relaciona con:
+Guarda:
 
-- fase/evolución;
-- experiencia y nivel;
-- alimentación;
-- estado del día completado;
-- inventario/equipamiento cuando corresponde.
+- la experiencia acumulada;
+- el nombre;
+- la fecha de la última comida;
+- la fecha del último día completo;
+- la fase elegida (`faseElegida`).
+
+El nivel no se guarda: se deriva de la experiencia, y la fase (huevo, cría, adulto) se deriva del nivel. Los umbrales viven en `MascotaService`.
+
+`faseElegida` permite al usuario elegir qué fase de la mascota ve, entre las que ya ha desbloqueado. Sólo afecta a la imagen: no toca experiencia, evolución ni logros. Vale nulo, que significa «la que toque», al nacer y tras cada evolución, para que el cambio se vea.
 
 La mascota puede generar logros indirectamente derivados de acciones realizadas desde hábitos.
 
@@ -150,10 +176,10 @@ De forma simplificada:
 Usuario
  ├── 1:N ── Hábito
  │           ├── N:1 ── Categoría
- │           ├── 1:N ── Registro
+ │           ├── 1:N ── Registro ── 1:N ── ReversionRegistro ── 1:N ── ReversionLogro
  │           └── ────── Racha
  │
- ├── 1:N ── Logro
+ ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
  ├── 1:N ── UsuarioProducto ── N:1 ── Producto
  └── 1:1 ── Mascota
