@@ -167,6 +167,30 @@ justo para cazar a otro módulo sembrando sin `origenApp`.
 El saldo de puntos (UsuarioMoneda) es único y compartido entre todas las
 apps del ecosistema — no crear muros entre apps.
 
+## Lo retirado del catálogo
+
+Retirado no es borrado: la fila queda en la BD con `activo = false` y el
+cliente deja de recibirla. Cada retirada está comentada en su initializer
+con fecha y motivo.
+
+| Código | Retirado | Motivo |
+|---|---|---|
+| `ESCUDO_RACHA` | 24-ago-2026 | Se vendía sin estar implementado (migración V6) |
+| `INTERACCION_RESENA` | 24-ago-2026 | Premiar la reseña va contra la política de Google Play (V7). El diálogo de reseña sigue en la app; sólo se quita la recompensa |
+| `TEMA_ALBA` | 6-sep-2026 | Se sale a Google Play con tres identidades: Profundidad, Neotokyo+ y Dulce |
+| Los diez `AVATAR_*` | 15-sep-2026 | No encajaban con la app. El esqueleto sigue en `norday_flutter_core` |
+| `IDENTIDAD_ALBA` | 17-sep-2026 | Inalcanzable sin `TEMA_ALBA` |
+
+Para retirar un logro o producto genérico basta con sacarlo del array de
+`CatalogoGamificacionInitializer`: el siguiente arranque lo desactiva.
+
+**Reactivar no es simétrico.** Descomentar la fila no basta si ya existe en
+la BD con `activo = false`: `findByCodigo(...) != null` salta la creación y
+hace falta un `UPDATE` manual o una migración nueva. `ESCUDO_RACHA` e
+`INTERACCION_RESENA` los desactivó una migración (V6 y V7): nunca editar
+una migración ya aplicada, porque Flyway rechaza el cambio de checksum.
+Antes de reactivar, comprobar en la BD si la fila existe.
+
 ## Elección de identidad en el onboarding
 
 El usuario elige identidad (tema visual) la primera vez que entra:
@@ -211,6 +235,28 @@ La racha no depende de ningún cron: `Racha` guarda `periodoMetaAlcanzada`
 al cambiar de periodo. La rotura es perezosa y se normaliza al leer, en
 `RachaService.rachaActualVigente`. Ningún barrido decide sobre rachas; el
 scheduler solo avisa.
+
+## Deshacer un completado: ReversionRegistro
+
+Deshacer un completado revierte todos sus efectos. Al completar,
+`RegistroService` guarda una `ReversionRegistro` ligada al registro: las
+monedas y la XP que dio ese completado, el estado previo de la racha y del
+día completo de la mascota, y, en `ReversionLogro`, cada logro que
+desbloqueó, incluidos los que dispara la mascota.
+
+Al deshacer:
+
+- los logros se retiran, para que puedan volver a concederse;
+- las monedas no se borran, se compensan con un movimiento de signo
+  contrario: el libro de `UsuarioMoneda` es de sólo añadir, y se permite
+  saldo negativo;
+- la XP se resta en lo que dio el completado, sin volver al valor previo,
+  que borraría la ganada después;
+- la racha vuelve a su estado previo.
+
+**Todo efecto nuevo que se añada a un completado tiene que quedar en la
+reversión.** Si no, deshacer lo deja puesto y el usuario se queda con
+puntos, XP o logros que no le tocan.
 
 ## Textos
 
@@ -302,6 +348,16 @@ psql -U postgres -c "SELECT datname, xact_commit FROM pg_stat_database WHERE dat
 Qué cubre la suite y qué no: los tests mockean los DAOs, así que no ven
 proxies de Hibernate ni validan JPQL. Una consulta no está validada porque la
 suite esté verde.
+
+## Documentación
+
+- [`README.md`](README.md) — qué es este repo, módulos y cómo compilar
+- [`docs/Logicas/03-calculos-y-logica.md`](docs/Logicas/03-calculos-y-logica.md) — rachas, puntos, experiencia, logros y catálogo de la tienda
+- [`docs/Logicas/04-modelo-entidad-relacion.md`](docs/Logicas/04-modelo-entidad-relacion.md) — modelo de datos
+- [`docs/Logicas/05-diagramas-uml.md`](docs/Logicas/05-diagramas-uml.md) — diagramas de clases y flujos
+- [`docs/despliegue.md`](docs/despliegue.md) — producción y staging
+- [`docs/backups.md`](docs/backups.md) — copias de la base de datos y restauración
+- [`docs/ordenador-servidor.md`](docs/ordenador-servidor.md) — las máquinas de trabajo y el agente Hermes
 
 ## Estilo de trabajo con el usuario
 
