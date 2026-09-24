@@ -86,20 +86,34 @@ eso el script comprueba además la antigüedad de la última copia.
 
 Una vez al mes, y después de cada migración de Flyway que cambie el esquema.
 
-**Última: 11-sep-2026**, con el dump `habitos_db_2026-09-11_0300.dump`. Salió
-bien: 21 tablas en el índice del dump y 21 en la base restaurada, 6 usuarios,
-10 hábitos y 38 registros. Siguiente, hacia el 11-oct-2026 o antes si entra una
+**Última: 24-sep-2026**, con el dump `habitos_db_2026-09-24_0300.dump` de la
+copia descargada en Windows, así que prueba la cadena entera. Salió bien: 21
+tablas en el índice del dump y 21 en la base restaurada, Flyway en la versión
+13 con `success = t`, 6 usuarios, 10 hábitos y 11 registros. Los usuarios se
+compararon por ID con producción: coinciden todos los que existían a las 03:00,
+con la misma fecha de alta, y el único que falta en producción se borró
+después del dump. Siguiente, hacia el 24-oct-2026 o antes si entra una
 migración que cambie el esquema. Anotar aquí cada una con su fecha y sus
 cifras: sin eso no se sabe si toca.
+
+Anteriores: 11-sep-2026, `habitos_db_2026-09-11_0300.dump`, 21 tablas, 6
+usuarios, 10 hábitos y 38 registros.
 
 Contra el PostgreSQL 18 local, **puerto 5434**, sobre una base desechable —
 nunca contra `habitos_db` local. `pg_restore --no-owner --no-acl
 --exit-on-error`, comparar el número de tablas con lo que lista
-`pg_restore -l`, y borrar la base al terminar.
+`pg_restore -l`, comprobar que la última fila de `flyway_schema_history` es
+la versión esperada con `success = t`, y borrar la base al terminar.
+
+**Los datos se comparan por ID, no por recuento.** Contar en producción los
+usuarios dados de alta antes de la hora del dump no cuadra si alguno se ha
+borrado después. Se listan `usuario_id` y `fecha_registro` en las dos bases y
+se comparan fila a fila.
 
 **Un `pg_restore` más antiguo que el servidor que hizo el dump falla** con
 "unsupported version in file header" aunque el dump esté bien. Hay que usar
-el cliente de la misma versión o mayor.
+el cliente de la misma versión mayor o superior. La versión menor no importa:
+un `pg_restore` 18.4 restaura sin problema un dump de un servidor 18.6.
 
 ## Comparar producción con staging
 
