@@ -169,9 +169,9 @@ apps del ecosistema — no crear muros entre apps.
 
 ## Lo retirado del catálogo
 
-Retirado no es borrado: la fila queda en la BD con `activo = false` y el
-cliente deja de recibirla. Cada retirada está comentada en su initializer
-con fecha y motivo.
+Retirado no es borrado: si la fila ya existía, queda en la BD con
+`activo = false` y el cliente deja de recibirla. Cada retirada está
+comentada en su initializer con fecha y motivo.
 
 | Código | Retirado | Motivo |
 |---|---|---|
@@ -189,7 +189,9 @@ la BD con `activo = false`: `findByCodigo(...) != null` salta la creación y
 hace falta un `UPDATE` manual o una migración nueva. `ESCUDO_RACHA` e
 `INTERACCION_RESENA` los desactivó una migración (V6 y V7): nunca editar
 una migración ya aplicada, porque Flyway rechaza el cambio de checksum.
-Antes de reactivar, comprobar en la BD si la fila existe.
+Antes de reactivar, comprobar en la BD si la fila existe. A 24-sep-2026 no
+existe ninguna de las retiradas, ni en producción ni en staging: las BD se
+reiniciaron después de retirarlas, así que hoy bastaría con descomentar.
 
 ## Elección de identidad en el onboarding
 
