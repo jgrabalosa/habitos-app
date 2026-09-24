@@ -10,7 +10,9 @@ Ninguna de las dos demuestra nada por sí sola.
 
 `/root/backup_bd.sh`, cron `0 3 * * *`. Vuelca **las dos bases**, producción
 y staging, a `/root/backups/`, con retención real de **ocho o nueve días**. El
-log es `/root/backups/backup.log`.
+log es `/root/backups/backup.log`, pero lo escribe la redirección del cron
+(`>> backup.log 2>&1`), no el script: en una ejecución manual los mensajes
+salen por pantalla y no quedan en el log.
 
 **No son siete.** `find -mtime +7` borra lo que supera estrictamente ocho
 períodos de 24 h contados desde el instante en que corre el `find`, y ese
