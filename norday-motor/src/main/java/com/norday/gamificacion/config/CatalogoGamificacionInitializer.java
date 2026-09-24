@@ -21,6 +21,17 @@ import java.util.stream.Collectors;
  * Los logros se comprueban por código, fila a fila: el catálogo de logros
  * lo siembran dos módulos distintos, y una guarda todo-o-nada sobre la
  * tabla entera haría que el segundo en arrancar no sembrara nada.
+ *
+ * Reactivar algo retirado. Una entrada que sale de LOGROS o PRODUCTOS se
+ * pone activo=false en el siguiente arranque, pero sólo si ya existía en
+ * la BD. Al volver a descomentarla:
+ * - Si no existe en la BD, basta con descomentar: se crea en el siguiente
+ *   arranque. A 24-sep-2026 es el caso de todo lo comentado aquí, en
+ *   producción y en staging: las BD se reiniciaron después de retirarlo.
+ * - Si existe con activo=false, descomentar NO basta: findByCodigo!=null
+ *   salta la creación. Hace falta una migración nueva con un UPDATE. Nunca
+ *   editar una migración ya aplicada: Flyway rechaza el cambio de checksum.
+ * Antes de reactivar, comprobarlo con un SELECT en cada BD.
  */
 @Component
 public class CatalogoGamificacionInitializer implements CommandLineRunner {
@@ -52,11 +63,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "250"},
             {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "250"},
             // IDENTIDAD_ALBA retirado el 17-sep-2026: su producto TEMA_ALBA está
-            // comentado desde el 6-sep, así que el logro era inalcanzable. Al salir
-            // de este array, inicializarLogros() lo pone activo=false en el próximo
-            // arranque. A diferencia de ESCUDO_RACHA y TEMA_ALBA, aquí basta con
-            // descomentar para reactivarlo: la BD se reinicia antes de la salida,
-            // así que el logro nunca llegará a existir con activo=false.
+            // comentado desde el 6-sep, así que el logro era inalcanzable. Para
+            // reactivarlo, ver «Reactivar algo retirado» en la cabecera de la clase.
             // {"IDENTIDAD_ALBA", "Primera luz", "Consigue la identidad Alba", "Identidad", "Facil", "250"},
             {"IDENTIDAD_DULCE", "Con cariño", "Consigue la identidad Dulce", "Identidad", "Facil", "250"},
             // Mascota. Se otorgan en MascotaService.ganarExperiencia al cambiar
@@ -71,8 +79,9 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
     // aquí la crea en el próximo arranque aunque la tabla ya tenga datos.
     private static final String[][] PRODUCTOS = {
             // ESCUDO_RACHA desactivado el 24-ago-2026: se vendía sin estar
-            // implementado (ver migración V6). Si se reactiva, quitar el activo=false
-            // de esa migración también, o quedará creado-pero-inactivo para siempre.
+            // implementado. La migración V6 lo puso activo=false en la BD de
+            // entonces. Para reactivarlo, ver «Reactivar algo retirado» en la
+            // cabecera de la clase.
             // {"ESCUDO_RACHA", "Escudo de racha", "Protege tu racha durante 1 día si olvidas completar tu hábito", "Protección", "CONSUMIBLE", "300"},
             // Las cuatro identidades. Sustituyen a las siete paletas antiguas, que
             // sólo se diferenciaban en color; éstas cambian además letra, forma y
@@ -87,11 +96,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             {"TEMA_PROFUNDIDAD", "Profundidad", "Azul noche y cristal esmerilado, de calma sobria", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1000"},
             // TEMA_ALBA desactivado el 6-sep-2026: se sale a Google Play con tres
-            // identidades y su rebranding queda aplazado. Al salir de este array,
-            // inicializarProductos() lo pone activo=false en el próximo arranque.
-            // Ojo al reactivar: descomentar NO basta si el producto ya existe en la
-            // BD con activo=false, porque findByCodigo!=null salta la creación —
-            // haría falta un UPDATE manual, igual que con ESCUDO_RACHA.
+            // identidades y su rebranding queda aplazado. Para reactivarlo, ver
+            // «Reactivar algo retirado» en la cabecera de la clase.
             // {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1000"},
             // Los diez avatares, desactivados el 15-sep-2026: no encajaban con
@@ -103,10 +109,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // El esqueleto se conserva entero: catalogoAvatares, AvatarUsuario,
             // SelectorAvatarGratis y los PNG siguen en norday_flutter_core.
             //
-            // Ojo al reactivar: descomentar NO basta si el producto ya existe en
-            // la BD con activo=false, porque findByCodigo!=null salta la
-            // creación — haría falta un UPDATE manual, igual que con
-            // ESCUDO_RACHA y TEMA_ALBA.
+            // Para reactivarlos, ver «Reactivar algo retirado» en la cabecera de
+            // la clase.
             //
             // placeholder hasta que revises los DiceBear reales
             // {"AVATAR_ZORRO", "Zorro", "Avatar ilustrado de zorro", "Avatar", "EQUIPABLE", "500"},
