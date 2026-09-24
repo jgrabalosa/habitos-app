@@ -28,10 +28,10 @@ de staging no le afecta.
 con otro nombre (`.sql`, `pre_*`) no se limpia nunca. O va a `/root/backups/`
 con nombre de dump, o se borra al terminar.
 
-Sigue habiendo una copia a Google Drive con `rclone`, pendiente de retirar
-ahora que la descarga a Windows funciona. Cuando se retire: quitar las dos
-líneas de `rclone` del script, borrar el remoto y revocar el acceso en la
-cuenta de Google.
+La copia a Google Drive con `rclone` se retiró el 24-sep-2026: se quitó del
+script, se borró el remoto, se desinstaló `rclone` del VPS y se revocó el
+acceso en la cuenta de Google. **Desde entonces, la única copia fuera del VPS
+es la de Windows**, con la limitación que se explica abajo: no es diaria.
 
 ## En Windows
 
@@ -67,9 +67,9 @@ garantizada, y la de Windows es un refuerzo, no un segundo respaldo fiable.
 Son tres niveles y no son intercambiables:
 
 1. **Que existe** — el fichero está y tiene fecha de hoy. Un mensaje de éxito
-   impreso por el propio script no cuenta: `backup_bd.sh` llegó a escribir
-   "(local + Drive)" aunque `pg_dump` o `rclone` fallaran. Se verifica contra
-   el destino, no contra el log.
+   impreso por el propio script no cuenta: `backup_bd.sh`, cuando aún subía a
+   Drive, llegó a escribir "(local + Drive)" aunque `pg_dump` o `rclone`
+   fallaran. Se verifica contra el destino, no contra el log.
 2. **Que es idéntico** — el hash coincide. Pero un dump truncado copiado bien
    tiene el mismo hash que el original truncado.
 3. **Que se puede leer** — `pg_restore -l` lo lista sin error, o
