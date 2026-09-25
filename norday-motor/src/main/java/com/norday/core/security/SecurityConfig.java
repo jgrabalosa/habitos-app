@@ -3,12 +3,14 @@ package com.norday.core.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -56,10 +58,21 @@ public class SecurityConfig {
                                 "/eliminar-cuenta.html",
                                 "/privacidad.html",
                                 "/api/usuarios/recuperar",
-                                "/api/usuarios/restablecer"
+                                "/api/usuarios/restablecer",
+                                // Los errores que Spring reenvía por dentro a
+                                // /error no llevan la sesión: sin esto, un fallo
+                                // con sesión válida saldría como 401 y la app
+                                // cerraría la sesión sin motivo.
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                // Sin sesión válida (sin token, caducado o mal firmado) se
+                // responde 401. Por defecto Spring daba 403, lo mismo que al
+                // pedir datos de otro usuario, y la app no podía distinguir
+                // «tu sesión ha caducado» de «esto no es tuyo».
+                .exceptionHandling(e -> e.authenticationEntryPoint(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
