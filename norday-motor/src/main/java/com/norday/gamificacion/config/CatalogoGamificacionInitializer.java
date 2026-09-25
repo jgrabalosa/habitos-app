@@ -93,7 +93,7 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // lleve una sin pagar es un mecanismo de onboarding aparte, no del
             // catálogo. Precio provisional heredado de los temas premium antiguos, se
             // reajustará en el punto 7 de la Fase 2.
-            {"TEMA_PROFUNDIDAD", "Profundidad", "Azul noche y cristal esmerilado, de calma sobria", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_PROFUNDIDAD", "Profundidad", "Un viaje espacial entre constelaciones, estrellas fugaces y cohetes", "Tema", "EQUIPABLE", "1000"},
             {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1000"},
             // TEMA_ALBA desactivado el 6-sep-2026: se sale a Google Play con tres
             // identidades y su rebranding queda aplazado. Para reactivarlo, ver
