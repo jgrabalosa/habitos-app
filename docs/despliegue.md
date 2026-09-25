@@ -334,5 +334,5 @@ Esperado: 200, 200, 403, y las tres peticiones en el log de staging.
 
 ### Respaldo
 
-`/etc/caddy/Caddyfile.antes-staging`, del 14-sep. Borrarlo tras unos días de
-staging sirviendo sin incidencias, igual que los dos anteriores.
+Las copias `Caddyfile.antes-*` se borraron el 25-sep-2026, con staging
+sirviendo sin incidencias desde el 14-sep.
