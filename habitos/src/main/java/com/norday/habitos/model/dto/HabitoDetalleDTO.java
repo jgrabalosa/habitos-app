@@ -7,6 +7,7 @@ public class HabitoDetalleDTO {
 
     private int habitoId;
     private String nombre;
+    private String descripcion;
     private int rachaActual;
     private int rachaMaxima;
     private int totalCompletados;
@@ -25,6 +26,9 @@ public class HabitoDetalleDTO {
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getDescripcion() { return descripcion; }
+    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
 
     public int getRachaActual() { return rachaActual; }
     public void setRachaActual(int rachaActual) { this.rachaActual = rachaActual; }
