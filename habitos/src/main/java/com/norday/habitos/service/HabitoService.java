@@ -234,6 +234,7 @@ public class HabitoService {
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
         dto.setNombre(habito.getNombre());
+        dto.setDescripcion(habito.getDescripcion());
         dto.setRachaActual(rachaService.rachaActualVigente(racha));
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
         dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
