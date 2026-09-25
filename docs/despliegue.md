@@ -114,7 +114,9 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
   `JwtUtil` usa `Keys.hmacShaKeyFor(secreto.getBytes())` y un `signWith` sin
   algoritmo explícito. En producción el secreto son 64 bytes y sale
   **HS512**; en staging eran 46 y salía HS256. No se da por supuesto: se mide.
-- Un token mal firmado devuelve **403**, no 401.
+- Sin sesión válida (sin token, caducado o mal firmado) se devuelve **401**
+  desde el 25-sep-2026; antes era 403. El 403 queda para pedir datos de otro
+  usuario.
 
 ## Backups
 
@@ -320,7 +322,7 @@ Repetir esta comprobación después de cualquier cambio en el panel de Contabo.
 
 ### Cómo se comprobó que staging responde de verdad
 
-Un 403 en `/api/habitos` no distingue staging de producción: los dos
+Un 401 en `/api/habitos` no distingue staging de producción: los dos
 devuelven lo mismo sin token. Lo que lo demuestra es que la petición aparezca
 en `/var/log/caddy/staging-access.log`, que sólo escribe el bloque nuevo.
 
@@ -329,7 +331,8 @@ en `/var/log/caddy/staging-access.log`, que sólo escribe el bloque nuevo.
     curl -s -o /dev/null -w "%{http_code}\n" https://staging-api.norday.app/api/habitos
     tail -3 /var/log/caddy/staging-access.log
 
-Esperado: 200, 200, 403, y las tres peticiones en el log de staging.
+Esperado: 200, 200, 401 (403 antes del 25-sep-2026), y las tres peticiones
+en el log de staging.
 **Producción se comprueba primero**, antes de mirar el subdominio nuevo.
 
 ### Respaldo
