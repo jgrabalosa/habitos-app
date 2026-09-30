@@ -5,6 +5,7 @@ import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.JwtUtil;
 import com.norday.core.service.ExportacionDatosService;
+import com.norday.core.service.OrigenInstalacionService;
 import com.norday.core.service.PreferenciasService;
 import com.norday.core.service.RecuperacionService;
 import com.norday.core.service.UsuarioService;
@@ -42,6 +43,9 @@ public class UsuarioController extends ControladorAutorizado {
 
     @Autowired
     private ExportacionDatosService exportacionDatosService;
+
+    @Autowired
+    private OrigenInstalacionService origenInstalacionService;
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
@@ -260,6 +264,25 @@ public class UsuarioController extends ControladorAutorizado {
         String fcmToken = body.get("fcmToken");
         usuarioService.actualizarFcmToken(id, fcmToken);
         return ResponseEntity.ok("Token FCM actualizado correctamente");
+    }
+
+    /**
+     * Origen de la instalación (Install Referrer de Google Play). La app lo
+     * envía una sola vez; el primero manda y las llamadas siguientes no
+     * cambian nada. Un referrer vacío es válido («instalación sin campaña»).
+     */
+    @PutMapping("/{id}/origen")
+    public ResponseEntity<?> registrarOrigen(@PathVariable int id,
+                                             @RequestBody Map<String, String> body,
+                                             Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
+        if (!body.containsKey("referrer")) {
+            throw new IllegalArgumentException("Falta el campo referrer");
+        }
+        origenInstalacionService.registrar(id, body.get("referrer"));
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

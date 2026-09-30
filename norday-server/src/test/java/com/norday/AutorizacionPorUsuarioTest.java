@@ -72,6 +72,7 @@ class AutorizacionPorUsuarioTest {
                 Arguments.of("PUT",    "/api/usuarios/%d"),
                 Arguments.of("PUT",    "/api/usuarios/%d/contrasena"),
                 Arguments.of("PUT",    "/api/usuarios/%d/fcm-token"),
+                Arguments.of("PUT",    "/api/usuarios/%d/origen"),
                 Arguments.of("DELETE", "/api/usuarios/%d"),
 
                 Arguments.of("GET",    "/api/mascota/%d"),
@@ -96,7 +97,7 @@ class AutorizacionPorUsuarioTest {
     }
 
     /**
-     * Todo lo que no es GET lleva cuerpo JSON vacio: cinco de estos
+     * Todo lo que no es GET lleva cuerpo JSON vacio: seis de estos
      * endpoints declaran @RequestBody y sin cuerpo Spring devolveria 400
      * antes de llegar a la comprobacion de autorizacion, que es justo lo que
      * se quiere medir. En los que no lo declaran, el cuerpo se ignora.
