@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -54,6 +55,14 @@ public class UsuarioDAO implements IUsuarioDAO {
     @Override
     public void update(Usuario usuario) {
         em.merge(usuario);
+    }
+
+    @Override
+    public void actualizarUltimoAcceso(int usuarioId, LocalDateTime ahora) {
+        em.createQuery("UPDATE Usuario u SET u.ultimoAcceso = :ahora WHERE u.usuarioId = :id")
+                .setParameter("ahora", ahora)
+                .setParameter("id", usuarioId)
+                .executeUpdate();
     }
 
     @Override

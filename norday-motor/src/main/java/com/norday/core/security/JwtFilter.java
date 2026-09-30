@@ -1,5 +1,6 @@
 package com.norday.core.security;
 
+import com.norday.core.service.UltimoAccesoService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,9 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UltimoAccesoService ultimoAccesoService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -47,6 +51,10 @@ public class JwtFilter extends OncePerRequestFilter {
                             new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    // Mide quién abre la app (una vez al día por usuario). Nunca
+                    // rompe la petición: el servicio captura cualquier fallo.
+                    ultimoAccesoService.anotar(usuarioId);
                 }
             }
         }
