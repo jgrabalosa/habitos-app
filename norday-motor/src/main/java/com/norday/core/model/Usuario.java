@@ -1,5 +1,6 @@
 package com.norday.core.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -62,6 +63,32 @@ public class Usuario {
             columnDefinition = "varchar(64) default 'Europe/Madrid'")
     private String zonaHoraria = ZONA_POR_DEFECTO;
 
+    // Medición de marketing. Solo los escriben los servicios de origen y de
+    // último acceso; nunca el cliente por JSON. Todo nullable.
+    @JsonIgnore
+    @Column(name = "utm_source", length = 100)
+    private String utmSource;
+
+    @JsonIgnore
+    @Column(name = "utm_medium", length = 100)
+    private String utmMedium;
+
+    @JsonIgnore
+    @Column(name = "utm_campaign", length = 100)
+    private String utmCampaign;
+
+    @JsonIgnore
+    @Column(name = "referrer_crudo", length = 500)
+    private String referrerCrudo;
+
+    @JsonIgnore
+    @Column(name = "referrer_fecha")
+    private LocalDateTime referrerFecha;
+
+    @JsonIgnore
+    @Column(name = "ultimo_acceso")
+    private LocalDateTime ultimoAcceso;
+
     public static final String IDIOMA_POR_DEFECTO = "es";
     public static final String ZONA_POR_DEFECTO = "Europe/Madrid";
 
@@ -106,6 +133,24 @@ public class Usuario {
 
     public String getZonaHoraria() { return zonaHoraria; }
     public void setZonaHoraria(String zonaHoraria) { this.zonaHoraria = zonaHoraria; }
+
+    public String getUtmSource() { return utmSource; }
+    public void setUtmSource(String utmSource) { this.utmSource = utmSource; }
+
+    public String getUtmMedium() { return utmMedium; }
+    public void setUtmMedium(String utmMedium) { this.utmMedium = utmMedium; }
+
+    public String getUtmCampaign() { return utmCampaign; }
+    public void setUtmCampaign(String utmCampaign) { this.utmCampaign = utmCampaign; }
+
+    public String getReferrerCrudo() { return referrerCrudo; }
+    public void setReferrerCrudo(String referrerCrudo) { this.referrerCrudo = referrerCrudo; }
+
+    public LocalDateTime getReferrerFecha() { return referrerFecha; }
+    public void setReferrerFecha(LocalDateTime referrerFecha) { this.referrerFecha = referrerFecha; }
+
+    public LocalDateTime getUltimoAcceso() { return ultimoAcceso; }
+    public void setUltimoAcceso(LocalDateTime ultimoAcceso) { this.ultimoAcceso = ultimoAcceso; }
 
     @Override
     public String toString() {

@@ -3,6 +3,8 @@ package com.norday.habitos.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "registro")
@@ -15,6 +17,11 @@ public class Registro {
 
     @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
+
+    // Cuándo se marcó el registro (UTC). `fecha` es el día al que corresponde,
+    // no el momento en que se marcó. Lo rellena @PrePersist.
+    @Column(name = "creado_en", nullable = false, updatable = false)
+    private LocalDateTime creadoEn;
 
     @Column(name = "completado", nullable = false)
     private boolean completado;
@@ -64,6 +71,15 @@ public class Registro {
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }
+
+    public LocalDateTime getCreadoEn() { return creadoEn; }
+
+    @PrePersist
+    void alCrear() {
+        if (creadoEn == null) {
+            creadoEn = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
 
     @Override
     public String toString() {

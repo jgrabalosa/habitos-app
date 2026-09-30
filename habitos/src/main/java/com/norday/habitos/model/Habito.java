@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.norday.core.model.Usuario;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "habito")
@@ -36,6 +38,11 @@ public class Habito {
 
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
+
+    // Cuándo se creó el hábito (UTC, como Usuario.fechaRegistro). Lo rellena
+    // @PrePersist para cubrir cualquier camino de creación.
+    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    private LocalDateTime fechaCreacion;
 
     // Si true, el hábito participa en el barrido de recordatorios push.
     // Default true: todo hábito nuevo empieza con recordatorio activado.
@@ -120,6 +127,15 @@ public class Habito {
 
     public java.time.LocalTime getRecordatorioHora() { return recordatorioHora; }
     public void setRecordatorioHora(java.time.LocalTime recordatorioHora) { this.recordatorioHora = recordatorioHora; }
+
+    public LocalDateTime getFechaCreacion() { return fechaCreacion; }
+
+    @PrePersist
+    void alCrear() {
+        if (fechaCreacion == null) {
+            fechaCreacion = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
 
     @Override
     public String toString() {
