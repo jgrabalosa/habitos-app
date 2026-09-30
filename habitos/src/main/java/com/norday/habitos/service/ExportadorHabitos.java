@@ -63,6 +63,7 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("meta", habito.getMeta());
         mapa.put("diasSemana", habito.getDiasSemana());
         mapa.put("fechaInicio", ExportacionDatosService.texto(habito.getFechaInicio()));
+        mapa.put("fechaCreacion", ExportacionDatosService.texto(habito.getFechaCreacion()));
         mapa.put("recordatorioActivo", habito.isRecordatorioActivo());
         mapa.put("recordatorioHora", ExportacionDatosService.texto(habito.getRecordatorioHora()));
         mapa.put("activo", habito.isActivo());
@@ -89,6 +90,7 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
     private Map<String, Object> datosRegistro(Registro registro) {
         Map<String, Object> mapa = new LinkedHashMap<>();
         mapa.put("fecha", ExportacionDatosService.texto(registro.getFecha()));
+        mapa.put("creadoEn", ExportacionDatosService.texto(registro.getCreadoEn()));
         mapa.put("completado", registro.isCompletado());
         mapa.put("nota", registro.getNota());
         mapa.put("valoracion", registro.getValoracion());

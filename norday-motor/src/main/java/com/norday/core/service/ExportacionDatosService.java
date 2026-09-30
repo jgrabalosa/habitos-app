@@ -58,6 +58,15 @@ public class ExportacionDatosService {
         cuenta.put("idioma", usuario.getIdioma());
         cuenta.put("zonaHoraria", usuario.getZonaHoraria());
         cuenta.put("fechaRegistro", texto(usuario.getFechaRegistro()));
+
+        // Medición de marketing: origen de la instalación y último acceso.
+        // Son datos guardados del usuario, así que salen en su exportación.
+        cuenta.put("utmSource", usuario.getUtmSource());
+        cuenta.put("utmMedium", usuario.getUtmMedium());
+        cuenta.put("utmCampaign", usuario.getUtmCampaign());
+        cuenta.put("referrerCrudo", usuario.getReferrerCrudo());
+        cuenta.put("referrerFecha", texto(usuario.getReferrerFecha()));
+        cuenta.put("ultimoAcceso", texto(usuario.getUltimoAcceso()));
         return cuenta;
     }
 
