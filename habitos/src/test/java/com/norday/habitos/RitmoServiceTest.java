@@ -7,6 +7,7 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.ParametrosRitmo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import com.norday.habitos.service.RitmoService;
@@ -38,6 +39,9 @@ class RitmoServiceTest {
 
     @Mock
     private IRegistroDAO registroDAO;
+
+    @Mock
+    private IHabitoDAO habitoDAO;
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
@@ -168,5 +172,67 @@ class RitmoServiceTest {
         assertEquals(0.5, ritmo, D);
         verify(zonaUsuarioService).zonaDe(usuario);
         verifyNoInteractions(registroDAO);
+    }
+
+    private Habito otroHabito(LocalDate fechaInicio) {
+        Habito otro = new Habito();
+        otro.setHabitoId(11);
+        otro.setFrecuencia(Frecuencia.DIARIO);
+        otro.setMeta(1);
+        otro.setPropietario(usuario);
+        otro.setFechaInicio(fechaInicio);
+        return otro;
+    }
+
+    private void anclaDe(Habito deQuien, double valor, LocalDate desde) {
+        Ritmo ritmo = new Ritmo(deQuien, desde);
+        ritmo.setValor(valor);
+        when(ritmoDAO.findByHabito(deQuien)).thenReturn(ritmo);
+    }
+
+    @Test
+    void ritmoGeneral_esLaMediaDeLosHabitosActivos() {
+        Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, otro));
+        anclaDe(habito, 0.9, d(10, 8));
+        anclaDe(otro, 0.5, d(10, 8));
+
+        double general = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
+
+        assertEquals(0.7, general, D);
+    }
+
+    @Test
+    void ritmoGeneral_unHabitoCreadoHoyNoLoBaja() {
+        Habito creadoHoy = otroHabito(d(10, 8));
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, creadoHoy));
+        anclaDe(habito, 0.9, d(10, 8));
+        anclaDe(creadoHoy, 0.5, d(10, 8));
+
+        double general = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
+
+        assertEquals(0.9, general, D);
+    }
+
+    @Test
+    void ritmoGeneral_alBorrarUnHabitoSeRecalcula() {
+        Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, otro), List.of(habito));
+        anclaDe(habito, 0.9, d(10, 8));
+        anclaDe(otro, 0.5, d(10, 8));
+
+        double conLosDos = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
+        double trasBorrarUno = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
+
+        assertEquals(0.7, conLosDos, D);
+        assertEquals(0.9, trasBorrarUno, D);
+    }
+
+    @Test
+    void ritmoGeneral_sinHabitosActivos_noHayRitmoGeneral() {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of());
+
+        assertTrue(ritmoService.ritmoGeneral(usuario, d(10, 8)).isEmpty());
+        verifyNoInteractions(ritmoDAO);
     }
 }

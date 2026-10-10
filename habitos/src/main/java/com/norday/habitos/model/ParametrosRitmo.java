@@ -21,5 +21,20 @@ public final class ParametrosRitmo {
      */
     public static final double SEMIVIDA_AL_BAJAR_DIAS = 21.0;
 
+    /**
+     * Dónde empieza cada nivel del ritmo. Por debajo de NIVEL_2_DESDE es el
+     * nivel 1. Las palabras de cada nivel las pone la app, no el backend.
+     */
+    public static final double NIVEL_2_DESDE = 0.40;
+    public static final double NIVEL_3_DESDE = 0.60;
+    public static final double NIVEL_4_DESDE = 0.80;
+    public static final double NIVEL_5_DESDE = 0.95;
+
+    /**
+     * Días que tarda un hábito nuevo en contar como los demás en el ritmo
+     * general. Entra poco a poco para que añadir un hábito no lo baje.
+     */
+    public static final int DIAS_DE_ENTRADA_EN_EL_GENERAL = 14;
+
     private ParametrosRitmo() {}
 }

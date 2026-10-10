@@ -1,11 +1,14 @@
 package com.norday.habitos.service;
 
+import com.norday.core.model.Usuario;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoAlDia;
+import com.norday.habitos.model.CalculoRitmo.RitmoConPeso;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 
 /**
  * Única puerta de lectura del ritmo de un hábito.
@@ -35,6 +40,9 @@ public class RitmoService {
 
     @Autowired
     private IRegistroDAO registroDAO;
+
+    @Autowired
+    private IHabitoDAO habitoDAO;
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
@@ -79,5 +87,26 @@ public class RitmoService {
             ritmoDAO.update(ritmo);
         }
         return alDia.valor();
+    }
+
+    /**
+     * El ritmo general de un usuario, de 0 a 1, en su "hoy": la media de los
+     * ritmos de sus hábitos activos. Vacío si no tiene ninguno.
+     */
+    @Transactional
+    public OptionalDouble ritmoGeneral(Usuario usuario) {
+        return ritmoGeneral(usuario, LocalDate.now(zonaUsuarioService.zonaDe(usuario)));
+    }
+
+    /** Igual, con el día dado, para que los tests lo fijen. */
+    @Transactional
+    public OptionalDouble ritmoGeneral(Usuario usuario, LocalDate hoy) {
+        List<RitmoConPeso> ritmos = new ArrayList<>();
+        for (Habito habito : habitoDAO.findActivos(usuario)) {
+            ritmos.add(new RitmoConPeso(
+                    ritmoVigente(habito, hoy),
+                    CalculoRitmo.pesoEnElGeneral(habito.getFechaInicio(), hoy)));
+        }
+        return CalculoRitmo.general(ritmos);
     }
 }

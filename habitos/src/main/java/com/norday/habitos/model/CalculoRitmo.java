@@ -2,10 +2,12 @@ package com.norday.habitos.model;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 
 /**
  * El cálculo del ritmo, sin efectos: no lee la base de datos ni el reloj.
@@ -26,6 +28,9 @@ public final class CalculoRitmo {
      * anterior ya calculado.
      */
     public record RitmoAlDia(double valor, double valorAncla, LocalDate desdeAncla) {}
+
+    /** El ritmo de un hábito y cuánto pesa en el ritmo general, de 0 a 1. */
+    public record RitmoConPeso(double ritmo, double peso) {}
 
     /**
      * Cuánto del objetivo se hizo en un periodo, de 0 a 1. Lo parcial cuenta
@@ -108,6 +113,51 @@ public final class CalculoRitmo {
             }
         }
         return new RitmoAlDia(actual, valorAncla, desdeAncla);
+    }
+
+    /** El nivel de un ritmo, de 1 a 5. */
+    public static int nivel(double ritmo) {
+        if (ritmo >= ParametrosRitmo.NIVEL_5_DESDE) return 5;
+        if (ritmo >= ParametrosRitmo.NIVEL_4_DESDE) return 4;
+        if (ritmo >= ParametrosRitmo.NIVEL_3_DESDE) return 3;
+        if (ritmo >= ParametrosRitmo.NIVEL_2_DESDE) return 2;
+        return 1;
+    }
+
+    /**
+     * Cuánto pesa un hábito en el ritmo general, de 0 a 1. El día que se crea
+     * no pesa nada y va ganando peso cada día, hasta contar como los demás.
+     * Sin fecha de inicio cuenta entero.
+     */
+    public static double pesoEnElGeneral(LocalDate fechaInicio, LocalDate hoy) {
+        if (fechaInicio == null) return 1.0;
+        long dias = ChronoUnit.DAYS.between(fechaInicio, hoy);
+        if (dias <= 0) return 0.0;
+        return Math.min(1.0, (double) dias / ParametrosRitmo.DIAS_DE_ENTRADA_EN_EL_GENERAL);
+    }
+
+    /**
+     * El ritmo general: la media de los ritmos según su peso. Una sola
+     * fuente —los ritmos de los hábitos—, para que ningún fallo se cuente
+     * dos veces.
+     *
+     * Si ninguno pesa todavía (todos recién creados), es su media normal:
+     * tiene que haber algo que enseñar desde el primer día. Sin hábitos no
+     * hay ritmo general.
+     */
+    public static OptionalDouble general(Collection<RitmoConPeso> ritmos) {
+        if (ritmos.isEmpty()) return OptionalDouble.empty();
+
+        double sumaConPeso = 0.0;
+        double pesos = 0.0;
+        double sumaSimple = 0.0;
+        for (RitmoConPeso ritmo : ritmos) {
+            sumaConPeso += ritmo.ritmo() * ritmo.peso();
+            pesos += ritmo.peso();
+            sumaSimple += ritmo.ritmo();
+        }
+        if (pesos <= 0.0) return OptionalDouble.of(sumaSimple / ritmos.size());
+        return OptionalDouble.of(sumaConPeso / pesos);
     }
 
     /** Qué parte de la distancia al crédito se recorre en un periodo de esos días. */
