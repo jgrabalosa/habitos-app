@@ -48,4 +48,16 @@ public enum Frecuencia {
             case DIARIO -> inicioActual.minusDays(1);
         };
     }
+
+    /**
+     * Cuántos días dura un periodo. El ritmo se define en tiempo real —sus
+     * semividas van en días— para que un hábito diario y uno semanal se
+     * comporten igual.
+     */
+    public int diasDelPeriodo() {
+        return switch (this) {
+            case SEMANAL -> 7;
+            case DIARIO -> 1;
+        };
+    }
 }

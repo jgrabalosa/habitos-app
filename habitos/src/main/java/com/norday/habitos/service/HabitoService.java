@@ -5,8 +5,11 @@ import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.CalculoRitmo;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
@@ -21,6 +24,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +47,9 @@ public class HabitoService {
     private IRachaDAO rachaDAO;
 
     @Autowired
+    private IRitmoDAO ritmoDAO;
+
+    @Autowired
     private IRegistroDAO registroDAO;
 
     @Autowired
@@ -53,6 +60,9 @@ public class HabitoService {
 
     @Autowired
     private RachaService rachaService;
+
+    @Autowired
+    private RitmoService ritmoService;
 
     @Autowired
     private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
@@ -105,6 +115,7 @@ public class HabitoService {
         habitoDAO.save(habito);
         Racha racha = new Racha(habito, hoy);
         rachaDAO.save(racha);
+        ritmoDAO.save(new Ritmo(habito, hoy));
 
         return logrosHabitosService.evaluarTrasCrearHabito(habito.getPropietario());
     }
@@ -138,6 +149,13 @@ public class HabitoService {
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
         normalizarPlanificacion(habito);
+        // El ritmo se ancla ANTES de guardar, con el hábito tal como estaba:
+        // hay que calcularlo con las reglas antiguas. Va después de
+        // normalizarPlanificacion porque en un semanal con días fijos el
+        // objetivo sale de los días marcados.
+        if (cambioFrecuencia || existente.getMeta() != habito.getMeta()) {
+            ritmoService.anclarAntesDeCambiar(existente);
+        }
         habitoDAO.update(habito);
 
         if (cambioFrecuencia) {
@@ -171,6 +189,7 @@ public class HabitoService {
         reversionRegistroDAO.deleteByHabito(id);
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);
+        ritmoDAO.deleteByHabito(id);
         habitoDAO.delete(id);
     }
 
@@ -231,12 +250,16 @@ public class HabitoService {
                 .average();
         Double valoracionMedia = valoracionStats.isPresent() ? valoracionStats.getAsDouble() : null;
 
+        RitmoLeido ritmo = ritmoService.ritmoLeido(habito, LocalDate.now(zona));
+
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
         dto.setNombre(habito.getNombre());
         dto.setDescripcion(habito.getDescripcion());
         dto.setRachaActual(rachaService.rachaActualVigente(racha));
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
+        dto.setRitmoNivel(CalculoRitmo.nivel(ritmo.valor()));
+        dto.setRitmoTendencia(ritmo.tendencia());
         dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
         dto.setMeta(habito.getMeta());
         dto.setFrecuencia(habito.getFrecuencia().name());

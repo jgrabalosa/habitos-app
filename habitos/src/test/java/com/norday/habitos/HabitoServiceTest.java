@@ -5,8 +5,12 @@ import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.ParametrosRitmo;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDiaDTO;
@@ -17,13 +21,17 @@ import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RachaService;
+import com.norday.habitos.service.RitmoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -54,10 +62,16 @@ class HabitoServiceTest {
     private IRegistroDAO registroDAO;
 
     @Mock
+    private IRitmoDAO ritmoDAO;
+
+    @Mock
     private LogrosHabitosService logrosHabitosService;
 
     @Mock
     private RachaService rachaService;
+
+    @Mock
+    private RitmoService ritmoService;
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
@@ -130,6 +144,43 @@ class HabitoServiceTest {
         // Assert: nunca se llama a rachaDAO.findByHabito ni a update sobre la racha
         verify(rachaDAO, never()).findByHabito(any());
         assertEquals(5, racha.getRachaActual()); // sigue como estaba
+    }
+
+    @Test
+    void actualizar_alCambiarElObjetivo_anclaElRitmoAntesDeGuardar() {
+        Habito habitoEditado = habito(20, Frecuencia.DIARIO, 3);
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        // Antes de guardar: el ritmo hay que calcularlo con el hábito como estaba.
+        InOrder orden = inOrder(ritmoService, habitoDAO);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(habitoDAO).update(habitoEditado);
+    }
+
+    @Test
+    void actualizar_alCambiarLaFrecuencia_anclaElRitmoAntesDeGuardar() {
+        Habito habitoEditado = habito(20, Frecuencia.SEMANAL, 1);
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        InOrder orden = inOrder(ritmoService, habitoDAO);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(habitoDAO).update(habitoEditado);
+    }
+
+    @Test
+    void actualizar_sinCambiarFrecuenciaNiObjetivo_noTocaElRitmo() {
+        Habito habitoEditado = habito(20, Frecuencia.DIARIO, 1);
+        habitoEditado.setNombre("Gym renombrado");
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        verifyNoInteractions(ritmoService);
+        verify(habitoDAO).update(habitoEditado);
     }
 
     // ── esDiaCompleto ────────────────────────────────────────────────────
@@ -505,6 +556,20 @@ class HabitoServiceTest {
     }
 
     @Test
+    void crearHabito_guardaSuRitmoEnElValorDePartidaDesdeHoy() {
+        Habito nuevo = habito(0, Frecuencia.DIARIO, 1);
+        when(rachaService.zonaDe(nuevo)).thenReturn(ZONA);
+
+        habitoService.crearHabito(nuevo, null);
+
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).save(guardado.capture());
+        assertSame(nuevo, guardado.getValue().getHabito());
+        assertEquals(ParametrosRitmo.VALOR_INICIAL, guardado.getValue().getValor());
+        assertEquals(HOY, guardado.getValue().getDesde());
+    }
+
+    @Test
     void obtenerDetalle_leeLaRachaUnaSolaVezYNormalizaEsaInstancia() {
         // Racha muerta: 5 días, última fecha hace un mes. Es el estado en el
         // que la normalización perezosa tiene que actuar.
@@ -519,6 +584,8 @@ class HabitoServiceTest {
         when(registroDAO.findByHabito(existente)).thenReturn(new ArrayList<>());
         when(registroDAO.findByHabitoAndRango(eq(existente), any(), any()))
                 .thenReturn(new ArrayList<>());
+        when(ritmoService.ritmoLeido(eq(existente), any(LocalDate.class)))
+                .thenReturn(new RitmoLeido(0.5, 0.5));
 
         // La normalización toca sólo la instancia que recibe, como en producción.
         when(rachaService.rachaActualVigente(any(Racha.class))).thenAnswer(inv -> {
@@ -540,5 +607,23 @@ class HabitoServiceTest {
         // La racha muerta sale a 0, y el máximo histórico se conserva.
         assertEquals(0, dto.getRachaActual());
         assertEquals(9, dto.getRachaMaxima());
+    }
+
+    @Test
+    void obtenerDetalle_llevaElNivelYLaTendenciaDelRitmo() {
+        when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.zonaDe(existente)).thenReturn(ZONA);
+        when(rachaDAO.findByHabito(existente)).thenReturn(racha);
+        when(registroDAO.findByHabito(existente)).thenReturn(new ArrayList<>());
+        when(registroDAO.findByHabitoAndRango(eq(existente), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(ritmoService.ritmoLeido(existente, HOY)).thenReturn(new RitmoLeido(0.85, 0.70));
+
+        HabitoDetalleDTO dto = habitoService.obtenerDetalle(20, YearMonth.now(ZONA));
+
+        assertEquals(4, dto.getRitmoNivel());
+        assertEquals(Tendencia.SUBE, dto.getRitmoTendencia());
+        // El ritmo se pide para el "hoy" del usuario, una sola vez.
+        verify(ritmoService, times(1)).ritmoLeido(existente, HOY);
     }
 }

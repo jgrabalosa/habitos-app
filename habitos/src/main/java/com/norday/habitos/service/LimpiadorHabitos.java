@@ -9,13 +9,14 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
  * Borra los datos del dominio "hábitos" de un usuario. El orden interno
- * importa: registros y rachas antes que los hábitos de los que cuelgan.
+ * importa: registros, rachas y ritmos antes que los hábitos de los que cuelgan.
  */
 @Component
 public class LimpiadorHabitos implements LimpiadorDatosUsuario {
@@ -28,6 +29,9 @@ public class LimpiadorHabitos implements LimpiadorDatosUsuario {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private IRitmoDAO ritmoDAO;
 
     @Autowired
     private ICategoriaDAO categoriaDAO;
@@ -43,6 +47,7 @@ public class LimpiadorHabitos implements LimpiadorDatosUsuario {
             reversionRegistroDAO.deleteByHabito(habito.getHabitoId());
             registroDAO.deleteByHabito(habito.getHabitoId());
             rachaDAO.deleteByHabito(habito.getHabitoId());
+            ritmoDAO.deleteByHabito(habito.getHabitoId());
         }
 
         // 2. Borrar los hábitos

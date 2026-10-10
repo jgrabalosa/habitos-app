@@ -7,10 +7,12 @@ import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
@@ -20,7 +22,7 @@ import java.util.stream.Collectors;
 
 /**
  * Aporta los datos del dominio "hábitos" a la exportación RGPD: hábitos,
- * rachas, registros y categorías personalizadas del usuario.
+ * rachas, ritmos, registros y categorías personalizadas del usuario.
  */
 @Component
 public class ExportadorHabitos implements ExportadorDatosUsuario {
@@ -33,6 +35,9 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private IRitmoDAO ritmoDAO;
 
     @Autowired
     private ICategoriaDAO categoriaDAO;
@@ -69,6 +74,7 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("activo", habito.isActivo());
         mapa.put("categoria", habito.getTipo() == null ? null : habito.getTipo().getNombre());
         mapa.put("racha", datosRacha(rachaDAO.findByHabito(habito)));
+        mapa.put("ritmo", datosRitmo(ritmoDAO.findByHabito(habito)));
         mapa.put("registros", registroDAO.findByHabito(habito).stream()
                 .map(this::datosRegistro)
                 .collect(Collectors.toList()));
@@ -84,6 +90,19 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("rachaMaxima", racha.getRachaMaxima());
         mapa.put("ultimaFecha", ExportacionDatosService.texto(racha.getUltimaFecha()));
         mapa.put("periodoMetaAlcanzada", ExportacionDatosService.texto(racha.getPeriodoMetaAlcanzada()));
+        return mapa;
+    }
+
+    private Map<String, Object> datosRitmo(Ritmo ritmo) {
+        if (ritmo == null) {
+            return null;
+        }
+        Map<String, Object> mapa = new LinkedHashMap<>();
+        mapa.put("valor", ritmo.getValor());
+        mapa.put("desde", ExportacionDatosService.texto(ritmo.getDesde()));
+        mapa.put("valorPrevio", ritmo.getValorPrevio());
+        mapa.put("desdePrevio", ExportacionDatosService.texto(ritmo.getDesdePrevio()));
+        mapa.put("cambio", ExportacionDatosService.texto(ritmo.getCambio()));
         return mapa;
     }
 
