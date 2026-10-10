@@ -9,6 +9,7 @@ import com.norday.habitos.model.dto.HabitoDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
 import com.norday.habitos.model.dto.HabitoEntradaDTO;
 import com.norday.habitos.service.HabitoService;
+import com.norday.habitos.service.HoyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,9 @@ public class HabitoController extends ControladorAutorizado {
 
     @Autowired
     private HabitoService habitoService;
+
+    @Autowired
+    private HoyService hoyService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -72,6 +76,33 @@ public class HabitoController extends ControladorAutorizado {
         try {
             LocalDate fechaDesde = (desde != null && !desde.isBlank()) ? LocalDate.parse(desde) : null;
             return ResponseEntity.ok(habitoService.obtenerSemana(usuario, fechaDesde));
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Formato de fecha inválido, se espera YYYY-MM-DD");
+        }
+    }
+
+    /**
+     * La pantalla de Hoy de la app nueva: las dos secciones, la tira de la
+     * semana, el avance del día y los niveles de ritmo. Con {@code fecha} se
+     * mira otro día de la tira. /dashboard y /semana siguen existiendo para
+     * la app ya instalada.
+     */
+    @GetMapping("/usuario/{usuarioId}/hoy")
+    public ResponseEntity<?> obtenerHoy(@PathVariable int usuarioId,
+                                        @RequestParam(required = false) String fecha,
+                                        Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Usuario no encontrado");
+        }
+        try {
+            LocalDate fechaPedida = (fecha != null && !fecha.isBlank()) ? LocalDate.parse(fecha) : null;
+            return ResponseEntity.ok(hoyService.obtenerHoy(usuario, fechaPedida));
         } catch (DateTimeParseException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Formato de fecha inválido, se espera YYYY-MM-DD");

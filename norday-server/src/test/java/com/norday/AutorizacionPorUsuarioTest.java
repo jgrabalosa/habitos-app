@@ -91,6 +91,7 @@ class AutorizacionPorUsuarioTest {
                 Arguments.of("GET",    "/api/habitos/usuario/%d/resumen"),
                 Arguments.of("GET",    "/api/habitos/usuario/%d/dashboard"),
                 Arguments.of("GET",    "/api/habitos/usuario/%d/semana"),
+                Arguments.of("GET",    "/api/habitos/usuario/%d/hoy"),
 
                 Arguments.of("GET",    "/api/categorias/usuario/%d")
         );
