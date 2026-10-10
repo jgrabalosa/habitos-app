@@ -26,6 +26,17 @@ public class Ritmo {
     @Column(name = "desde", nullable = false)
     private LocalDate desde;
 
+    /**
+     * El ancla anterior: el ritmo al empezar el día {@code desdePrevio}. Se
+     * guarda cada vez que el ancla avanza, para poder calcular el ritmo de
+     * hace siete días. Null mientras el ancla no haya avanzado nunca.
+     */
+    @Column(name = "valor_previo")
+    private Double valorPrevio;
+
+    @Column(name = "desde_previo")
+    private LocalDate desdePrevio;
+
     @OneToOne
     @JoinColumn(name = "habito_ref", nullable = false, unique = true,
             foreignKey = @ForeignKey(name = "FK_ritmo_habito"))
@@ -49,6 +60,12 @@ public class Ritmo {
 
     public LocalDate getDesde() { return desde; }
     public void setDesde(LocalDate desde) { this.desde = desde; }
+
+    public Double getValorPrevio() { return valorPrevio; }
+    public void setValorPrevio(Double valorPrevio) { this.valorPrevio = valorPrevio; }
+
+    public LocalDate getDesdePrevio() { return desdePrevio; }
+    public void setDesdePrevio(LocalDate desdePrevio) { this.desdePrevio = desdePrevio; }
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }

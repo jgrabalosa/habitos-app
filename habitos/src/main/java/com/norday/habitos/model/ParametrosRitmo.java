@@ -36,5 +36,15 @@ public final class ParametrosRitmo {
      */
     public static final int DIAS_DE_ENTRADA_EN_EL_GENERAL = 14;
 
+    /**
+     * Cuánto tiene que haber cambiado el ritmo en siete días para decir que
+     * sube o que baja. No son iguales a propósito: cerca del máximo un único
+     * fallo resta hasta 0,032 y no se recupera en la semana, así que con un
+     * umbral simétrico un día suelto diría "baja". Con este, un solo fallo
+     * en una semana por lo demás completa nunca lo dice.
+     */
+    public static final double TENDENCIA_SUBE_DESDE = 0.01;
+    public static final double TENDENCIA_BAJA_DESDE = 0.045;
+
     private ParametrosRitmo() {}
 }

@@ -6,7 +6,9 @@ import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.ParametrosRitmo;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
@@ -309,5 +311,91 @@ class RitmoServiceTest {
 
         assertTrue(ritmoService.ritmoGeneral(usuario, d(10, 8)).isEmpty());
         verifyNoInteractions(ritmoDAO);
+    }
+
+    /** Los ocho días del lunes 5 al lunes 12, todos hechos. */
+    private List<Registro> delCincoAlDoce(Habito quien) {
+        List<Registro> registros = new java.util.ArrayList<>();
+        for (int dia = 5; dia <= 12; dia++) {
+            registros.add(hechoPor(quien, d(10, dia)));
+        }
+        return registros;
+    }
+
+    @Test
+    void ritmoLeido_sinAnclaAnterior_comparaConLaQueHay() {
+        anclaEn(0.5, d(10, 5));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 7)))
+                .thenReturn(List.of(hecho(d(10, 5)), hecho(d(10, 6)), hecho(d(10, 7))));
+
+        RitmoLeido leido = ritmoService.ritmoLeido(habito, d(10, 8));
+
+        assertEquals(0.628501, leido.valor(), D);
+        assertEquals(0.5, leido.haceUnaSemana(), D);
+        assertEquals(Tendencia.SUBE, leido.tendencia());
+    }
+
+    @Test
+    void ritmoLeido_alAvanzarElAncla_guardaLaQueDejaAtras() {
+        anclaEn(0.5, d(10, 5));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 12)))
+                .thenReturn(delCincoAlDoce(habito));
+
+        // Martes 13: el ancla pasa del lunes 5 al lunes 12.
+        RitmoLeido leido = ritmoService.ritmoLeido(habito, d(10, 13));
+
+        assertEquals(0.773569, leido.valor(), D);
+        // Hace siete días era martes 6: solo había cerrado el lunes 5.
+        assertEquals(0.547138, leido.haceUnaSemana(), D);
+        assertEquals(Tendencia.SUBE, leido.tendencia());
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).update(guardado.capture());
+        assertEquals(0.75, guardado.getValue().getValor(), D);
+        assertEquals(d(10, 12), guardado.getValue().getDesde());
+        assertEquals(0.5, guardado.getValue().getValorPrevio(), D);
+        assertEquals(d(10, 5), guardado.getValue().getDesdePrevio());
+    }
+
+    @Test
+    void ritmoLeido_conAnclaAnterior_leeLosRegistrosDesdeElla() {
+        Ritmo ritmo = anclaEn(0.75, d(10, 12));
+        ritmo.setValorPrevio(0.5);
+        ritmo.setDesdePrevio(d(10, 5));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 13)))
+                .thenReturn(delCincoAlDoce(habito));
+
+        // Miércoles 14: el lunes 12 hecho, el martes 13 sin nada.
+        RitmoLeido leido = ritmoService.ritmoLeido(habito, d(10, 14));
+
+        assertEquals(0.748453, leido.valor(), D);
+        // Hace siete días era miércoles 7: habían cerrado el lunes 5 y el martes 6.
+        assertEquals(0.589832, leido.haceUnaSemana(), D);
+        assertEquals(Tendencia.SUBE, leido.tendencia());
+        verify(ritmoDAO, never()).update(any());
+    }
+
+    @Test
+    void ritmosLeidos_leeDesdeElAnclaAnteriorMasAntigua() {
+        Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
+        List<Habito> habitos = List.of(habito, otro);
+        Ritmo conAnterior = ancla(habito, 0.75, d(10, 12));
+        conAnterior.setValorPrevio(0.5);
+        conAnterior.setDesdePrevio(d(10, 5));
+        when(ritmoDAO.findByHabitos(habitos)).thenReturn(
+                List.of(conAnterior, ancla(otro, 0.5, d(10, 12))));
+        when(registroDAO.findByHabitosAndRango(habitos, d(10, 5), d(10, 13)))
+                .thenReturn(delCincoAlDoce(habito));
+
+        Map<Integer, RitmoLeido> leidos = ritmoService.ritmosLeidos(habitos, d(10, 14));
+
+        assertEquals(0.748453, leidos.get(10).valor(), D);
+        assertEquals(0.589832, leidos.get(10).haceUnaSemana(), D);
+        assertEquals(Tendencia.SUBE, leidos.get(10).tendencia());
+        // El otro no ha hecho nada el lunes ni el martes: baja 3 puntos, que
+        // todavía no es "baja".
+        assertEquals(0.468059, leidos.get(11).valor(), D);
+        assertEquals(0.5, leidos.get(11).haceUnaSemana(), D);
+        assertEquals(Tendencia.IGUAL, leidos.get(11).tendencia());
+        verify(ritmoDAO, never()).update(any());
     }
 }

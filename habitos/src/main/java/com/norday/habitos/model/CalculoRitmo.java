@@ -32,6 +32,13 @@ public final class CalculoRitmo {
     /** El ritmo de un hábito y cuánto pesa en el ritmo general, de 0 a 1. */
     public record RitmoConPeso(double ritmo, double peso) {}
 
+    /** Un ritmo leído: el de hoy y el de hace siete días, para poder decir hacia dónde va. */
+    public record RitmoLeido(double valor, double haceUnaSemana) {
+        public Tendencia tendencia() {
+            return CalculoRitmo.tendencia(valor, haceUnaSemana);
+        }
+    }
+
     /**
      * Cuánto del objetivo se hizo en un periodo, de 0 a 1. Lo parcial cuenta
      * en proporción (3 de 4 vale 0,75) y pasarse del objetivo no suma más.
@@ -158,6 +165,18 @@ public final class CalculoRitmo {
         }
         if (pesos <= 0.0) return OptionalDouble.of(sumaSimple / ritmos.size());
         return OptionalDouble.of(sumaConPeso / pesos);
+    }
+
+    /**
+     * Hacia dónde va un ritmo: sube, baja o se mantiene respecto al de hace
+     * siete días. Se mira una semana y no el último día para que un fallo
+     * suelto no cambie el mensaje.
+     */
+    public static Tendencia tendencia(double ahora, double haceUnaSemana) {
+        double cambio = ahora - haceUnaSemana;
+        if (cambio >= ParametrosRitmo.TENDENCIA_SUBE_DESDE) return Tendencia.SUBE;
+        if (cambio <= -ParametrosRitmo.TENDENCIA_BAJA_DESDE) return Tendencia.BAJA;
+        return Tendencia.IGUAL;
     }
 
     /** Qué parte de la distancia al crédito se recorre en un periodo de esos días. */
