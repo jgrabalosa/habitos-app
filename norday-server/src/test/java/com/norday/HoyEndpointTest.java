@@ -45,6 +45,7 @@ class HoyEndpointTest {
 
     private final LocalDate hoy = LocalDate.now(ZoneId.of("Europe/Madrid"));
     private int usuarioId;
+    private int habitoId;
     private String token;
 
     /** Un usuario con un diario creado hace un mes y hecho hoy. */
@@ -71,6 +72,7 @@ class HoyEndpointTest {
         em.clear();
 
         usuarioId = usuario.getUsuarioId();
+        habitoId = leer.getHabitoId();
         token = jwtUtil.generateToken(usuarioId, email);
     }
 
@@ -104,5 +106,18 @@ class HoyEndpointTest {
                         .param("fecha", "ayer")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void elDetalleLlevaElRitmoYSigueLlevandoLaRacha() throws Exception {
+        mockMvc.perform(get("/api/habitos/" + habitoId + "/detalle")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Leer"))
+                .andExpect(jsonPath("$.ritmoNivel").value(2))
+                .andExpect(jsonPath("$.ritmoTendencia").value("IGUAL"))
+                .andExpect(jsonPath("$.totalCompletados").value(1))
+                .andExpect(jsonPath("$.rachaActual").value(0))
+                .andExpect(jsonPath("$.rachaMaxima").value(0));
     }
 }

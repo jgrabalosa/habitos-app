@@ -1,5 +1,7 @@
 package com.norday.habitos.model.dto;
 
+import com.norday.habitos.model.Tendencia;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,6 +22,10 @@ public class HabitoDetalleDTO {
     private List<RegistroResumenDTO> ultimosRegistros;
     private Double valoracionMedia; // media de valoraciones 1-5, null si no hay ninguna
     private String diasSemana;
+    // Rediseño de rachas. rachaActual y rachaMaxima siguen saliendo porque
+    // los lee la app ya instalada; la app nueva lee estos dos.
+    private int ritmoNivel;           // de 1 a 5
+    private Tendencia ritmoTendencia; // respecto a hace siete días
 
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }
@@ -65,4 +71,10 @@ public class HabitoDetalleDTO {
 
     public String getDiasSemana() { return diasSemana; }
     public void setDiasSemana(String diasSemana) { this.diasSemana = diasSemana; }
+
+    public int getRitmoNivel() { return ritmoNivel; }
+    public void setRitmoNivel(int ritmoNivel) { this.ritmoNivel = ritmoNivel; }
+
+    public Tendencia getRitmoTendencia() { return ritmoTendencia; }
+    public void setRitmoTendencia(Tendencia ritmoTendencia) { this.ritmoTendencia = ritmoTendencia; }
 }

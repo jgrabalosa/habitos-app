@@ -5,6 +5,8 @@ import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.CalculoRitmo;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
@@ -58,6 +60,9 @@ public class HabitoService {
 
     @Autowired
     private RachaService rachaService;
+
+    @Autowired
+    private RitmoService ritmoService;
 
     @Autowired
     private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
@@ -238,12 +243,16 @@ public class HabitoService {
                 .average();
         Double valoracionMedia = valoracionStats.isPresent() ? valoracionStats.getAsDouble() : null;
 
+        RitmoLeido ritmo = ritmoService.ritmoLeido(habito, LocalDate.now(zona));
+
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
         dto.setNombre(habito.getNombre());
         dto.setDescripcion(habito.getDescripcion());
         dto.setRachaActual(rachaService.rachaActualVigente(racha));
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
+        dto.setRitmoNivel(CalculoRitmo.nivel(ritmo.valor()));
+        dto.setRitmoTendencia(ritmo.tendencia());
         dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
         dto.setMeta(habito.getMeta());
         dto.setFrecuencia(habito.getFrecuencia().name());

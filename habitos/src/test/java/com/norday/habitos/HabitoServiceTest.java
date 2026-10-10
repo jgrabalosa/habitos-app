@@ -6,7 +6,9 @@ import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.ParametrosRitmo;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
@@ -24,6 +26,7 @@ import com.norday.habitos.service.HabitoService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RachaService;
+import com.norday.habitos.service.RitmoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,6 +68,9 @@ class HabitoServiceTest {
 
     @Mock
     private RachaService rachaService;
+
+    @Mock
+    private RitmoService ritmoService;
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
@@ -540,6 +546,8 @@ class HabitoServiceTest {
         when(registroDAO.findByHabito(existente)).thenReturn(new ArrayList<>());
         when(registroDAO.findByHabitoAndRango(eq(existente), any(), any()))
                 .thenReturn(new ArrayList<>());
+        when(ritmoService.ritmoLeido(eq(existente), any(LocalDate.class)))
+                .thenReturn(new RitmoLeido(0.5, 0.5));
 
         // La normalización toca sólo la instancia que recibe, como en producción.
         when(rachaService.rachaActualVigente(any(Racha.class))).thenAnswer(inv -> {
@@ -561,5 +569,23 @@ class HabitoServiceTest {
         // La racha muerta sale a 0, y el máximo histórico se conserva.
         assertEquals(0, dto.getRachaActual());
         assertEquals(9, dto.getRachaMaxima());
+    }
+
+    @Test
+    void obtenerDetalle_llevaElNivelYLaTendenciaDelRitmo() {
+        when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.zonaDe(existente)).thenReturn(ZONA);
+        when(rachaDAO.findByHabito(existente)).thenReturn(racha);
+        when(registroDAO.findByHabito(existente)).thenReturn(new ArrayList<>());
+        when(registroDAO.findByHabitoAndRango(eq(existente), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(ritmoService.ritmoLeido(existente, HOY)).thenReturn(new RitmoLeido(0.85, 0.70));
+
+        HabitoDetalleDTO dto = habitoService.obtenerDetalle(20, YearMonth.now(ZONA));
+
+        assertEquals(4, dto.getRitmoNivel());
+        assertEquals(Tendencia.SUBE, dto.getRitmoTendencia());
+        // El ritmo se pide para el "hoy" del usuario, una sola vez.
+        verify(ritmoService, times(1)).ritmoLeido(existente, HOY);
     }
 }
