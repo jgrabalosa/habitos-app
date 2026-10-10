@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -154,6 +155,19 @@ class RitmoIdaYVueltaTest {
         assertEquals(0.5, antes, 0.0);
         assertEquals(0.5, conElMartes, 0.0);
         assertEquals(0.5, despues, 0.0);
+        assertAnclaIntacta();
+    }
+
+    @Test
+    void leerVariosALaVezDaLoMismoQueLeerlosUnoAUno() {
+        unHabito(Frecuencia.DIARIO, 1);
+        registroService.completarHabito(habito(), "", MARTES);
+
+        double unoAUno = ritmoDeHoy();
+        double juntos = ritmoService.ritmosVigentes(List.of(habito()), MIERCOLES).get(habitoId);
+
+        assertEquals(0.532435, unoAUno, D);
+        assertEquals(unoAUno, juntos, 0.0);
         assertAnclaIntacta();
     }
 }

@@ -17,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 
 /**
@@ -61,11 +63,7 @@ public class RitmoService {
     public double ritmoVigente(Habito habito, LocalDate hoy) {
         Ritmo ritmo = ritmoDAO.findByHabito(habito);
         if (ritmo == null) {
-            // No debería pasar: el ritmo nace con el hábito y la migración se
-            // lo dio a los que ya existían. Si falta, empieza hoy.
-            ritmo = new Ritmo(habito, hoy);
-            ritmoDAO.save(ritmo);
-            return ritmo.getValor();
+            return empezarHoy(habito, hoy);
         }
 
         // Un semanal cuenta la semana entera, así que se lee desde el inicio
@@ -78,15 +76,55 @@ public class RitmoService {
                         .toList()
                 : List.of();
 
-        RitmoAlDia alDia = CalculoRitmo.alDia(ritmo.getValor(), ritmo.getDesde(),
-                habito.getFrecuencia(), habito.getMeta(), habito.getFechaInicio(), fechasHechas, hoy);
+        return ponerAlDia(ritmo, habito, fechasHechas, hoy);
+    }
 
-        if (alDia.desdeAncla().isAfter(ritmo.getDesde())) {
-            ritmo.setValor(alDia.valorAncla());
-            ritmo.setDesde(alDia.desdeAncla());
-            ritmoDAO.update(ritmo);
+    /**
+     * Los ritmos de hoy de varios hábitos, por id de hábito. Da lo mismo que
+     * leerlos uno a uno, pero en dos consultas —las anclas y los registros—
+     * sea cual sea el número de hábitos: es lo que usa la pantalla de Hoy,
+     * que se carga en cada entrada a la app.
+     */
+    @Transactional
+    public Map<Integer, Double> ritmosVigentes(List<Habito> habitos, LocalDate hoy) {
+        Map<Integer, Double> vigentes = new HashMap<>();
+        if (habitos.isEmpty()) return vigentes;
+
+        Map<Integer, Ritmo> anclas = new HashMap<>();
+        for (Ritmo ritmo : ritmoDAO.findByHabitos(habitos)) {
+            anclas.put(ritmo.getHabito().getHabitoId(), ritmo);
         }
-        return alDia.valor();
+
+        // Una sola consulta de registros, desde el inicio de periodo más
+        // antiguo de todas las anclas. A cada hábito le llegan también fechas
+        // anteriores a su ancla; CalculoRitmo.alDia las ignora, porque
+        // empieza a contar en el periodo de su ancla.
+        LocalDate desde = null;
+        for (Habito habito : habitos) {
+            Ritmo ritmo = anclas.get(habito.getHabitoId());
+            if (ritmo == null) continue;
+            LocalDate inicio = habito.getFrecuencia().rangoPeriodo(ritmo.getDesde())[0];
+            if (desde == null || inicio.isBefore(desde)) desde = inicio;
+        }
+        Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
+        if (desde != null && desde.isBefore(hoy)) {
+            for (Registro registro : registroDAO.findByHabitosAndRango(habitos, desde, hoy.minusDays(1))) {
+                if (!registro.isCompletado()) continue;
+                fechasPorHabito
+                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
+                        .add(registro.getFecha());
+            }
+        }
+
+        for (Habito habito : habitos) {
+            Ritmo ritmo = anclas.get(habito.getHabitoId());
+            double vigente = ritmo == null
+                    ? empezarHoy(habito, hoy)
+                    : ponerAlDia(ritmo, habito,
+                            fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of()), hoy);
+            vigentes.put(habito.getHabitoId(), vigente);
+        }
+        return vigentes;
     }
 
     /**
@@ -101,12 +139,45 @@ public class RitmoService {
     /** Igual, con el día dado, para que los tests lo fijen. */
     @Transactional
     public OptionalDouble ritmoGeneral(Usuario usuario, LocalDate hoy) {
-        List<RitmoConPeso> ritmos = new ArrayList<>();
-        for (Habito habito : habitoDAO.findActivos(usuario)) {
-            ritmos.add(new RitmoConPeso(
-                    ritmoVigente(habito, hoy),
+        List<Habito> activos = habitoDAO.findActivos(usuario);
+        return generalDe(activos, ritmosVigentes(activos, hoy), hoy);
+    }
+
+    /**
+     * El ritmo general de unos hábitos cuyos ritmos ya se han leído con
+     * {@link #ritmosVigentes}. Para quien necesita los dos datos —el de cada
+     * hábito y el general— sin leer dos veces.
+     */
+    public OptionalDouble generalDe(List<Habito> habitos, Map<Integer, Double> ritmos, LocalDate hoy) {
+        List<RitmoConPeso> conPeso = new ArrayList<>();
+        for (Habito habito : habitos) {
+            conPeso.add(new RitmoConPeso(
+                    ritmos.get(habito.getHabitoId()),
                     CalculoRitmo.pesoEnElGeneral(habito.getFechaInicio(), hoy)));
         }
-        return CalculoRitmo.general(ritmos);
+        return CalculoRitmo.general(conPeso);
+    }
+
+    /**
+     * No debería pasar: el ritmo nace con el hábito y la migración se lo dio
+     * a los que ya existían. Si falta, empieza hoy en el valor de partida.
+     */
+    private double empezarHoy(Habito habito, LocalDate hoy) {
+        Ritmo ritmo = new Ritmo(habito, hoy);
+        ritmoDAO.save(ritmo);
+        return ritmo.getValor();
+    }
+
+    /** Pone al día un ancla y, si ha avanzado, la guarda. Devuelve el ritmo de hoy. */
+    private double ponerAlDia(Ritmo ritmo, Habito habito, List<LocalDate> fechasHechas, LocalDate hoy) {
+        RitmoAlDia alDia = CalculoRitmo.alDia(ritmo.getValor(), ritmo.getDesde(),
+                habito.getFrecuencia(), habito.getMeta(), habito.getFechaInicio(), fechasHechas, hoy);
+
+        if (alDia.desdeAncla().isAfter(ritmo.getDesde())) {
+            ritmo.setValor(alDia.valorAncla());
+            ritmo.setDesde(alDia.desdeAncla());
+            ritmoDAO.update(ritmo);
+        }
+        return alDia.valor();
     }
 }

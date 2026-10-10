@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -184,18 +185,88 @@ class RitmoServiceTest {
         return otro;
     }
 
-    private void anclaDe(Habito deQuien, double valor, LocalDate desde) {
+    private Ritmo ancla(Habito deQuien, double valor, LocalDate desde) {
         Ritmo ritmo = new Ritmo(deQuien, desde);
         ritmo.setValor(valor);
-        when(ritmoDAO.findByHabito(deQuien)).thenReturn(ritmo);
+        return ritmo;
+    }
+
+    private Registro hechoPor(Habito quien, LocalDate fecha) {
+        return new Registro(quien, true, "", fecha);
+    }
+
+    @Test
+    void ritmosVigentes_leeLosRegistrosDeTodosEnUnaSolaConsulta() {
+        Habito semanal = otroHabito(LocalDate.of(2026, 1, 1));
+        semanal.setFrecuencia(Frecuencia.SEMANAL);
+        semanal.setMeta(3);
+        List<Habito> habitos = List.of(habito, semanal);
+        // El diario tiene el ancla en el lunes 5; el semanal, una semana antes.
+        when(ritmoDAO.findByHabitos(habitos)).thenReturn(
+                List.of(ancla(habito, 0.5, d(10, 5)), ancla(semanal, 0.5, d(9, 28))));
+        when(registroDAO.findByHabitosAndRango(habitos, d(9, 28), d(10, 7))).thenReturn(List.of(
+                hechoPor(semanal, d(9, 29)), hechoPor(semanal, d(9, 30)),
+                hechoPor(habito, d(10, 1)), // anterior al ancla del diario: no cuenta
+                hechoPor(habito, d(10, 5)), hechoPor(habito, d(10, 6)), hechoPor(habito, d(10, 7))));
+
+        Map<Integer, Double> ritmos = ritmoService.ritmosVigentes(habitos, d(10, 8));
+
+        assertEquals(0.628501, ritmos.get(10), D);
+        assertEquals(0.583333, ritmos.get(11), D);
+        verify(registroDAO, never()).findByHabitoAndRango(any(), any(), any());
+        verify(ritmoDAO, never()).findByHabito(any());
+        // Solo avanza el ancla del semanal: su semana del 28-sep ya cerró.
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).update(guardado.capture());
+        assertSame(semanal, guardado.getValue().getHabito());
+        assertEquals(0.583333, guardado.getValue().getValor(), D);
+        assertEquals(d(10, 5), guardado.getValue().getDesde());
+    }
+
+    @Test
+    void ritmosVigentes_sinHabitos_noConsultaNada() {
+        assertTrue(ritmoService.ritmosVigentes(List.of(), d(10, 8)).isEmpty());
+        verifyNoInteractions(ritmoDAO, registroDAO);
+    }
+
+    @Test
+    void ritmosVigentes_siNadaPuedeHaberCerrado_noConsultaRegistros() {
+        Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
+        List<Habito> habitos = List.of(habito, otro);
+        when(ritmoDAO.findByHabitos(habitos)).thenReturn(
+                List.of(ancla(habito, 0.9, d(10, 8)), ancla(otro, 0.5, d(10, 8))));
+
+        Map<Integer, Double> ritmos = ritmoService.ritmosVigentes(habitos, d(10, 8));
+
+        assertEquals(0.9, ritmos.get(10), D);
+        assertEquals(0.5, ritmos.get(11), D);
+        verifyNoInteractions(registroDAO);
+        verify(ritmoDAO, never()).update(any());
+    }
+
+    @Test
+    void ritmosVigentes_unHabitoSinFilaDeRitmo_empiezaHoyEnElValorDePartida() {
+        Habito sinFila = otroHabito(LocalDate.of(2026, 1, 1));
+        List<Habito> habitos = List.of(habito, sinFila);
+        when(ritmoDAO.findByHabitos(habitos)).thenReturn(List.of(ancla(habito, 0.9, d(10, 8))));
+
+        Map<Integer, Double> ritmos = ritmoService.ritmosVigentes(habitos, d(10, 8));
+
+        assertEquals(0.9, ritmos.get(10), D);
+        assertEquals(ParametrosRitmo.VALOR_INICIAL, ritmos.get(11), D);
+        ArgumentCaptor<Ritmo> creado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).save(creado.capture());
+        assertSame(sinFila, creado.getValue().getHabito());
+        assertEquals(d(10, 8), creado.getValue().getDesde());
     }
 
     @Test
     void ritmoGeneral_esLaMediaDeLosHabitosActivos() {
         Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
-        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, otro));
-        anclaDe(habito, 0.9, d(10, 8));
-        anclaDe(otro, 0.5, d(10, 8));
+        List<Habito> activos = List.of(habito, otro);
+        when(habitoDAO.findActivos(usuario)).thenReturn(activos);
+        when(ritmoDAO.findByHabitos(activos)).thenReturn(
+                List.of(ancla(habito, 0.9, d(10, 8)), ancla(otro, 0.5, d(10, 8))));
 
         double general = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
 
@@ -205,9 +276,10 @@ class RitmoServiceTest {
     @Test
     void ritmoGeneral_unHabitoCreadoHoyNoLoBaja() {
         Habito creadoHoy = otroHabito(d(10, 8));
-        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, creadoHoy));
-        anclaDe(habito, 0.9, d(10, 8));
-        anclaDe(creadoHoy, 0.5, d(10, 8));
+        List<Habito> activos = List.of(habito, creadoHoy);
+        when(habitoDAO.findActivos(usuario)).thenReturn(activos);
+        when(ritmoDAO.findByHabitos(activos)).thenReturn(
+                List.of(ancla(habito, 0.9, d(10, 8)), ancla(creadoHoy, 0.5, d(10, 8))));
 
         double general = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
 
@@ -217,9 +289,12 @@ class RitmoServiceTest {
     @Test
     void ritmoGeneral_alBorrarUnHabitoSeRecalcula() {
         Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
-        when(habitoDAO.findActivos(usuario)).thenReturn(List.of(habito, otro), List.of(habito));
-        anclaDe(habito, 0.9, d(10, 8));
-        anclaDe(otro, 0.5, d(10, 8));
+        List<Habito> losDos = List.of(habito, otro);
+        List<Habito> soloUno = List.of(habito);
+        when(habitoDAO.findActivos(usuario)).thenReturn(losDos, soloUno);
+        when(ritmoDAO.findByHabitos(losDos)).thenReturn(
+                List.of(ancla(habito, 0.9, d(10, 8)), ancla(otro, 0.5, d(10, 8))));
+        when(ritmoDAO.findByHabitos(soloUno)).thenReturn(List.of(ancla(habito, 0.9, d(10, 8))));
 
         double conLosDos = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();
         double trasBorrarUno = ritmoService.ritmoGeneral(usuario, d(10, 8)).orElseThrow();

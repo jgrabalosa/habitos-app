@@ -8,6 +8,8 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Transactional
 public class RitmoDAO implements IRitmoDAO {
@@ -28,6 +30,19 @@ public class RitmoDAO implements IRitmoDAO {
                 .getResultStream()
                 .findFirst()
                 .orElse(null);
+    }
+
+    // JOIN FETCH a propósito: la asociación con el hábito es EAGER, y sin él
+    // cada ritmo lanzaría su propia consulta para traer su hábito.
+    @Override
+    public List<Ritmo> findByHabitos(List<Habito> habitos) {
+        if (habitos.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery(
+                        "SELECT r FROM Ritmo r JOIN FETCH r.habito WHERE r.habito IN :habitos", Ritmo.class)
+                .setParameter("habitos", habitos)
+                .getResultList();
     }
 
     @Override
