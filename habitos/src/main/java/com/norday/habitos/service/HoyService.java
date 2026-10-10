@@ -4,9 +4,11 @@ import com.norday.core.model.Usuario;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.CalculoRitmo;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.model.dto.DiaTiraDTO;
 import com.norday.habitos.model.dto.FilaHoyDTO;
 import com.norday.habitos.model.dto.HabitoDTO;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -76,13 +79,13 @@ public class HoyService {
         }
 
         // El ritmo es siempre el de hoy, aunque se mire otro día de la tira.
-        Map<Integer, Double> ritmos = ritmoService.ritmosVigentes(activos, hoy);
+        Map<Integer, RitmoLeido> ritmos = ritmoService.ritmosLeidos(activos, hoy);
 
         List<FilaHoyDTO> delDia = new ArrayList<>();
         List<FilaHoyDTO> deLaSemana = new ArrayList<>();
         for (Habito habito : activos) {
             List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
-            int nivel = CalculoRitmo.nivel(ritmos.get(habito.getHabitoId()));
+            int nivel = CalculoRitmo.nivel(ritmos.get(habito.getHabitoId()).valor());
 
             if (CalculoHoy.tocaEl(habito, fecha)) {
                 int completados = habito.getFrecuencia() == Frecuencia.DIARIO
@@ -105,12 +108,13 @@ public class HoyService {
             dias.add(new DiaTiraDTO(dia.toString(), avance));
         }
 
-        OptionalDouble general = ritmoService.generalDe(activos, ritmos, hoy);
-        Integer nivelGeneral = general.isPresent() ? CalculoRitmo.nivel(general.getAsDouble()) : null;
+        Optional<RitmoLeido> general = ritmoService.generalLeido(activos, ritmos, hoy);
+        Integer nivelGeneral = general.map(leido -> CalculoRitmo.nivel(leido.valor())).orElse(null);
+        Tendencia tendenciaGeneral = general.map(RitmoLeido::tendencia).orElse(null);
 
         return new HoyDTO(fecha.toString(), hoy.toString(), dias,
                 oNull(CalculoHoy.avanceDelDia(activos, fechasPorHabito, fecha)),
-                nivelGeneral, seccion(delDia), seccion(deLaSemana));
+                nivelGeneral, tendenciaGeneral, seccion(delDia), seccion(deLaSemana));
     }
 
     private FilaHoyDTO fila(Habito habito, int completados, boolean hecho,

@@ -84,6 +84,7 @@ class HoyEndpointTest {
                 .andExpect(jsonPath("$.dias.length()").value(7))
                 .andExpect(jsonPath("$.avance").value(1.0))
                 .andExpect(jsonPath("$.ritmoNivel").value(2))
+                .andExpect(jsonPath("$.ritmoTendencia").value("IGUAL"))
                 .andExpect(jsonPath("$.delDia.hechos").value(1))
                 .andExpect(jsonPath("$.delDia.total").value(1))
                 .andExpect(jsonPath("$.delDia.habitos[0].habito.nombre").value("Leer"))

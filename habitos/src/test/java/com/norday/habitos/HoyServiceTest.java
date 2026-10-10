@@ -4,7 +4,9 @@ import com.norday.core.model.Usuario;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.model.dto.FilaHoyDTO;
 import com.norday.habitos.model.dto.HoyDTO;
 import com.norday.habitos.model.dto.SeccionHoyDTO;
@@ -23,7 +25,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -88,6 +90,11 @@ class HoyServiceTest {
         return new Registro(quien, true, "", fecha);
     }
 
+    /** Un ritmo que no se ha movido en la semana. */
+    private RitmoLeido leido(double valor) {
+        return new RitmoLeido(valor, valor);
+    }
+
     @BeforeEach
     void setUp() {
         usuario = new Usuario();
@@ -109,9 +116,11 @@ class HoyServiceTest {
                 hecho(gimnasio, LUNES), hecho(yoga, MARTES), hecho(gimnasio, MIERCOLES),
                 hecho(llamar, JUEVES),
                 hecho(agua, SABADO), hecho(agua, SABADO), hecho(agua, SABADO), hecho(meditar, SABADO)));
-        Map<Integer, Double> ritmos = Map.of(1, 0.85, 2, 0.65, 3, 0.50, 4, 0.97, 5, 0.70, 6, 0.85);
-        when(ritmoService.ritmosVigentes(activos, hoy)).thenReturn(ritmos);
-        when(ritmoService.generalDe(activos, ritmos, hoy)).thenReturn(OptionalDouble.of(0.72));
+        Map<Integer, RitmoLeido> ritmos = Map.of(1, leido(0.85), 2, leido(0.65), 3, leido(0.50),
+                4, leido(0.97), 5, leido(0.70), 6, leido(0.85));
+        when(ritmoService.ritmosLeidos(activos, hoy)).thenReturn(ritmos);
+        when(ritmoService.generalLeido(activos, ritmos, hoy))
+                .thenReturn(Optional.of(new RitmoLeido(0.72, 0.66)));
     }
 
     private List<String> nombres(SeccionHoyDTO seccion) {
@@ -157,6 +166,7 @@ class HoyServiceTest {
         assertEquals("2026-10-10", hoy.hoy());
         assertEquals(0.4375, hoy.avance(), D);
         assertEquals(3, hoy.ritmoNivel());
+        assertEquals(Tendencia.SUBE, hoy.ritmoTendencia());
 
         // HOY · 1 de 4
         assertEquals(List.of("Beber agua", "Leer 20 minutos", "Meditar", "Yoga"), nombres(hoy.delDia()));
@@ -199,7 +209,7 @@ class HoyServiceTest {
         // La sección de la semana es la misma se mire el día que se mire.
         assertEquals(List.of("Gimnasio", "Llamar a casa"), nombres(martes.deLaSemana()));
         assertEquals(1, martes.deLaSemana().hechos());
-        verify(ritmoService).ritmosVigentes(activos, SABADO);
+        verify(ritmoService).ritmosLeidos(activos, SABADO);
     }
 
     @Test
@@ -223,6 +233,7 @@ class HoyServiceTest {
 
         assertNull(hoy.avance());
         assertNull(hoy.ritmoNivel());
+        assertNull(hoy.ritmoTendencia());
         assertEquals(0, hoy.delDia().total());
         assertEquals(0, hoy.deLaSemana().total());
         assertTira(hoy, null, null, null, null, null, null, null);
@@ -242,28 +253,29 @@ class HoyServiceTest {
     @Test
     void losRegistrosSinCompletarNoCuentan() {
         List<Habito> soloLeer = List.of(leer);
-        Map<Integer, Double> ritmos = Map.of(2, 0.5);
+        Map<Integer, RitmoLeido> ritmos = Map.of(2, leido(0.5));
         when(habitoDAO.findActivos(usuario)).thenReturn(soloLeer);
         when(registroDAO.findByHabitosAndRango(soloLeer, LUNES, DOMINGO))
                 .thenReturn(List.of(new Registro(leer, false, "", SABADO)));
-        when(ritmoService.ritmosVigentes(soloLeer, SABADO)).thenReturn(ritmos);
-        when(ritmoService.generalDe(soloLeer, ritmos, SABADO)).thenReturn(OptionalDouble.of(0.5));
+        when(ritmoService.ritmosLeidos(soloLeer, SABADO)).thenReturn(ritmos);
+        when(ritmoService.generalLeido(soloLeer, ritmos, SABADO)).thenReturn(Optional.of(leido(0.5)));
 
         HoyDTO hoy = hoyService.obtenerHoy(usuario, SABADO, SABADO);
 
         assertFila(fila(hoy.delDia(), "Leer 20 minutos"), 0, 1, false, false, 2);
         assertEquals(0.0, hoy.avance(), D);
         assertEquals(2, hoy.ritmoNivel());
+        assertEquals(Tendencia.IGUAL, hoy.ritmoTendencia());
     }
 
     @Test
     void unHabitoCreadoDespuesDelDiaQueSeMira_noSaleEseDia() {
         leer.setFechaInicio(VIERNES);
         List<Habito> soloLeer = List.of(leer);
-        Map<Integer, Double> ritmos = Map.of(2, 0.5);
+        Map<Integer, RitmoLeido> ritmos = Map.of(2, leido(0.5));
         when(habitoDAO.findActivos(usuario)).thenReturn(soloLeer);
-        when(ritmoService.ritmosVigentes(soloLeer, SABADO)).thenReturn(ritmos);
-        when(ritmoService.generalDe(soloLeer, ritmos, SABADO)).thenReturn(OptionalDouble.of(0.5));
+        when(ritmoService.ritmosLeidos(soloLeer, SABADO)).thenReturn(ritmos);
+        when(ritmoService.generalLeido(soloLeer, ritmos, SABADO)).thenReturn(Optional.of(leido(0.5)));
 
         HoyDTO martes = hoyService.obtenerHoy(usuario, MARTES, SABADO);
 

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -172,6 +173,31 @@ public class RitmoService {
                     CalculoRitmo.pesoEnElGeneral(habito.getFechaInicio(), hoy)));
         }
         return CalculoRitmo.general(conPeso);
+    }
+
+    /**
+     * El ritmo general de hoy y el de hace siete días, a partir de ritmos ya
+     * leídos con {@link #ritmosLeidos}. Vacío si no hay hábitos.
+     *
+     * El de hace siete días usa el peso que cada hábito tenía entonces: uno
+     * creado esta semana no contaba, y así no distorsiona la comparación.
+     */
+    public Optional<RitmoLeido> generalLeido(List<Habito> habitos, Map<Integer, RitmoLeido> leidos,
+                                             LocalDate hoy) {
+        LocalDate haceUnaSemana = hoy.minusDays(7);
+        List<RitmoConPeso> ahora = new ArrayList<>();
+        List<RitmoConPeso> antes = new ArrayList<>();
+        for (Habito habito : habitos) {
+            RitmoLeido leido = leidos.get(habito.getHabitoId());
+            ahora.add(new RitmoConPeso(leido.valor(),
+                    CalculoRitmo.pesoEnElGeneral(habito.getFechaInicio(), hoy)));
+            antes.add(new RitmoConPeso(leido.haceUnaSemana(),
+                    CalculoRitmo.pesoEnElGeneral(habito.getFechaInicio(), haceUnaSemana)));
+        }
+        OptionalDouble generalAhora = CalculoRitmo.general(ahora);
+        if (generalAhora.isEmpty()) return Optional.empty();
+        return Optional.of(new RitmoLeido(
+                generalAhora.getAsDouble(), CalculoRitmo.general(antes).getAsDouble()));
     }
 
     /**

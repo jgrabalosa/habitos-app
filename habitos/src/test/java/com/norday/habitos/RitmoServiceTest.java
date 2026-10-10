@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -397,5 +398,40 @@ class RitmoServiceTest {
         assertEquals(0.5, leidos.get(11).haceUnaSemana(), D);
         assertEquals(Tendencia.IGUAL, leidos.get(11).tendencia());
         verify(ritmoDAO, never()).update(any());
+    }
+
+    @Test
+    void generalLeido_comparaElGeneralDeHoyConElDeHaceSieteDias() {
+        Habito otro = otroHabito(LocalDate.of(2026, 1, 1));
+        Map<Integer, RitmoLeido> leidos = Map.of(
+                10, new RitmoLeido(0.9, 0.8),
+                11, new RitmoLeido(0.5, 0.6));
+
+        RitmoLeido general = ritmoService.generalLeido(List.of(habito, otro), leidos, d(10, 8)).orElseThrow();
+
+        // Uno sube y el otro baja lo mismo: el general no se mueve.
+        assertEquals(0.7, general.valor(), D);
+        assertEquals(0.7, general.haceUnaSemana(), D);
+        assertEquals(Tendencia.IGUAL, general.tendencia());
+    }
+
+    @Test
+    void generalLeido_unHabitoCreadoEstaSemanaNoContabaHaceSieteDias() {
+        // Creado el lunes 5; hoy es jueves 8: pesa 3/14 hoy y nada hace siete días.
+        Habito nuevo = otroHabito(d(10, 5));
+        Map<Integer, RitmoLeido> leidos = Map.of(
+                10, new RitmoLeido(0.9, 0.8),
+                11, new RitmoLeido(0.6, 0.5));
+
+        RitmoLeido general = ritmoService.generalLeido(List.of(habito, nuevo), leidos, d(10, 8)).orElseThrow();
+
+        assertEquals(0.847059, general.valor(), D);
+        assertEquals(0.8, general.haceUnaSemana(), D);
+        assertEquals(Tendencia.SUBE, general.tendencia());
+    }
+
+    @Test
+    void generalLeido_sinHabitos_noHayRitmoGeneral() {
+        assertTrue(ritmoService.generalLeido(List.of(), Map.of(), d(10, 8)).isEmpty());
     }
 }

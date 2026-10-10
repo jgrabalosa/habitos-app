@@ -1,5 +1,7 @@
 package com.norday.habitos.model.dto;
 
+import com.norday.habitos.model.Tendencia;
+
 import java.util.List;
 
 /**
@@ -9,8 +11,10 @@ import java.util.List;
  * usuario; coinciden salvo cuando se toca otro día de la tira.
  * {@code dias} son los siete días de la semana de {@code fecha}.
  * {@code avance} es el del día que se mira, de 0 a 1; null si no tocaba nada.
- * {@code ritmoNivel} es el nivel del ritmo general, de 1 a 5; null si no hay
- * hábitos activos.
+ * {@code ritmoNivel} es el nivel del ritmo general, de 1 a 5, y
+ * {@code ritmoTendencia} hacia dónde va respecto a hace siete días; los dos
+ * son null si no hay hábitos activos.
  */
 public record HoyDTO(String fecha, String hoy, List<DiaTiraDTO> dias, Double avance,
-                     Integer ritmoNivel, SeccionHoyDTO delDia, SeccionHoyDTO deLaSemana) {}
+                     Integer ritmoNivel, Tendencia ritmoTendencia,
+                     SeccionHoyDTO delDia, SeccionHoyDTO deLaSemana) {}
