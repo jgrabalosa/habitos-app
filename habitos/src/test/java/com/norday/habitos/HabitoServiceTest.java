@@ -5,8 +5,10 @@ import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.ParametrosRitmo;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDiaDTO;
@@ -17,6 +19,7 @@ import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.service.LogrosHabitosService;
@@ -24,6 +27,7 @@ import com.norday.habitos.service.RachaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -52,6 +56,9 @@ class HabitoServiceTest {
 
     @Mock
     private IRegistroDAO registroDAO;
+
+    @Mock
+    private IRitmoDAO ritmoDAO;
 
     @Mock
     private LogrosHabitosService logrosHabitosService;
@@ -502,6 +509,20 @@ class HabitoServiceTest {
         assertNull(nuevo.getTipo());
         verify(categoriaDAO, never()).findById(anyInt());
         verify(habitoDAO).save(nuevo);
+    }
+
+    @Test
+    void crearHabito_guardaSuRitmoEnElValorDePartidaDesdeHoy() {
+        Habito nuevo = habito(0, Frecuencia.DIARIO, 1);
+        when(rachaService.zonaDe(nuevo)).thenReturn(ZONA);
+
+        habitoService.crearHabito(nuevo, null);
+
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).save(guardado.capture());
+        assertSame(nuevo, guardado.getValue().getHabito());
+        assertEquals(ParametrosRitmo.VALOR_INICIAL, guardado.getValue().getValor());
+        assertEquals(HOY, guardado.getValue().getDesde());
     }
 
     @Test

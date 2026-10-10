@@ -7,6 +7,7 @@ import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
@@ -21,6 +22,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
+import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,9 @@ public class HabitoService {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private IRitmoDAO ritmoDAO;
 
     @Autowired
     private IRegistroDAO registroDAO;
@@ -105,6 +110,7 @@ public class HabitoService {
         habitoDAO.save(habito);
         Racha racha = new Racha(habito, hoy);
         rachaDAO.save(racha);
+        ritmoDAO.save(new Ritmo(habito, hoy));
 
         return logrosHabitosService.evaluarTrasCrearHabito(habito.getPropietario());
     }
@@ -171,6 +177,7 @@ public class HabitoService {
         reversionRegistroDAO.deleteByHabito(id);
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);
+        ritmoDAO.deleteByHabito(id);
         habitoDAO.delete(id);
     }
 

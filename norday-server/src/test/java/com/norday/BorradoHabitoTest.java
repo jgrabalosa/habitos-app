@@ -6,7 +6,9 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
+import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.service.HabitoService;
+import com.norday.habitos.service.LimpiadorHabitos;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,9 @@ class BorradoHabitoTest {
 
     @Autowired
     private HabitoService habitoService;
+
+    @Autowired
+    private LimpiadorHabitos limpiadorHabitos;
 
     @PersistenceContext
     private EntityManager em;
@@ -92,5 +97,63 @@ class BorradoHabitoTest {
                 .setParameter("registroId", registroId)
                 .getSingleResult();
         assertEquals(0L, logrosRestantes);
+    }
+
+    private Usuario usuarioDePrueba(String prefijo) {
+        Usuario usuario = new Usuario();
+        usuario.setNombre("Test " + prefijo);
+        usuario.setUsername(prefijo + "-" + System.nanoTime());
+        usuario.setEmail(prefijo + "-" + System.nanoTime() + "@example.com");
+        usuario.setContrasena("contrasenaDePrueba");
+        usuario.setProveedorAuth("LOCAL");
+        usuario.setFechaRegistro(LocalDateTime.now());
+        usuario.setIdioma("es");
+        usuario.setZonaHoraria("Europe/Madrid");
+        em.persist(usuario);
+        return usuario;
+    }
+
+    private long ritmosDe(int habitoId) {
+        return em.createQuery(
+                        "SELECT count(r) FROM Ritmo r WHERE r.habito.habitoId = :habitoId", Long.class)
+                .setParameter("habitoId", habitoId)
+                .getSingleResult();
+    }
+
+    @Test
+    void eliminarHabitoConRitmoNoRevientaPorFk() {
+        Usuario usuario = usuarioDePrueba("test-ritmo-borrado");
+        Habito habito = new Habito("Hábito con ritmo", "Descripción", Frecuencia.DIARIO, 1,
+                usuario, null, LocalDate.now());
+        em.persist(habito);
+        em.persist(new Ritmo(habito, LocalDate.now()));
+        em.flush();
+        int habitoId = habito.getHabitoId();
+        assertEquals(1L, ritmosDe(habitoId));
+        em.clear();
+
+        habitoService.eliminar(habitoId);
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, ritmosDe(habitoId));
+    }
+
+    @Test
+    void limpiarCuentaConRitmoNoRevientaPorFk() {
+        Usuario usuario = usuarioDePrueba("test-ritmo-cuenta");
+        Habito habito = new Habito("Hábito con ritmo", "Descripción", Frecuencia.SEMANAL, 3,
+                usuario, null, LocalDate.now());
+        em.persist(habito);
+        em.persist(new Ritmo(habito, LocalDate.now()));
+        em.flush();
+        int habitoId = habito.getHabitoId();
+        em.clear();
+
+        limpiadorHabitos.limpiar(em.find(Usuario.class, usuario.getUsuarioId()));
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, ritmosDe(habitoId));
     }
 }
