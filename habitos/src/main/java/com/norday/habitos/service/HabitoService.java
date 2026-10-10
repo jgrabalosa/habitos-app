@@ -149,6 +149,13 @@ public class HabitoService {
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
         normalizarPlanificacion(habito);
+        // El ritmo se ancla ANTES de guardar, con el hábito tal como estaba:
+        // hay que calcularlo con las reglas antiguas. Va después de
+        // normalizarPlanificacion porque en un semanal con días fijos el
+        // objetivo sale de los días marcados.
+        if (cambioFrecuencia || existente.getMeta() != habito.getMeta()) {
+            ritmoService.anclarAntesDeCambiar(existente);
+        }
         habitoDAO.update(habito);
 
         if (cambioFrecuencia) {

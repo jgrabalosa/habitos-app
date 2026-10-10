@@ -37,6 +37,14 @@ public class Ritmo {
     @Column(name = "desde_previo")
     private LocalDate desdePrevio;
 
+    /**
+     * El día del último cambio de frecuencia u objetivo del hábito. El
+     * periodo que lo contiene solo puede subir el ritmo. Null si el hábito
+     * no ha cambiado nunca.
+     */
+    @Column(name = "cambio")
+    private LocalDate cambio;
+
     @OneToOne
     @JoinColumn(name = "habito_ref", nullable = false, unique = true,
             foreignKey = @ForeignKey(name = "FK_ritmo_habito"))
@@ -66,6 +74,9 @@ public class Ritmo {
 
     public LocalDate getDesdePrevio() { return desdePrevio; }
     public void setDesdePrevio(LocalDate desdePrevio) { this.desdePrevio = desdePrevio; }
+
+    public LocalDate getCambio() { return cambio; }
+    public void setCambio(LocalDate cambio) { this.cambio = cambio; }
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }

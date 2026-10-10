@@ -434,4 +434,79 @@ class RitmoServiceTest {
     void generalLeido_sinHabitos_noHayRitmoGeneral() {
         assertTrue(ritmoService.generalLeido(List.of(), Map.of(), d(10, 8)).isEmpty());
     }
+
+    @Test
+    void anclarAntesDeCambiar_dejaElAnclaEnHoyConElRitmoQueHabia() {
+        anclaEn(0.5, d(10, 5));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 7)))
+                .thenReturn(List.of(hecho(d(10, 5)), hecho(d(10, 6)), hecho(d(10, 7))));
+
+        ritmoService.anclarAntesDeCambiar(habito, d(10, 8));
+
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO, times(1)).update(guardado.capture());
+        assertEquals(0.628501, guardado.getValue().getValor(), D);
+        assertEquals(d(10, 8), guardado.getValue().getDesde());
+        assertEquals(d(10, 8), guardado.getValue().getCambio());
+    }
+
+    @Test
+    void anclarAntesDeCambiar_sinFilaDeRitmo_empiezaHoyYaAnclado() {
+        when(ritmoDAO.findByHabito(habito)).thenReturn(null);
+
+        ritmoService.anclarAntesDeCambiar(habito, d(10, 8));
+
+        ArgumentCaptor<Ritmo> creado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO).save(creado.capture());
+        assertEquals(ParametrosRitmo.VALOR_INICIAL, creado.getValue().getValor(), D);
+        assertEquals(d(10, 8), creado.getValue().getDesde());
+        assertEquals(d(10, 8), creado.getValue().getCambio());
+        verify(ritmoDAO, never()).update(any());
+    }
+
+    @Test
+    void trasSubirElObjetivo_elDiaDelCambioSoloPuedeSubir_yElSiguienteCuentaNormal() {
+        // Jueves 8: el objetivo subió de 2 a 4 con 2 hechas.
+        habito.setMeta(4);
+        Ritmo ritmo = anclaEn(0.8, d(10, 8));
+        ritmo.setCambio(d(10, 8));
+        List<Registro> dosElJueves = List.of(hecho(d(10, 8)), hecho(d(10, 8)));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 8), d(10, 8))).thenReturn(dosElJueves);
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 8), d(10, 9))).thenReturn(dosElJueves);
+
+        double elViernes = ritmoService.ritmoVigente(habito, d(10, 9));
+        double elSabado = ritmoService.ritmoVigente(habito, d(10, 10));
+
+        // El jueves cerró en 2/4, que bajaría el ritmo: es el día del cambio y no baja.
+        assertEquals(0.8, elViernes, D);
+        // El viernes, sin nada, ya cuenta normal.
+        assertEquals(0.774026, elSabado, D);
+    }
+
+    @Test
+    void trasBajarElObjetivo_laSemanaCierraConElNuevo() {
+        // Jueves 8: el objetivo bajó de 5 a 3 con 3 hechas.
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(3);
+        Ritmo ritmo = anclaEn(0.5, d(10, 8));
+        ritmo.setCambio(d(10, 8));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 11)))
+                .thenReturn(List.of(hecho(d(10, 5)), hecho(d(10, 6)), hecho(d(10, 7))));
+
+        assertEquals(0.75, ritmoService.ritmoVigente(habito, d(10, 12)), D);
+    }
+
+    @Test
+    void trasSubirElObjetivo_laSemanaDelCambioNoBajaElRitmo() {
+        // Jueves 8: el objetivo subió de 3 a 5 con 3 hechas.
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(5);
+        Ritmo ritmo = anclaEn(0.8, d(10, 8));
+        ritmo.setCambio(d(10, 8));
+        when(registroDAO.findByHabitoAndRango(habito, d(10, 5), d(10, 11)))
+                .thenReturn(List.of(hecho(d(10, 5)), hecho(d(10, 6)), hecho(d(10, 7))));
+
+        // 3/5 bajaría el ritmo: es la semana del cambio y no baja.
+        assertEquals(0.8, ritmoService.ritmoVigente(habito, d(10, 12)), D);
+    }
 }

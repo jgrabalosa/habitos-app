@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -143,6 +144,43 @@ class HabitoServiceTest {
         // Assert: nunca se llama a rachaDAO.findByHabito ni a update sobre la racha
         verify(rachaDAO, never()).findByHabito(any());
         assertEquals(5, racha.getRachaActual()); // sigue como estaba
+    }
+
+    @Test
+    void actualizar_alCambiarElObjetivo_anclaElRitmoAntesDeGuardar() {
+        Habito habitoEditado = habito(20, Frecuencia.DIARIO, 3);
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        // Antes de guardar: el ritmo hay que calcularlo con el hábito como estaba.
+        InOrder orden = inOrder(ritmoService, habitoDAO);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(habitoDAO).update(habitoEditado);
+    }
+
+    @Test
+    void actualizar_alCambiarLaFrecuencia_anclaElRitmoAntesDeGuardar() {
+        Habito habitoEditado = habito(20, Frecuencia.SEMANAL, 1);
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        InOrder orden = inOrder(ritmoService, habitoDAO);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(habitoDAO).update(habitoEditado);
+    }
+
+    @Test
+    void actualizar_sinCambiarFrecuenciaNiObjetivo_noTocaElRitmo() {
+        Habito habitoEditado = habito(20, Frecuencia.DIARIO, 1);
+        habitoEditado.setNombre("Gym renombrado");
+        when(habitoDAO.findById(20)).thenReturn(existente);
+
+        habitoService.actualizar(habitoEditado, null);
+
+        verifyNoInteractions(ritmoService);
+        verify(habitoDAO).update(habitoEditado);
     }
 
     // ── esDiaCompleto ────────────────────────────────────────────────────
