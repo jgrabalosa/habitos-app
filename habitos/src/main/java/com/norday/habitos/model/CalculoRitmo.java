@@ -1,6 +1,11 @@
 package com.norday.habitos.model;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * El cálculo del ritmo, sin efectos: no lee la base de datos ni el reloj.
@@ -13,6 +18,14 @@ import java.util.List;
 public final class CalculoRitmo {
 
     private CalculoRitmo() {}
+
+    /**
+     * Un ancla puesta al día. {@code valor} es el ritmo vigente hoy.
+     * {@code valorAncla} y {@code desdeAncla} son el ancla que se puede
+     * guardar: el ritmo al empezar el día {@code desdeAncla}, con todo lo
+     * anterior ya calculado.
+     */
+    public record RitmoAlDia(double valor, double valorAncla, LocalDate desdeAncla) {}
 
     /**
      * Cuánto del objetivo se hizo en un periodo, de 0 a 1. Lo parcial cuenta
@@ -43,6 +56,58 @@ public final class CalculoRitmo {
             actual = cerrarPeriodo(actual, credito, frecuencia);
         }
         return actual;
+    }
+
+    /**
+     * Pone al día un ancla: cierra, en orden, todos los periodos que ya han
+     * terminado desde {@code desde}. El periodo que contiene {@code hoy}
+     * sigue abierto y no cuenta.
+     *
+     * Tres reglas:
+     * - Un periodo semanal cuenta la semana entera, aunque el ancla caiga a
+     *   mitad de semana: por eso se empieza en el inicio del periodo de
+     *   {@code desde}, no en {@code desde}.
+     * - El primer periodo de un hábito —el que contiene {@code fechaInicio}—
+     *   solo puede subir el ritmo. Un hábito casi nunca nace al empezar un
+     *   periodo, y no había tiempo de cumplirlo entero.
+     * - El ancla avanza hasta el lunes de la semana de {@code hoy} y no más:
+     *   solo se puede marcar o deshacer dentro de la semana en curso, así
+     *   que lo anterior ya no cambia y lo de esta semana todavía puede.
+     *
+     * @param fechasHechas una fecha por cada vez que se hizo el hábito (se
+     *                     repite si un día se hizo varias veces)
+     */
+    public static RitmoAlDia alDia(double valor, LocalDate desde, Frecuencia frecuencia, int objetivo,
+                                   LocalDate fechaInicio, Collection<LocalDate> fechasHechas,
+                                   LocalDate hoy) {
+        Map<LocalDate, Integer> hechosPorPeriodo = new HashMap<>();
+        for (LocalDate fecha : fechasHechas) {
+            hechosPorPeriodo.merge(frecuencia.rangoPeriodo(fecha)[0], 1, Integer::sum);
+        }
+        LocalDate lunesDeEstaSemana = hoy.with(DayOfWeek.MONDAY);
+
+        double actual = valor;
+        double valorAncla = valor;
+        LocalDate desdeAncla = desde;
+        LocalDate cursor = frecuencia.rangoPeriodo(desde)[0];
+        while (true) {
+            LocalDate[] periodo = frecuencia.rangoPeriodo(cursor);
+            if (!periodo[1].isBefore(hoy)) break; // sigue abierto: no mueve el ritmo
+
+            double credito = credito(hechosPorPeriodo.getOrDefault(periodo[0], 0), objetivo);
+            double siguiente = cerrarPeriodo(actual, credito, frecuencia);
+            boolean esElPrimero = fechaInicio != null
+                    && !fechaInicio.isBefore(periodo[0]) && !fechaInicio.isAfter(periodo[1]);
+            if (esElPrimero && siguiente < actual) siguiente = actual;
+            actual = siguiente;
+
+            cursor = periodo[1].plusDays(1);
+            if (!cursor.isAfter(lunesDeEstaSemana)) {
+                valorAncla = actual;
+                desdeAncla = cursor;
+            }
+        }
+        return new RitmoAlDia(actual, valorAncla, desdeAncla);
     }
 
     /** Qué parte de la distancia al crédito se recorre en un periodo de esos días. */
