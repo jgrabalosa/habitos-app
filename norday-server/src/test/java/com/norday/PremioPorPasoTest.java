@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -248,5 +249,22 @@ class PremioPorPasoTest {
                 registroService.completarHabito(habito(), "", LUNES.plusDays(3));
         assertEquals(50, otraVez.get("puntosHito"));
         assertEquals(saldoConElHito, saldo());
+    }
+
+    @Test
+    void logro_elTercerDiaHechoLoConcede_yDeshacerLoRetira() {
+        unHabito(Frecuencia.DIARIO, 1);
+        registroService.completarHabito(habito(), "", LUNES);
+        registroService.completarHabito(habito(), "", LUNES.plusDays(1));
+
+        Map<String, Object> tercero =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(2));
+        assertTrue(((List<?>) tercero.get("logros")).contains("RACHA_3"));
+
+        // Si deshacer no lo retirase, rehacer no podría concederlo otra vez.
+        registroService.deshacerRegistro((Integer) tercero.get("registroId"));
+        Map<String, Object> otraVez =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(2));
+        assertTrue(((List<?>) otraVez.get("logros")).contains("RACHA_3"));
     }
 }

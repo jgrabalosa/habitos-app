@@ -5,11 +5,13 @@ import com.norday.gamificacion.service.LogroService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.LogrosHabitosService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -58,6 +61,7 @@ class LogrosHabitosServiceTest {
         habito.setPropietario(usuario);
     }
 
+    @Disabled("B3: los logros de constancia van por días hechos, no por racha. Los sustituyen los tests de días hechos de esta clase")
     @Test
     void alAlcanzarRacha3PorPrimeraVez_seOtorgaRACHA_3() {
         Racha racha = new Racha(habito, HOY);
@@ -73,6 +77,7 @@ class LogrosHabitosServiceTest {
         assertTrue(otorgados.contains("RACHA_3"));
     }
 
+    @Disabled("B3: la regla de Resiliencia por racha deja de aplicarse. Su regla nueva llega en su propio paso")
     @Test
     void alRomperYVolverAAlcanzarRacha3_seOtorgaRACHA_RECUPERADA() {
         Racha racha = new Racha(habito, HOY);
@@ -89,6 +94,7 @@ class LogrosHabitosServiceTest {
         assertFalse(otorgados.contains("RACHA_3")); // no debe darse el de "primera vez"
     }
 
+    @Disabled("B3: la regla de Resiliencia por racha deja de aplicarse. Su regla nueva llega en su propio paso")
     @Test
     void alAlcanzarRacha3SinHaberRotoAntes_noSeOtorgaRACHA_RECUPERADA() {
         Racha racha = new Racha(habito, HOY);
@@ -104,6 +110,7 @@ class LogrosHabitosServiceTest {
         assertFalse(otorgados.contains("RACHA_RECUPERADA"));
     }
 
+    @Disabled("B3: los logros de constancia van por días hechos, no por racha. Los sustituyen los tests de días hechos de esta clase")
     @Test
     void alOtorgarUnLogroYaConseguido_noSeDuplica() {
         Racha racha = new Racha(habito, HOY);
@@ -120,6 +127,7 @@ class LogrosHabitosServiceTest {
         assertFalse(otorgados.contains("RACHA_3")); // no se añade a la lista si ya lo tenía
     }
 
+    @Disabled("B3: los logros de constancia van por días hechos, no por racha. Los sustituyen los tests de días hechos de esta clase")
     @Test
     void alAlcanzarUnUmbralIntermedio_seOtorgaElLogroCorrespondiente() {
         Racha racha = new Racha(habito, HOY);
@@ -135,6 +143,7 @@ class LogrosHabitosServiceTest {
         assertTrue(otorgados.contains("RACHA_45"));
     }
 
+    @Disabled("B3: los logros de constancia van por días hechos, no por racha. Los sustituyen los tests de días hechos de esta clase")
     @Test
     void alQuedarEntreDosUmbrales_noSeOtorgaNingunLogroDeRacha() {
         Racha racha = new Racha(habito, HOY);
@@ -170,5 +179,79 @@ class LogrosHabitosServiceTest {
         h.setMeta(1);
         h.setPropietario(usuario);
         return h;
+    }
+
+    /** Un registro completado por cada número: los días que hace, contados desde hoy. */
+    private List<Registro> hechosHace(int... dias) {
+        List<Registro> registros = new ArrayList<>();
+        for (int dia : dias) {
+            registros.add(new Registro(habito, true, "", HOY.minusDays(dia)));
+        }
+        return registros;
+    }
+
+    @Test
+    void conTresDiasHechos_seOtorgaElLogroDeTresAunqueNoSeanSeguidos() {
+        when(registroDAO.findByHabito(habito)).thenReturn(hechosHace(20, 5, 0));
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(true);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(3);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertEquals(List.of("RACHA_3"), otorgados);
+    }
+
+    @Test
+    void conDoceDiasHechosYNingunLogroGanado_seOtorganLosTresEscalonesSuperados() {
+        when(registroDAO.findByHabito(habito))
+                .thenReturn(hechosHace(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
+        when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(12);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertEquals(List.of("RACHA_3", "RACHA_7", "RACHA_10"), otorgados);
+        verify(logroService, never()).otorgarSiNoTiene(usuario, "RACHA_15");
+    }
+
+    @Test
+    void losLogrosQueYaTiene_noSeRepiten() {
+        when(registroDAO.findByHabito(habito))
+                .thenReturn(hechosHace(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
+        // Los de 3 y 7 ya los tenía: el motor los rechaza.
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(false);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_7")).thenReturn(false);
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_10")).thenReturn(true);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(12);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertEquals(List.of("RACHA_10"), otorgados);
+    }
+
+    @Test
+    void enUnDiario_soloCuentanLosDiasQueLlegaronAlObjetivo() {
+        // Diario de 2: dos días completos y uno a medias son 2 días hechos.
+        habito.setMeta(2);
+        when(registroDAO.findByHabito(habito)).thenReturn(hechosHace(3, 3, 2, 2, 1));
+        when(registroDAO.contarPorUsuario(1)).thenReturn(5);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertTrue(otorgados.isEmpty());
+        verify(logroService, never()).otorgarSiNoTiene(any(), anyString());
+    }
+
+    @Test
+    void enUnSemanal_cadaSesionCuentaComoDiaHecho() {
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(5);
+        when(registroDAO.findByHabito(habito)).thenReturn(hechosHace(15, 8, 1));
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_3")).thenReturn(true);
+        when(registroDAO.contarPorUsuario(1)).thenReturn(3);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertEquals(List.of("RACHA_3"), otorgados);
     }
 }
