@@ -185,8 +185,9 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        // La racha se sigue actualizando hasta que se apague (paso B5), pero
-        // ya no paga nada: los hitos van por días hechos.
+        // La racha se sigue actualizando para la app ya instalada, que la
+        // enseña en el detalle; se apaga al publicar la app nueva (bloque G).
+        // Ya no paga nada: los hitos van por días hechos.
         actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
 
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
