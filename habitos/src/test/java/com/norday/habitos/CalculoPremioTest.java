@@ -3,6 +3,8 @@ package com.norday.habitos;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.CalculoPremio.Premio;
 import com.norday.habitos.model.Frecuencia;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -116,5 +118,67 @@ class CalculoPremioTest {
         assertEquals(new Premio(25, 5, 0, 0), diario(0, 0));
         assertEquals(new Premio(25, 5, 5, 1), semanal(0, 0));
         assertEquals(Premio.NADA, diario(1, 0));
+    }
+
+    // Hitos: las cifras salen de la sección 14 de las decisiones del rediseño
+    // (3, 7, 30, 100 y 365 días hechos; 50, 100, 300, 750 y 2000 puntos).
+
+    private static final LocalDate LUNES = LocalDate.of(2026, 10, 5);
+    private static final LocalDate MARTES = LocalDate.of(2026, 10, 6);
+    private static final LocalDate MIERCOLES = LocalDate.of(2026, 10, 7);
+
+    @Test
+    void hitos_seCobraAlLlegarACadaUno() {
+        assertEquals(50, CalculoPremio.puntosDeHitos(2, 3));
+        assertEquals(100, CalculoPremio.puntosDeHitos(6, 7));
+        assertEquals(300, CalculoPremio.puntosDeHitos(29, 30));
+        assertEquals(750, CalculoPremio.puntosDeHitos(99, 100));
+        assertEquals(2000, CalculoPremio.puntosDeHitos(364, 365));
+    }
+
+    @Test
+    void hitos_entreUnoYOtroOSinAvanzar_noSeCobraNada() {
+        assertEquals(0, CalculoPremio.puntosDeHitos(0, 1));
+        assertEquals(0, CalculoPremio.puntosDeHitos(3, 4));
+        assertEquals(0, CalculoPremio.puntosDeHitos(8, 9));
+        assertEquals(0, CalculoPremio.puntosDeHitos(365, 366));
+        assertEquals(0, CalculoPremio.puntosDeHitos(3, 3));
+        assertEquals(0, CalculoPremio.puntosDeHitos(7, 6));
+    }
+
+    @Test
+    void hitos_siElContadorSalta_seCobranTodosLosCruzados() {
+        assertEquals(150, CalculoPremio.puntosDeHitos(2, 7));
+        assertEquals(3200, CalculoPremio.puntosDeHitos(0, 365));
+    }
+
+    @Test
+    void diasHechos_enUnDiarioCuentanLosDiasQueLlegaronAlObjetivo() {
+        // Lunes 4 veces, martes 3 y miércoles 4.
+        List<LocalDate> fechas = List.of(
+                LUNES, LUNES, LUNES, LUNES,
+                MARTES, MARTES, MARTES,
+                MIERCOLES, MIERCOLES, MIERCOLES, MIERCOLES);
+
+        assertEquals(2, CalculoPremio.diasHechos(Frecuencia.DIARIO, 4, fechas));
+        // Hueco conocido y aceptado: con otro objetivo, los mismos registros
+        // dan otros días hechos.
+        assertEquals(3, CalculoPremio.diasHechos(Frecuencia.DIARIO, 2, fechas));
+        assertEquals(3, CalculoPremio.diasHechos(Frecuencia.DIARIO, 1, List.of(LUNES, MARTES, MIERCOLES)));
+    }
+
+    @Test
+    void diasHechos_enUnSemanalCadaSesionEsUnDia() {
+        List<LocalDate> fechas = List.of(LUNES, MARTES, MIERCOLES);
+
+        assertEquals(3, CalculoPremio.diasHechos(Frecuencia.SEMANAL, 5, fechas));
+        assertEquals(3, CalculoPremio.diasHechos(Frecuencia.SEMANAL, 1, fechas));
+    }
+
+    @Test
+    void diasHechos_sinRegistrosEsCero_yUnObjetivoMenorQueUnoSeTrataComoUno() {
+        assertEquals(0, CalculoPremio.diasHechos(Frecuencia.DIARIO, 3, List.of()));
+        assertEquals(0, CalculoPremio.diasHechos(Frecuencia.SEMANAL, 3, List.of()));
+        assertEquals(2, CalculoPremio.diasHechos(Frecuencia.DIARIO, 0, List.of(LUNES, MARTES)));
     }
 }

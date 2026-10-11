@@ -1,5 +1,10 @@
 package com.norday.habitos.model;
 
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Lo que cobra cada paso, sin efectos: no lee la base de datos ni el reloj.
  *
@@ -54,6 +59,43 @@ public final class CalculoPremio {
                         completaLaSemana ? extra(ParametrosPremio.XP_POR_DIA * meta) : 0);
             }
         };
+    }
+
+    /**
+     * Los días hechos de un hábito, a partir de las fechas de sus registros
+     * (una fecha por registro, repetida si ese día se hizo varias veces). Es
+     * la misma unidad que en los puntos: en un diario, los días que llegaron
+     * al objetivo; en un semanal, cada sesión es un día.
+     */
+    public static int diasHechos(Frecuencia frecuencia, int objetivo, Collection<LocalDate> fechas) {
+        Map<LocalDate, Integer> vecesPorDia = new HashMap<>();
+        for (LocalDate fecha : fechas) {
+            vecesPorDia.merge(fecha, 1, Integer::sum);
+        }
+        if (frecuencia == Frecuencia.SEMANAL) return vecesPorDia.size();
+
+        int meta = Math.max(1, objetivo);
+        int dias = 0;
+        for (int veces : vecesPorDia.values()) {
+            if (veces >= meta) dias++;
+        }
+        return dias;
+    }
+
+    /**
+     * Los puntos de los hitos que se alcanzan al pasar de {@code diasAntes}
+     * a {@code diasDespues} días hechos. Se compara por intervalo y no por
+     * valor exacto: si el contador salta, se pagan todos los cruzados. Si no
+     * avanza, no se paga nada.
+     */
+    public static int puntosDeHitos(int diasAntes, int diasDespues) {
+        int puntos = 0;
+        for (int[] hito : ParametrosPremio.HITOS) {
+            if (hito[0] > diasAntes && hito[0] <= diasDespues) {
+                puntos += hito[1];
+            }
+        }
+        return puntos;
     }
 
     /**

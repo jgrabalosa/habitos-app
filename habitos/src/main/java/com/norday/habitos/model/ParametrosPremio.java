@@ -19,5 +19,13 @@ public final class ParametrosPremio {
      */
     public static final int EXTRA_SEMANA_COMPLETA_POR_CIENTO = 20;
 
+    /**
+     * Los hitos de un hábito: días hechos y puntos que paga llegar a ellos.
+     * Ordenados de menor a mayor. Se pagan una vez por hábito.
+     */
+    static final int[][] HITOS = {
+            {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
+    };
+
     private ParametrosPremio() {}
 }
