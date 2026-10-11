@@ -46,5 +46,11 @@ public final class ParametrosRitmo {
     public static final double TENDENCIA_SUBE_DESDE = 0.01;
     public static final double TENDENCIA_BAJA_DESDE = 0.045;
 
+    /**
+     * Cuántos hábitos hacen falta, todos con buen ritmo a la vez, para el
+     * logro que lo premia. Con menos no cuenta.
+     */
+    public static final int HABITOS_PARA_TODOS_A_UNA = 3;
+
     private ParametrosRitmo() {}
 }

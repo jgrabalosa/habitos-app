@@ -11,6 +11,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.service.NotificadorRachaEnPeligro;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,6 +27,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+@Disabled("B5: el aviso de racha en peligro se apaga. El barrido se conserva sin programar; los avisos de la app vuelven, con otras reglas, en la Fase 4")
 @ExtendWith(MockitoExtension.class)
 class NotificadorRachaEnPeligroTest {
 

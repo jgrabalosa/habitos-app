@@ -3,6 +3,7 @@ package com.norday.gamificacion.service;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.ZonaUsuarioService;
+import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
@@ -115,6 +116,21 @@ public class MascotaService {
         return "triste";
     }
 
+    /**
+     * El ánimo en cuatro estados. Sale entero de cómo va hoy el usuario, que
+     * lo contesta cada app: sin nada en un tiempo, triste; hoy sin empezar,
+     * dormida; con el primer paso dado, feliz; con todo completo, exultante.
+     * Código, no texto: el cliente lo traduce.
+     */
+    private String calcularAnimo(int usuarioId) {
+        return switch (cumplimientoDiario.comoVaHoy(usuarioId)) {
+            case AUSENTE -> "triste";
+            case SIN_EMPEZAR -> "dormida";
+            case EMPEZADO -> "feliz";
+            case COMPLETO -> "exultante";
+        };
+    }
+
     /** La zona del dueño de la mascota: su "hoy" no es el del servidor. */
     private ZoneId zonaDeMascota(Mascota mascota) {
         return zonaUsuarioService.zonaDe(mascota != null ? mascota.getUsuario() : null);
@@ -149,6 +165,7 @@ public class MascotaService {
                         mascota.getFechaUltimoDiaCompleto(),
                         mascota.getUsuario().getFechaRegistro(),
                         zonaDeMascota(mascota)),
+                calcularAnimo(mascota.getUsuario().getUsuarioId()),
                 mascota.getFechaUltimaComida()
         );
     }

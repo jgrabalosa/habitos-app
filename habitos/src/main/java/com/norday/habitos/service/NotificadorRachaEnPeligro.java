@@ -54,7 +54,11 @@ public class NotificadorRachaEnPeligro {
      * Barrido horario. No lleva zona: cada usuario se evalúa contra su propia
      * hora local, y solo se le avisa cuando en su reloj son las 21:00.
      */
-    @Scheduled(cron = "0 0 * * * *")
+    // B5 (rediseño de rachas): el aviso de "racha en peligro" se apaga. Avisa
+    // de que algo está en juego, y eso no encaja con el sistema nuevo. El
+    // barrido se conserva sin programar; los avisos de la app vuelven, con
+    // otras reglas, en la Fase 4.
+    // @Scheduled(cron = "0 0 * * * *")
     public void avisarRachasEnPeligro() {
         List<Habito> activos = habitoDAO.findTodosActivos();
         int avisados = 0;

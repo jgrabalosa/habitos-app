@@ -1,5 +1,7 @@
 package com.norday.habitos.model;
 
+import com.norday.gamificacion.model.AvanceDeHoy;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -149,5 +151,74 @@ public final class CalculoHoy {
             cuantos++;
         }
         return cuantos == 0 ? OptionalDouble.empty() : OptionalDouble.of(suma / cuantos);
+    }
+
+    /**
+     * Cómo va hoy el usuario, para el ánimo de la mascota. Sigue lo que hace
+     * hoy, no el ritmo.
+     *
+     * COMPLETO: todo lo de la sección del día está hecho. Un día sin sección
+     * del día nunca lo es. EMPEZADO: ha dado algún paso hoy; vale uno parcial
+     * y vale lo de la sección de la semana. SIN_EMPEZAR: hoy todavía nada.
+     * AUSENTE: lleva tiempo sin hacer nada, con la misma cuenta que decide
+     * si un paso es una vuelta ({@link CalculoPremio#esUnaVuelta}).
+     *
+     * Con solo hábitos semanales se mide por semanas, para que quien cumple
+     * un semanal de una vez por semana no parezca ausente entre una vez y la
+     * siguiente: EMPEZADO si esta semana ya ha hecho algo, y AUSENTE si
+     * tampoco hizo nada la semana pasada.
+     *
+     * @param fechasPorHabito por id de hábito, sus fechas hechas de la semana de hoy
+     * @param actividadReciente las fechas en que hizo algo últimamente, de
+     *        cualquier hábito, más una fecha de referencia para quien nunca
+     *        ha hecho nada (el día en que llegó)
+     */
+    public static AvanceDeHoy comoVa(List<Habito> habitos,
+                                     Map<Integer, List<LocalDate>> fechasPorHabito,
+                                     Collection<LocalDate> actividadReciente,
+                                     LocalDate hoy) {
+        boolean algoToca = false;
+        boolean todoHecho = true;
+        boolean algoHechoHoy = false;
+        boolean algoHechoEstaSemana = false;
+        boolean hayDiarios = false;
+        for (Habito habito : habitos) {
+            List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
+            if (habito.getFrecuencia() == Frecuencia.DIARIO) hayDiarios = true;
+            if (!fechas.isEmpty()) algoHechoEstaSemana = true;
+            if (fechas.contains(hoy)) algoHechoHoy = true;
+            if (tocaEl(habito, hoy)) {
+                algoToca = true;
+                if (!hechoEnElDia(habito, fechas, hoy)) todoHecho = false;
+            }
+        }
+        if (algoToca && todoHecho) return AvanceDeHoy.COMPLETO;
+
+        boolean soloSemanales = !habitos.isEmpty() && !hayDiarios;
+        if (soloSemanales ? algoHechoEstaSemana : algoHechoHoy) return AvanceDeHoy.EMPEZADO;
+
+        Frecuencia medida = soloSemanales ? Frecuencia.SEMANAL : Frecuencia.DIARIO;
+        return CalculoPremio.esUnaVuelta(medida, hoy, actividadReciente)
+                ? AvanceDeHoy.AUSENTE
+                : AvanceDeHoy.SIN_EMPEZAR;
+    }
+
+    /**
+     * ¿Hay que mandar hoy el recordatorio de este hábito, llegada su hora?
+     * El recordatorio es del usuario: lo pone él y avisa cuando él dice.
+     *
+     * Un diario: si hoy aún no ha llegado a su objetivo. Un semanal con días
+     * fijos: en sus días, si ese día no está cubierto; fuera de sus días no
+     * avisa. Un semanal flexible: cada día mientras falten veces esa semana y
+     * hoy no se haya hecho ya; al llegar al objetivo se calla hasta el lunes.
+     */
+    public static boolean tocaRecordar(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate hoy) {
+        if (tocaEl(habito, hoy)) {
+            return !hechoEnElDia(habito, fechasDeLaSemana, hoy);
+        }
+        if (!vaEnLaSemanaDe(habito, hoy) || !diasFijos(habito).isEmpty()) {
+            return false;
+        }
+        return !hechoEnLaSemana(habito, fechasDeLaSemana) && !fechasDeLaSemana.contains(hoy);
     }
 }

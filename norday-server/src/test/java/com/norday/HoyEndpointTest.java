@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -97,7 +98,9 @@ class HoyEndpointTest {
                 .andExpect(jsonPath("$.delDia.habitos[0].ritmoNivel").value(2))
                 .andExpect(jsonPath("$.delDia.habitos[0].fechasCompletadas[0]").value(hoy.toString()))
                 .andExpect(jsonPath("$.deLaSemana.hechos").value(0))
-                .andExpect(jsonPath("$.deLaSemana.total").value(0));
+                .andExpect(jsonPath("$.deLaSemana.total").value(0))
+                .andExpect(jsonPath("$.logrosOtorgados").isArray())
+                .andExpect(jsonPath("$.logrosOtorgados.length()").value(0));
     }
 
     @Test
@@ -119,5 +122,38 @@ class HoyEndpointTest {
                 .andExpect(jsonPath("$.totalCompletados").value(1))
                 .andExpect(jsonPath("$.rachaActual").value(0))
                 .andExpect(jsonPath("$.rachaMaxima").value(0));
+    }
+
+    @Test
+    void conUnHabitoEnImparable_laPrimeraLecturaConcedeLosLogrosDeRitmoYLaSegundaNo() throws Exception {
+        // El ancla del hábito pasa a 0,97: nivel 5 ("Imparable"). Como es el
+        // único hábito y tiene un mes, el ritmo general también llega.
+        em.createQuery("UPDATE Ritmo r SET r.valor = 0.97 WHERE r.habito.habitoId = :habitoId")
+                .setParameter("habitoId", habitoId)
+                .executeUpdate();
+        em.clear();
+
+        mockMvc.perform(get("/api/habitos/usuario/" + usuarioId + "/hoy")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ritmoNivel").value(5))
+                .andExpect(jsonPath("$.logrosOtorgados", hasItems(
+                        "RITMO_BUENO", "RITMO_FUERTE", "RITMO_IMPARABLE", "RITMO_GENERAL_FUERTE")));
+
+        // Ya los tiene: una segunda lectura no vuelve a concederlos.
+        mockMvc.perform(get("/api/habitos/usuario/" + usuarioId + "/hoy")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.logrosOtorgados.length()").value(0));
+    }
+
+    @Test
+    void laMascotaLlevaElAnimoNuevoYSigueLlevandoElEstadoDeSiempre() throws Exception {
+        // El único hábito es un diario y está hecho hoy: el día está completo.
+        mockMvc.perform(get("/api/mascota/" + usuarioId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("feliz"))
+                .andExpect(jsonPath("$.animo").value("exultante"));
     }
 }

@@ -13,6 +13,7 @@ import com.norday.habitos.model.dto.SeccionHoyDTO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.HoyService;
+import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RitmoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class HoyServiceTest {
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Mock
+    private LogrosHabitosService logrosHabitosService;
 
     @InjectMocks
     private HoyService hoyService;
@@ -284,5 +288,34 @@ class HoyServiceTest {
         assertNull(martes.avance());
         // De lunes a jueves no existía; viernes y sábado, sin hacer; domingo, por llegar.
         assertTira(martes, null, null, null, null, 0.0, 0.0, null);
+    }
+
+    @Test
+    void alAbrirHoy_seConcedenLosLogrosDeRitmoCumplidos_yViajanEnLaRespuesta() {
+        // En la lámina hay hábitos en "Buen ritmo", en "Gran ritmo" y uno en
+        // "Imparable" (0,97); el general está en "Buen ritmo" y yoga va por
+        // debajo, así que se cumplen justo esos tres.
+        laSemanaDeLaMaqueta(SABADO);
+        when(logrosHabitosService.evaluarLogrosDeRitmo(usuario,
+                List.of("RITMO_BUENO", "RITMO_FUERTE", "RITMO_IMPARABLE")))
+                .thenReturn(List.of("RITMO_IMPARABLE"));
+
+        HoyDTO hoy = hoyService.obtenerHoy(usuario, SABADO, SABADO);
+
+        assertEquals(List.of("RITMO_IMPARABLE"), hoy.logrosOtorgados());
+    }
+
+    @Test
+    void sinNingunLogroDeRitmoCumplido_noSePreguntaAlServicioDeLogros() {
+        List<Habito> soloLeer = List.of(leer);
+        Map<Integer, RitmoLeido> ritmos = Map.of(2, leido(0.5));
+        when(habitoDAO.findActivos(usuario)).thenReturn(soloLeer);
+        when(ritmoService.ritmosLeidos(soloLeer, SABADO)).thenReturn(ritmos);
+        when(ritmoService.generalLeido(soloLeer, ritmos, SABADO)).thenReturn(Optional.of(leido(0.5)));
+
+        HoyDTO hoy = hoyService.obtenerHoy(usuario, SABADO, SABADO);
+
+        assertEquals(List.of(), hoy.logrosOtorgados());
+        verify(logrosHabitosService, never()).evaluarLogrosDeRitmo(any(), any());
     }
 }

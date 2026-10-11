@@ -2,6 +2,7 @@ package com.norday.habitos;
 
 import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
+import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
@@ -21,6 +22,7 @@ import com.norday.habitos.service.LogrosHabitosService;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
+import java.util.Map;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.DayOfWeek;
@@ -178,6 +181,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         // Act: completamos una 2ª vez (total 2 de 3, aún no llega a la meta)
         registroService.completarHabito(habito, "");
@@ -242,6 +247,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         registroService.completarHabito(habito, "");
 
@@ -294,6 +301,7 @@ class RegistroServiceTest {
         assertEquals(1, racha.getRachaActual()); // no subió de nuevo
     }
 
+    @Disabled("B2: los hitos ya no cuelgan de la racha, van por días hechos. Lo sustituye alLlegarATresDiasHechos_seCobraElHitoAunqueNoSeanSeguidos")
     @Test
     void alAlcanzarLaMeta_seOtorganPuntosPorHitoDeRacha() {
         habito.setMeta(1);
@@ -328,6 +336,8 @@ class RegistroServiceTest {
         when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
 
         registroService.completarHabito(habito, "");
 
@@ -369,6 +379,7 @@ class RegistroServiceTest {
         assertEquals(0, captor.getValue().getRachaActualPrevia());
     }
 
+    @Disabled("B2: rellenar un hueco ya no paga hitos de racha. Lo cubre PremioPorPasoTest.hito_elTercerDiaHechoSeCobraUnaVez_yNiRellenarNiRehacerLoDuplican")
     @Test
     void alRellenarUnHuecoQueSaltaElHito_seCobraElHitoIntermedio() {
         // Mismo patrón de día fijo que alCompletarUnaFechaPasada_seGuardaLaFechaYActualizaSuPeriodo:
@@ -448,6 +459,7 @@ class RegistroServiceTest {
         assertEquals(xp.getValue(), captor.getValue().getMascotaExperienciaOtorgada());
     }
 
+    @Disabled("B1: cada paso cobra ya su parte de XP. Lo sustituye unPasoParcial_laInstantaneaGuardaLaXpDeEsePaso")
     @Test
     void sinAlcanzarLaMeta_laInstantaneaGuardaCeroXp() {
         habito.setMeta(3);
@@ -583,6 +595,294 @@ class RegistroServiceTest {
         // actualizarRacha sube a 1: una racha muerta que se completa hoy
         // empieza de nuevo, no continúa.
         assertEquals(1, primera.getRachaActual());
+    }
+
+    @Test
+    void unPasoParcialDeUnDiario_cobraSuParteEnElMomento() {
+        // Diario de 4 con dos veces hechas: la tercera cobra 6 puntos y 1 de XP.
+        habito.setMeta(4);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(
+                        new Registro(habito, true, "", HOY),
+                        new Registro(habito, true, "", HOY)));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(6), eq("HABITO_COMPLETADO"), eq(habito.getHabitoId()), anyString());
+        verify(mascotaService).ganarExperiencia(1, 1);
+        assertEquals(6, resultado.get("puntosGanados"));
+        assertEquals(6, resultado.get("puntosPaso"));
+        assertEquals(0, resultado.get("puntosExtraSemana"));
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(1, resultado.get("xpGanada"));
+    }
+
+    @Test
+    void unPasoQueNoDaExperiencia_cobraPuntosYNoLlamaALaMascota() {
+        // Diario de 6, primera vez: 4 puntos y 0 de XP.
+        habito.setMeta(6);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(4), eq("HABITO_COMPLETADO"), eq(habito.getHabitoId()), anyString());
+        verify(mascotaService, never()).ganarExperiencia(anyInt(), anyInt());
+        assertEquals(4, resultado.get("puntosGanados"));
+        assertEquals(0, resultado.get("xpGanada"));
+        assertEquals(false, resultado.get("subioNivel"));
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(0, captor.getValue().getMascotaExperienciaOtorgada());
+    }
+
+    @Test
+    void laSesionQueCompletaLaSemana_cobraSuDiaYElExtraAparte() {
+        // Gimnasio de 5 con cuatro sesiones hechas: la quinta cobra 25 puntos y
+        // 5 de XP por la sesión, y 25 puntos y 5 de XP más por completar la semana.
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(5);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(
+                        new Registro(habito, true, "", HOY),
+                        new Registro(habito, true, "", HOY),
+                        new Registro(habito, true, "", HOY),
+                        new Registro(habito, true, "", HOY)));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(25), eq("HABITO_COMPLETADO"), eq(habito.getHabitoId()), anyString());
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(25), eq("EXTRA_SEMANA_COMPLETA"), eq(habito.getHabitoId()), anyString());
+        verify(mascotaService).ganarExperiencia(1, 10);
+        assertEquals(50, resultado.get("puntosGanados"));
+        assertEquals(25, resultado.get("puntosPaso"));
+        assertEquals(25, resultado.get("puntosExtraSemana"));
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(10, resultado.get("xpGanada"));
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(10, captor.getValue().getMascotaExperienciaOtorgada());
+    }
+
+    @Test
+    void pasarseDelObjetivoSemanal_noDaNada() {
+        // Semanal de 2 con la semana ya completa: una tercera sesión se apunta,
+        // pero no cobra puntos ni XP.
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(2);
+        racha.setRachaActual(1);
+        racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().rangoPeriodo(HOY)[0]);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(
+                        new Registro(habito, true, "", HOY),
+                        new Registro(habito, true, "", HOY)));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(registroDAO).save(any(Registro.class));
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), anyString(), any(), any());
+        verify(mascotaService, never()).ganarExperiencia(anyInt(), anyInt());
+        assertEquals(0, resultado.get("puntosGanados"));
+        assertEquals(0, resultado.get("xpGanada"));
+    }
+
+    @Test
+    void unPasoParcial_laInstantaneaGuardaLaXpDeEsePaso() {
+        // Diario de 3 con una vez hecha: la XP se reparte 1, 2 y 2, así que la
+        // segunda vez da 2.
+        habito.setMeta(3);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(new Registro(habito, true, "", HOY)));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        verify(mascotaService).ganarExperiencia(1, 2);
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(2, captor.getValue().getMascotaExperienciaOtorgada());
+    }
+
+    @Test
+    void alLlegarATresDiasHechos_seCobraElHitoAunqueNoSeanSeguidos() {
+        // Dos días hechos con huecos por medio; el de hoy es el tercero.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(10)),
+                new Registro(habito, true, "", HOY.minusDays(5))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(50), eq("HITO_DIAS_HECHOS"), eq(habito.getHabitoId()), anyString());
+        assertEquals(50, resultado.get("puntosHito"));
+        assertEquals(75, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void unHitoYaSuperado_noSeCobraAunqueLaRachaLlegueATres() {
+        // Ocho días hechos: los hitos de 3 y de 7 se dan por pagados. La racha
+        // viva de 2 sube hoy a 3, que con el sistema viejo pagaba un hito.
+        racha.setRachaActual(2);
+        racha.setRachaMaxima(2);
+        racha.setPeriodoMetaAlcanzada(habito.getFrecuencia().inicioPeriodoAnterior(ZONA));
+        List<Registro> ochoDias = new ArrayList<>();
+        for (int dia = 1; dia <= 8; dia++) {
+            ochoDias.add(new Registro(habito, true, "", HOY.minusDays(dia)));
+        }
+        when(registroDAO.findByHabito(habito)).thenReturn(ochoDias);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), eq("HITO_RACHA"), any(), any());
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(25, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void enUnDiario_elDiaCuentaComoHechoAlLlegarAlObjetivo() {
+        // Diario de 2: dos días completos antes y hoy va 1 de 2. El segundo
+        // de hoy completa el tercer día hecho.
+        habito.setMeta(2);
+        Registro elDeHoy = new Registro(habito, true, "", HOY);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(3)),
+                new Registro(habito, true, "", HOY.minusDays(3)),
+                new Registro(habito, true, "", HOY.minusDays(2)),
+                new Registro(habito, true, "", HOY.minusDays(2)),
+                elDeHoy));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(elDeHoy));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(50), eq("HITO_DIAS_HECHOS"), eq(habito.getHabitoId()), anyString());
+        assertEquals(13, resultado.get("puntosPaso"));
+        assertEquals(50, resultado.get("puntosHito"));
+        assertEquals(63, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void enUnSemanal_cadaSesionCuentaComoDiaHecho() {
+        // Semanal de 5 con una sesión en cada una de las dos semanas
+        // anteriores: la de hoy es su tercer día hecho.
+        habito.setFrecuencia(Frecuencia.SEMANAL);
+        habito.setMeta(5);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(14)),
+                new Registro(habito, true, "", HOY.minusDays(7))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(50), eq("HITO_DIAS_HECHOS"), eq(habito.getHabitoId()), anyString());
+        assertEquals(25, resultado.get("puntosPaso"));
+        assertEquals(0, resultado.get("puntosExtraSemana"));
+        assertEquals(50, resultado.get("puntosHito"));
+        assertEquals(75, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void alVolverTrasTresDiasSinHacerlo_seConcedeResilienciaYEntraEnLaInstantanea() {
+        // Hecho por última vez hace cuatro días: tres días enteros sin hacerlo.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(4))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(logrosHabitosService.evaluarTrasVolver(usuario))
+                .thenReturn(List.of("RACHA_RECUPERADA"));
+        Logro resiliencia = new Logro();
+        resiliencia.setLogroId(77);
+        when(logroDAO.findByCodigo("RACHA_RECUPERADA")).thenReturn(resiliencia);
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        assertEquals(List.of("RACHA_RECUPERADA"), resultado.get("logros"));
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(1, captor.getValue().getLogros().size());
+        assertEquals(77, captor.getValue().getLogros().get(0).getLogroRef());
+    }
+
+    @Test
+    void sinTresDiasSinHacerlo_noSeEvaluaLaVuelta() {
+        // Hecho anteayer: solo un día sin hacerlo.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(2))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        verify(logrosHabitosService, never()).evaluarTrasVolver(any());
     }
 
 }

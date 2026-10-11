@@ -10,6 +10,7 @@ import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
+import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
@@ -64,14 +65,14 @@ public class RegistroService {
     @Autowired
     private IReversionRegistroDAO reversionRegistroDAO;
 
-    // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
-    // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
-    private static final int PUNTOS_POR_DIA_COMPLETADO = 25;
-    /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
-    private static final int[][] HITOS_RACHA = {
-            {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
-    };
-    private static final int XP_POR_DIA_COMPLETADO = 5;
+    // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
+    // números, ParametrosPremio.
+    // B2: los hitos ya no cuelgan de la racha; sus números están en
+    // ParametrosPremio. Se conserva comentado.
+    // /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
+    // private static final int[][] HITOS_RACHA = {
+    //         {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
+    // };
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
@@ -135,34 +136,72 @@ public class RegistroService {
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
         Set<Integer> logrosPrevios = idsLogros(usuario);
 
+        // Días hechos del hábito antes y después de este completado, para
+        // los hitos. Se leen antes de guardar el registro nuevo.
+        List<LocalDate> fechasHechas = new ArrayList<>();
+        for (Registro anterior : registroDAO.findByHabito(habito)) {
+            if (anterior.isCompletado()) fechasHechas.add(anterior.getFecha());
+        }
+        int diasHechosAntes = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+        // ¿Es este paso una vuelta al hábito? Se mira con las fechas que ya
+        // tenía, antes de añadir la de ahora.
+        boolean esUnaVuelta = CalculoPremio.esUnaVuelta(habito.getFrecuencia(), fecha, fechasHechas);
+        fechasHechas.add(fecha);
+        int diasHechosDespues = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+
         Registro registro = new Registro(habito, true, nota, fecha);
         registroDAO.save(registro);
 
         int puntosGanados = 0;
         boolean subioNivel = false;
         int nivelNuevo = 0;
-        int xpOtorgada = 0;
 
-        // Puntos y XP solo en el instante exacto en que se alcanza la meta del día —
-        // ni antes, ni de nuevo si sigues completando después de alcanzarla
-        if (completadosAntes + 1 == meta) {
+        // Cada paso cobra su parte en el momento, y pasarse del objetivo no da
+        // nada: la regla está en CalculoPremio. El extra por completar la
+        // semana va en un movimiento aparte, para poder explicar de dónde sale.
+        CalculoPremio.Premio premio =
+                CalculoPremio.delPaso(habito.getFrecuencia(), completadosAntes, meta);
+        if (premio.puntos() > 0) {
             usuarioMonedaService.registrarMovimiento(
-                    usuario, PUNTOS_POR_DIA_COMPLETADO, "HABITO_COMPLETADO",
+                    usuario, premio.puntos(), "HABITO_COMPLETADO",
                     habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
             );
-            puntosGanados += PUNTOS_POR_DIA_COMPLETADO;
+        }
+        if (premio.puntosExtra() > 0) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, premio.puntosExtra(), "EXTRA_SEMANA_COMPLETA",
+                    habito.getHabitoId(), "Semana completada: " + habito.getNombre()
+            );
+        }
+        puntosGanados += premio.puntosTotales();
 
+        // Un paso puede no dar experiencia (el primero de un diario de 6):
+        // entonces no se llama a la mascota.
+        int xpOtorgada = premio.xpTotal();
+        if (xpOtorgada > 0) {
             ResultadoExperienciaDTO resultadoXp =
-                    mascotaService.ganarExperiencia(usuario.getUsuarioId(), XP_POR_DIA_COMPLETADO);
-            xpOtorgada = XP_POR_DIA_COMPLETADO;
+                    mascotaService.ganarExperiencia(usuario.getUsuarioId(), xpOtorgada);
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
-        if (metaAlcanzadaAhora) {
-            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaPrevia, rachaActualPrevia);
+        // La racha se sigue actualizando para la app ya instalada, que la
+        // enseña en el detalle; se apaga al publicar la app nueva (bloque G).
+        // Ya no paga nada: los hitos van por días hechos.
+        actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
+
+        // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
+        // hechos en total, seguidos o no. Rellenar un hueco no vuelve a
+        // pagar: el contador solo sube. Deshacer lo devuelve con el resto de
+        // las monedas.
+        int puntosHito = CalculoPremio.puntosDeHitos(diasHechosAntes, diasHechosDespues);
+        if (puntosHito > 0) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, puntosHito, "HITO_DIAS_HECHOS", habito.getHabitoId(),
+                    "Hito de " + diasHechosDespues + " días en: " + habito.getNombre()
+            );
         }
+        puntosGanados += puntosHito;
 
         // Con este registro puede haberse cerrado el día entero. Va después de
         // guardar el Registro a propósito: la consulta de esDiaCompleto es JPQL,
@@ -171,10 +210,15 @@ public class RegistroService {
             mascotaService.registrarDiaCompleto(usuario.getUsuarioId());
         }
 
-        // Los logros de racha leen rachaActual/rachaMaxima en crudo, pero aquí
-        // ya es seguro: actualizarRacha acaba de normalizarla en esta misma
-        // llamada, así que no puede haber valores rancios.
-        List<String> logros = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+        // Los logros de constancia cuentan los días hechos del hábito, con el
+        // registro nuevo ya guardado. Resiliencia se evalúa aparte, solo si
+        // este paso es una vuelta. La lista es una copia: la que devuelve el
+        // servicio de logros puede no admitir añadidos.
+        List<String> logros = new ArrayList<>(
+                logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito));
+        if (esUnaVuelta) {
+            logros.addAll(logrosHabitosService.evaluarTrasVolver(usuario));
+        }
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
@@ -205,13 +249,19 @@ public class RegistroService {
         }
         reversionRegistroDAO.save(reversion);
 
+        // puntosGanados sigue siendo la suma, que es lo que lee la app ya
+        // instalada. Los cuatro campos siguientes la desglosan.
         return Map.of(
                 "logros", logros,
                 "puntosGanados", puntosGanados,
                 "registroId", registro.getRegistroId(),
                 "mostrarValoracion", mostrarValoracion,
                 "subioNivel", subioNivel,
-                "nivelNuevo", nivelNuevo
+                "nivelNuevo", nivelNuevo,
+                "puntosPaso", premio.puntos(),
+                "puntosExtraSemana", premio.puntosExtra(),
+                "puntosHito", puntosHito,
+                "xpGanada", xpOtorgada
         );
     }
 
@@ -324,43 +374,45 @@ public class RegistroService {
         return actual > actualAntes;
     }
 
-    /**
-     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
-     * el del valor exacto. Con el completado retroactivo la racha puede saltar
-     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
-     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
-     *
-     * En el camino normal la racha sube de uno en uno, así que el intervalo
-     * (previa, actual] contiene un único valor y el comportamiento es idéntico
-     * al de antes. El límite de la semana en curso acota el salto máximo.
-     *
-     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
-     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
-     */
-    // Misma razón que en actualizarRacha: la instancia la da quien llama.
-    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Racha racha,
-                                          Integer rachaPrevia) {
-        if (racha == null) return 0;
-
-        int actual = racha.getRachaActual();
-        int desde = rachaPrevia != null ? rachaPrevia : 0;
-        if (actual <= desde) return 0;
-
-        int puntos = 0;
-        for (int[] hito : HITOS_RACHA) {
-            if (hito[0] > desde && hito[0] <= actual) {
-                puntos += hito[1];
-            }
-        }
-
-        if (puntos > 0) {
-            usuarioMonedaService.registrarMovimiento(
-                    usuario, puntos, "HITO_RACHA", habito.getHabitoId(),
-                    "Hito de racha (" + actual + ") en: " + habito.getNombre()
-            );
-        }
-        return puntos;
-    }
+    // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.puntosDeHitos).
+    // Se conserva comentado.
+    //    /**
+    //     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
+    //     * el del valor exacto. Con el completado retroactivo la racha puede saltar
+    //     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
+    //     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
+    //     *
+    //     * En el camino normal la racha sube de uno en uno, así que el intervalo
+    //     * (previa, actual] contiene un único valor y el comportamiento es idéntico
+    //     * al de antes. El límite de la semana en curso acota el salto máximo.
+    //     *
+    //     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
+    //     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
+    //     */
+    //    // Misma razón que en actualizarRacha: la instancia la da quien llama.
+    //    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Racha racha,
+    //                                          Integer rachaPrevia) {
+    //        if (racha == null) return 0;
+    //
+    //        int actual = racha.getRachaActual();
+    //        int desde = rachaPrevia != null ? rachaPrevia : 0;
+    //        if (actual <= desde) return 0;
+    //
+    //        int puntos = 0;
+    //        for (int[] hito : HITOS_RACHA) {
+    //            if (hito[0] > desde && hito[0] <= actual) {
+    //                puntos += hito[1];
+    //            }
+    //        }
+    //
+    //        if (puntos > 0) {
+    //            usuarioMonedaService.registrarMovimiento(
+    //                    usuario, puntos, "HITO_RACHA", habito.getHabitoId(),
+    //                    "Hito de racha (" + actual + ") en: " + habito.getNombre()
+    //            );
+    //        }
+    //        return puntos;
+    //    }
 
     public boolean estaCompletadoHoy(Habito habito) {
         return registroDAO.existeRegistroEnFecha(habito, rachaService.hoyDe(habito));

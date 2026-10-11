@@ -49,14 +49,19 @@ public class RegistroController extends ControladorAutorizado {
         }
         Map<String, Object> resultado = registroService.completarHabito(habito, nota, fecha);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of(
-                        "mensaje", "Hábito completado correctamente",
-                        "logrosOtorgados", resultado.get("logros"),
-                        "puntosGanados", resultado.get("puntosGanados"),
-                        "registroId", resultado.get("registroId"),
-                        "mostrarValoracion", resultado.get("mostrarValoracion"),
-                        "subioNivel", resultado.get("subioNivel"),
-                        "nivelNuevo", resultado.get("nivelNuevo")
+                // Map.of admite diez pares como mucho y aquí van once.
+                .body(Map.ofEntries(
+                        Map.entry("mensaje", "Hábito completado correctamente"),
+                        Map.entry("logrosOtorgados", resultado.get("logros")),
+                        Map.entry("puntosGanados", resultado.get("puntosGanados")),
+                        Map.entry("registroId", resultado.get("registroId")),
+                        Map.entry("mostrarValoracion", resultado.get("mostrarValoracion")),
+                        Map.entry("subioNivel", resultado.get("subioNivel")),
+                        Map.entry("nivelNuevo", resultado.get("nivelNuevo")),
+                        Map.entry("puntosPaso", resultado.get("puntosPaso")),
+                        Map.entry("puntosExtraSemana", resultado.get("puntosExtraSemana")),
+                        Map.entry("puntosHito", resultado.get("puntosHito")),
+                        Map.entry("xpGanada", resultado.get("xpGanada"))
                 ));
     }
 

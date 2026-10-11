@@ -7,6 +7,7 @@ import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.NotificacionScheduler;
@@ -16,6 +17,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -81,7 +84,6 @@ class NotificacionSchedulerTest {
         Habito habito = habitoCon(SAO_PAULO, enVentana);
         when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(SAO_PAULO);
-        when(registroDAO.findByFecha(any())).thenReturn(new ArrayList<>());
         when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
@@ -104,7 +106,8 @@ class NotificacionSchedulerTest {
         notificacionScheduler.enviarRecordatorios();
 
         // Madrid y Sao Paulo no comparten hora local, así que no debe enviarse
-        verify(notificacionService, never()).enviarNotificacion(anyString(), anyString(), anyString());
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
     }
 
     @Test
@@ -114,6 +117,70 @@ class NotificacionSchedulerTest {
         notificacionScheduler.enviarRecordatorios();
 
         verify(registroDAO, never()).findByFecha(any());
-        verify(notificacionService, never()).enviarNotificacion(anyString(), anyString(), anyString());
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
+    }
+
+    /** La hora de la ventana de 5 minutos en curso en Madrid. */
+    private LocalTime ventanaDeMadrid() {
+        LocalTime ahora = LocalTime.now(MADRID).withSecond(0).withNano(0);
+        return ahora.withMinute((ahora.getMinute() / 5) * 5);
+    }
+
+    @Test
+    void variosRecordatoriosALaMismaHora_salenEnUnSoloAvisoQueLosNombra() {
+        Habito leer = habitoCon(MADRID, ventanaDeMadrid());
+        Usuario usuario = leer.getPropietario();
+        Habito yoga = habitoCon(MADRID, ventanaDeMadrid());
+        yoga.setHabitoId(11);
+        yoga.setNombre("Yoga");
+        yoga.setPropietario(usuario);
+
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(leer, yoga));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(textosService.texto("push.recordatorio.varios.titulo", usuario, 2)).thenReturn("titulo de dos");
+        when(textosService.texto("push.recordatorio.varios.cuerpo", usuario, "Leer, Yoga")).thenReturn("los nombres");
+
+        notificacionScheduler.enviarRecordatorios();
+
+        verify(notificacionService, times(1)).enviarNotificacion("token-fcm", "titulo de dos", "los nombres");
+    }
+
+    @Test
+    void unSemanalConLaSemanaYaCumplida_noAvisa() {
+        // Una vez por semana, y ya se hizo el lunes de esta semana.
+        Habito llamar = habitoCon(MADRID, ventanaDeMadrid());
+        llamar.setFrecuencia(Frecuencia.SEMANAL);
+        llamar.setMeta(1);
+        LocalDate lunes = LocalDate.now(MADRID).with(DayOfWeek.MONDAY);
+
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(llamar));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(registroDAO.findByHabitosAndRango(anyList(), any(), any()))
+                .thenReturn(List.of(new Registro(llamar, true, "", lunes)));
+
+        notificacionScheduler.enviarRecordatorios();
+
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void unDiarioAMedias_sigueRecibiendoSuRecordatorio_yLaSemanaSeLeeDesdeElLunes() {
+        // Cuatro veces al día y hoy lleva una.
+        Habito agua = habitoCon(MADRID, ventanaDeMadrid());
+        agua.setMeta(4);
+        LocalDate hoy = LocalDate.now(MADRID);
+
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(agua));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(registroDAO.findByHabitosAndRango(List.of(agua), hoy.with(DayOfWeek.MONDAY), hoy))
+                .thenReturn(List.of(new Registro(agua, true, "", hoy)));
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
+        when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
+
+        notificacionScheduler.enviarRecordatorios();
+
+        verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
     }
 }

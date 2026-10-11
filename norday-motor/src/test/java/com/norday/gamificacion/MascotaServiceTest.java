@@ -3,6 +3,7 @@ package com.norday.gamificacion;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.ZonaUsuarioService;
+import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
@@ -59,6 +60,9 @@ class MascotaServiceTest {
         usuario = new Usuario();
         usuario.setUsuarioId(1);
         lenient().when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(ZONA);
+        // El ánimo se pregunta siempre al construir la respuesta. Por defecto,
+        // un día sin empezar; cada test que lo mire pone el suyo.
+        lenient().when(cumplimientoDiario.comoVaHoy(anyInt())).thenReturn(AvanceDeHoy.SIN_EMPEZAR);
     }
 
     private MascotaDTO dtoConXp(int xp) {
@@ -372,5 +376,34 @@ class MascotaServiceTest {
         MascotaDTO dto = mascotaService.obtenerDTO(1);
         assertEquals("HUEVO", dto.getFase());
         assertEquals("ADULTO", dto.getFaseReal());
+    }
+
+    @Test
+    void elAnimoSaleDeComoVaHoyElUsuario() {
+        when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.AUSENTE);
+        assertEquals("triste", dtoConXp(0).getAnimo());
+
+        when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.SIN_EMPEZAR);
+        assertEquals("dormida", dtoConXp(0).getAnimo());
+
+        when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.EMPEZADO);
+        assertEquals("feliz", dtoConXp(0).getAnimo());
+
+        when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.COMPLETO);
+        assertEquals("exultante", dtoConXp(0).getAnimo());
+    }
+
+    @Test
+    void elEstadoDeSiempreNoCambiaAunqueElAnimoDigaOtraCosa() {
+        // Primer paso dado hoy, sin tenerlo todo: el ánimo nuevo es "feliz",
+        // pero "estado", que lo leen las apps ya instaladas, sigue con su
+        // regla: el último día completo fue ayer, así que "dormida".
+        when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.EMPEZADO);
+        when(cumplimientoDiario.hoyCumplido(1)).thenReturn(false);
+
+        MascotaDTO dto = dtoConUltimoDiaCompleto(1);
+
+        assertEquals("dormida", dto.getEstado());
+        assertEquals("feliz", dto.getAnimo());
     }
 }
