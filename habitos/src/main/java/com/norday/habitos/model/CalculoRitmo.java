@@ -3,10 +3,12 @@ package com.norday.habitos.model;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -182,5 +184,50 @@ public final class CalculoRitmo {
     /** Qué parte de la distancia al crédito se recorre en un periodo de esos días. */
     private static double velocidad(double semividaDias, int diasDelPeriodo) {
         return 1.0 - Math.pow(0.5, diasDelPeriodo / semividaDias);
+    }
+
+    // Niveles que piden los logros de ritmo. Las palabras las pone la app:
+    // 3 es "Buen ritmo", 4 "Gran ritmo" y 5 "Imparable"; 1 es "Retomando".
+    private static final int NIVEL_BUEN_RITMO = 3;
+    private static final int NIVEL_GRAN_RITMO = 4;
+    private static final int NIVEL_IMPARABLE = 5;
+    private static final int NIVEL_RETOMANDO = 1;
+
+    /**
+     * Los códigos de los logros de ritmo cuya condición se cumple ahora, a
+     * partir de los ritmos de los hábitos activos y del ritmo general. No
+     * mira cuáles tiene ya el usuario: eso lo decide quien los concede.
+     *
+     * Ninguno premia mantener un nivel durante un tiempo: todos se cumplen
+     * al llegar. "De vuelta" (RITMO_VUELTA) compara con hace siete días
+     * porque no se guarda por qué niveles ha pasado un ritmo: premia subir
+     * de "Retomando" a "Buen ritmo" en una semana.
+     */
+    public static List<String> logrosDeRitmo(Collection<RitmoLeido> ritmos, Optional<RitmoLeido> general) {
+        List<String> cumplidos = new ArrayList<>();
+        int mejorNivel = 0;
+        boolean todosConBuenRitmo = true;
+        boolean algunoHaVuelto = false;
+        for (RitmoLeido ritmo : ritmos) {
+            int nivelDeHoy = nivel(ritmo.valor());
+            mejorNivel = Math.max(mejorNivel, nivelDeHoy);
+            if (nivelDeHoy < NIVEL_BUEN_RITMO) {
+                todosConBuenRitmo = false;
+            } else if (nivel(ritmo.haceUnaSemana()) == NIVEL_RETOMANDO) {
+                algunoHaVuelto = true;
+            }
+        }
+
+        if (mejorNivel >= NIVEL_BUEN_RITMO) cumplidos.add("RITMO_BUENO");
+        if (mejorNivel >= NIVEL_GRAN_RITMO) cumplidos.add("RITMO_FUERTE");
+        if (mejorNivel >= NIVEL_IMPARABLE) cumplidos.add("RITMO_IMPARABLE");
+        if (general.isPresent() && nivel(general.get().valor()) >= NIVEL_GRAN_RITMO) {
+            cumplidos.add("RITMO_GENERAL_FUERTE");
+        }
+        if (todosConBuenRitmo && ritmos.size() >= ParametrosRitmo.HABITOS_PARA_TODOS_A_UNA) {
+            cumplidos.add("RITMO_TODOS");
+        }
+        if (algunoHaVuelto) cumplidos.add("RITMO_VUELTA");
+        return cumplidos;
     }
 }
