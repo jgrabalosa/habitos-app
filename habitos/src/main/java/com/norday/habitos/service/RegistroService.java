@@ -10,6 +10,7 @@ import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
+import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
@@ -64,14 +65,12 @@ public class RegistroService {
     @Autowired
     private IReversionRegistroDAO reversionRegistroDAO;
 
-    // Un día de compromiso cumplido vale igual sea DIARIO o SEMANAL, meta 1 o meta 4:
-    // el valor está en el compromiso diario, no en cómo esté configurado el hábito.
-    private static final int PUNTOS_POR_DIA_COMPLETADO = 25;
+    // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
+    // números, ParametrosPremio.
     /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
     private static final int[][] HITOS_RACHA = {
             {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
     };
-    private static final int XP_POR_DIA_COMPLETADO = 5;
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
@@ -141,27 +140,41 @@ public class RegistroService {
         int puntosGanados = 0;
         boolean subioNivel = false;
         int nivelNuevo = 0;
-        int xpOtorgada = 0;
 
-        // Puntos y XP solo en el instante exacto en que se alcanza la meta del día —
-        // ni antes, ni de nuevo si sigues completando después de alcanzarla
-        if (completadosAntes + 1 == meta) {
+        // Cada paso cobra su parte en el momento, y pasarse del objetivo no da
+        // nada: la regla está en CalculoPremio. El extra por completar la
+        // semana va en un movimiento aparte, para poder explicar de dónde sale.
+        CalculoPremio.Premio premio =
+                CalculoPremio.delPaso(habito.getFrecuencia(), completadosAntes, meta);
+        if (premio.puntos() > 0) {
             usuarioMonedaService.registrarMovimiento(
-                    usuario, PUNTOS_POR_DIA_COMPLETADO, "HABITO_COMPLETADO",
+                    usuario, premio.puntos(), "HABITO_COMPLETADO",
                     habito.getHabitoId(), "Hábito completado: " + habito.getNombre()
             );
-            puntosGanados += PUNTOS_POR_DIA_COMPLETADO;
+        }
+        if (premio.puntosExtra() > 0) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, premio.puntosExtra(), "EXTRA_SEMANA_COMPLETA",
+                    habito.getHabitoId(), "Semana completada: " + habito.getNombre()
+            );
+        }
+        puntosGanados += premio.puntosTotales();
 
+        // Un paso puede no dar experiencia (el primero de un diario de 6):
+        // entonces no se llama a la mascota.
+        int xpOtorgada = premio.xpTotal();
+        if (xpOtorgada > 0) {
             ResultadoExperienciaDTO resultadoXp =
-                    mascotaService.ganarExperiencia(usuario.getUsuarioId(), XP_POR_DIA_COMPLETADO);
-            xpOtorgada = XP_POR_DIA_COMPLETADO;
+                    mascotaService.ganarExperiencia(usuario.getUsuarioId(), xpOtorgada);
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
+        int puntosHito = 0;
         boolean metaAlcanzadaAhora = actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
         if (metaAlcanzadaAhora) {
-            puntosGanados += otorgarPuntosPorHitoRacha(usuario, habito, rachaPrevia, rachaActualPrevia);
+            puntosHito = otorgarPuntosPorHitoRacha(usuario, habito, rachaPrevia, rachaActualPrevia);
+            puntosGanados += puntosHito;
         }
 
         // Con este registro puede haberse cerrado el día entero. Va después de
@@ -205,13 +218,19 @@ public class RegistroService {
         }
         reversionRegistroDAO.save(reversion);
 
+        // puntosGanados sigue siendo la suma, que es lo que lee la app ya
+        // instalada. Los cuatro campos siguientes la desglosan.
         return Map.of(
                 "logros", logros,
                 "puntosGanados", puntosGanados,
                 "registroId", registro.getRegistroId(),
                 "mostrarValoracion", mostrarValoracion,
                 "subioNivel", subioNivel,
-                "nivelNuevo", nivelNuevo
+                "nivelNuevo", nivelNuevo,
+                "puntosPaso", premio.puntos(),
+                "puntosExtraSemana", premio.puntosExtra(),
+                "puntosHito", puntosHito,
+                "xpGanada", xpOtorgada
         );
     }
 
