@@ -181,4 +181,51 @@ class CalculoPremioTest {
         assertEquals(0, CalculoPremio.diasHechos(Frecuencia.SEMANAL, 3, List.of()));
         assertEquals(2, CalculoPremio.diasHechos(Frecuencia.DIARIO, 0, List.of(LUNES, MARTES)));
     }
+
+    // Volver: en un diario, 3 días seguidos sin hacerlo; en un semanal, una
+    // semana entera sin sesiones. El lunes de referencia es el 5-oct-2026.
+
+    @Test
+    void volver_enUnDiarioEsRetomarloTrasTresDiasSinHacerlo() {
+        LocalDate viernes = LocalDate.of(2026, 10, 9);
+
+        // Hecho el lunes 5; martes, miércoles y jueves sin hacer.
+        assertTrue(CalculoPremio.esUnaVuelta(Frecuencia.DIARIO, viernes,
+                List.of(LocalDate.of(2026, 10, 1), LUNES)));
+        // Hecho el martes 6: solo dos días sin hacer.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.DIARIO, viernes, List.of(MARTES)));
+    }
+
+    @Test
+    void volver_enUnSemanalEsHacerUnaSesionTrasUnaSemanaEnteraSinNinguna() {
+        LocalDate viernes = LocalDate.of(2026, 10, 9);
+
+        // Última sesión el martes 22-sep: la semana del 28-sep quedó vacía.
+        assertTrue(CalculoPremio.esUnaVuelta(Frecuencia.SEMANAL, viernes,
+                List.of(LocalDate.of(2026, 9, 22))));
+        // Última sesión el domingo 27-sep y vuelve el lunes 5-oct.
+        assertTrue(CalculoPremio.esUnaVuelta(Frecuencia.SEMANAL, LUNES,
+                List.of(LocalDate.of(2026, 9, 27))));
+        // La semana anterior tuvo sesión (miércoles 30-sep).
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.SEMANAL, viernes,
+                List.of(LocalDate.of(2026, 9, 30))));
+        // Lunes 28-sep y domingo 11-oct: trece días, pero en semanas seguidas.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.SEMANAL, LocalDate.of(2026, 10, 11),
+                List.of(LocalDate.of(2026, 9, 28))));
+        // Otra sesión de la misma semana.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.SEMANAL, viernes, List.of(LUNES)));
+    }
+
+    @Test
+    void volver_noLoEsEmpezarUnHabitoNiRellenarUnDiaPasado() {
+        LocalDate viernes = LocalDate.of(2026, 10, 9);
+
+        // Nunca se había hecho.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.DIARIO, viernes, List.of()));
+        // Ya había algo hecho ese mismo día.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.DIARIO, viernes, List.of(LUNES, viernes)));
+        // Se rellena el martes cuando ya hay algo hecho el viernes.
+        assertFalse(CalculoPremio.esUnaVuelta(Frecuencia.DIARIO, MARTES,
+                List.of(LocalDate.of(2026, 9, 28), viernes)));
+    }
 }

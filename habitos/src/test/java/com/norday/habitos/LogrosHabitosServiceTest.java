@@ -254,4 +254,18 @@ class LogrosHabitosServiceTest {
 
         assertEquals(List.of("RACHA_3"), otorgados);
     }
+
+    @Test
+    void alVolverAUnHabito_seOtorgaResiliencia() {
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_RECUPERADA")).thenReturn(true);
+
+        assertEquals(List.of("RACHA_RECUPERADA"), logrosHabitosService.evaluarTrasVolver(usuario));
+    }
+
+    @Test
+    void alVolverConResilienciaYaGanada_noSeRepite() {
+        when(logroService.otorgarSiNoTiene(usuario, "RACHA_RECUPERADA")).thenReturn(false);
+
+        assertTrue(logrosHabitosService.evaluarTrasVolver(usuario).isEmpty());
+    }
 }

@@ -1,6 +1,8 @@
 package com.norday.habitos.model;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -96,6 +98,36 @@ public final class CalculoPremio {
             }
         }
         return puntos;
+    }
+
+    /**
+     * ¿Es este paso una vuelta al hábito? Lo es el primer paso después de
+     * un tiempo sin hacerlo. {@code fechasAnteriores} son las fechas de los
+     * registros que el hábito ya tenía, sin contar el de ahora.
+     *
+     * En un diario, volver es retomarlo tras varios días seguidos sin
+     * hacerlo. En un semanal se mide por semanas, para que un hábito de una
+     * vez por semana no vuelva cada semana: tiene que haber pasado una
+     * semana entera sin ninguna sesión.
+     *
+     * No es una vuelta empezar un hábito que nunca se había hecho, ni
+     * rellenar un día pasado cuando ya hay algo hecho ese día o después.
+     */
+    public static boolean esUnaVuelta(Frecuencia frecuencia, LocalDate fecha,
+                                      Collection<LocalDate> fechasAnteriores) {
+        LocalDate ultima = null;
+        for (LocalDate anterior : fechasAnteriores) {
+            if (!anterior.isBefore(fecha)) return false;
+            if (ultima == null || anterior.isAfter(ultima)) ultima = anterior;
+        }
+        if (ultima == null) return false;
+
+        if (frecuencia == Frecuencia.SEMANAL) {
+            LocalDate lunesDeLaSemanaAnterior = fecha.with(DayOfWeek.MONDAY).minusWeeks(1);
+            return ultima.isBefore(lunesDeLaSemanaAnterior);
+        }
+        long diasSinHacerlo = ChronoUnit.DAYS.between(ultima, fecha) - 1;
+        return diasSinHacerlo >= ParametrosPremio.DIAS_SIN_HACER_PARA_VOLVER;
     }
 
     /**

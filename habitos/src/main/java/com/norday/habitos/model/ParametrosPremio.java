@@ -27,5 +27,12 @@ public final class ParametrosPremio {
             {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
     };
 
+    /**
+     * Días seguidos sin hacer un hábito diario a partir de los cuales
+     * retomarlo cuenta como volver. Es el mismo número que entristece a la
+     * mascota.
+     */
+    public static final int DIAS_SIN_HACER_PARA_VOLVER = 3;
+
     private ParametrosPremio() {}
 }

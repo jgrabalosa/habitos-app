@@ -78,6 +78,15 @@ public class LogrosHabitosService {
         return logrosOtorgados;
     }
 
+    // ── Evento: volver a un hábito tras un tiempo sin hacerlo ──
+    // Cuándo un paso es una vuelta lo decide CalculoPremio.esUnaVuelta; aquí
+    // solo se concede el logro, que se gana una vez.
+    public List<String> evaluarTrasVolver(Usuario usuario) {
+        List<String> otorgados = new ArrayList<>();
+        if (logroService.otorgarSiNoTiene(usuario, "RACHA_RECUPERADA")) otorgados.add("RACHA_RECUPERADA");
+        return otorgados;
+    }
+
     // B3: los logros de constancia ya no van por racha (ver comprobarLogrosDeDiasHechos).
     // Se conserva comentado. Resiliencia (RACHA_RECUPERADA) tendrá regla nueva en su propio paso.
 //    private List<String> comprobarLogrosDeRacha(Usuario usuario, Habito habito) {
