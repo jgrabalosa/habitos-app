@@ -1,5 +1,7 @@
 package com.norday.gamificacion.service;
 
+import com.norday.gamificacion.model.AvanceDeHoy;
+
 /**
  * Cómo sabe el motor si el usuario ya cumplió hoy lo suyo. El motor no sabe
  * qué es "lo suyo" —hábitos completados, píldoras leídas, lo que cada app
@@ -12,4 +14,11 @@ package com.norday.gamificacion.service;
  */
 public interface CumplimientoDiarioPort {
     boolean hoyCumplido(int usuarioId);
+
+    /**
+     * Cómo va hoy el usuario con lo suyo, en cuatro escalones: de llevar un
+     * tiempo sin aparecer a tenerlo todo completo. De aquí sale el ánimo de
+     * la mascota. Igual que arriba, se pregunta en el momento y no se guarda.
+     */
+    AvanceDeHoy comoVaHoy(int usuarioId);
 }

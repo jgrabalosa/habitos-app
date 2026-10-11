@@ -146,4 +146,14 @@ class HoyEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.logrosOtorgados.length()").value(0));
     }
+
+    @Test
+    void laMascotaLlevaElAnimoNuevoYSigueLlevandoElEstadoDeSiempre() throws Exception {
+        // El único hábito es un diario y está hecho hoy: el día está completo.
+        mockMvc.perform(get("/api/mascota/" + usuarioId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("feliz"))
+                .andExpect(jsonPath("$.animo").value("exultante"));
+    }
 }

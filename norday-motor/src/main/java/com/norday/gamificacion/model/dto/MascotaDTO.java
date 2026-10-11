@@ -18,11 +18,18 @@ public class MascotaDTO {
      */
     private String faseReal;
     private String estado;
+
+    /**
+     * El ánimo en cuatro estados: triste, dormida, feliz o exultante. Va en
+     * un campo aparte de "estado" a propósito: "estado" lo leen las apps ya
+     * instaladas, que no conocen "exultante", y sigue calculándose igual.
+     */
+    private String animo;
     private LocalDate fechaUltimaComida;
 
     public MascotaDTO(String nombre, int xp, int nivel, int xpEnNivelActual,
                       int xpParaSiguienteNivel, String fase, String faseReal, String estado,
-                      LocalDate fechaUltimaComida) {
+                      String animo, LocalDate fechaUltimaComida) {
         this.nombre = nombre;
         this.xp = xp;
         this.nivel = nivel;
@@ -31,6 +38,7 @@ public class MascotaDTO {
         this.fase = fase;
         this.faseReal = faseReal;
         this.estado = estado;
+        this.animo = animo;
         this.fechaUltimaComida = fechaUltimaComida;
     }
 
@@ -57,6 +65,9 @@ public class MascotaDTO {
 
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
+
+    public String getAnimo() { return animo; }
+    public void setAnimo(String animo) { this.animo = animo; }
 
     public LocalDate getFechaUltimaComida() { return fechaUltimaComida; }
     public void setFechaUltimaComida(LocalDate fechaUltimaComida) { this.fechaUltimaComida = fechaUltimaComida; }
