@@ -202,4 +202,23 @@ public final class CalculoHoy {
                 ? AvanceDeHoy.AUSENTE
                 : AvanceDeHoy.SIN_EMPEZAR;
     }
+
+    /**
+     * ¿Hay que mandar hoy el recordatorio de este hábito, llegada su hora?
+     * El recordatorio es del usuario: lo pone él y avisa cuando él dice.
+     *
+     * Un diario: si hoy aún no ha llegado a su objetivo. Un semanal con días
+     * fijos: en sus días, si ese día no está cubierto; fuera de sus días no
+     * avisa. Un semanal flexible: cada día mientras falten veces esa semana y
+     * hoy no se haya hecho ya; al llegar al objetivo se calla hasta el lunes.
+     */
+    public static boolean tocaRecordar(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate hoy) {
+        if (tocaEl(habito, hoy)) {
+            return !hechoEnElDia(habito, fechasDeLaSemana, hoy);
+        }
+        if (!vaEnLaSemanaDe(habito, hoy) || !diasFijos(habito).isEmpty()) {
+            return false;
+        }
+        return !hechoEnLaSemana(habito, fechasDeLaSemana) && !fechasDeLaSemana.contains(hoy);
+    }
 }
