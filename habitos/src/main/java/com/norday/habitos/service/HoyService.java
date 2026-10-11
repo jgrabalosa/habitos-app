@@ -57,6 +57,9 @@ public class HoyService {
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
 
+    @Autowired
+    private LogrosHabitosService logrosHabitosService;
+
     /** Hoy tal como lo ve el usuario; con {@code fechaPedida}, otro día de la tira. */
     @Transactional
     public HoyDTO obtenerHoy(Usuario usuario, LocalDate fechaPedida) {
@@ -112,9 +115,20 @@ public class HoyService {
         Integer nivelGeneral = general.map(leido -> CalculoRitmo.nivel(leido.valor())).orElse(null);
         Tendencia tendenciaGeneral = general.map(RitmoLeido::tendencia).orElse(null);
 
+        // Los logros de ritmo se conceden aquí, al leer: el ritmo se mueve al
+        // cerrar el día o la semana y no al marcar, así que este es el momento
+        // en que el usuario ve que ha subido. Al servicio de logros solo se le
+        // pregunta si alguna condición se cumple, para que una lectura normal
+        // no haga consultas de más.
+        List<String> logrosCumplidos = CalculoRitmo.logrosDeRitmo(ritmos.values(), general);
+        List<String> logrosOtorgados = logrosCumplidos.isEmpty()
+                ? List.of()
+                : logrosHabitosService.evaluarLogrosDeRitmo(usuario, logrosCumplidos);
+
         return new HoyDTO(fecha.toString(), hoy.toString(), dias,
                 oNull(CalculoHoy.avanceDelDia(activos, fechasPorHabito, fecha)),
-                nivelGeneral, tendenciaGeneral, seccion(delDia), seccion(deLaSemana));
+                nivelGeneral, tendenciaGeneral, seccion(delDia), seccion(deLaSemana),
+                logrosOtorgados);
     }
 
     private FilaHoyDTO fila(Habito habito, int completados, boolean hecho,

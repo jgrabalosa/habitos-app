@@ -268,4 +268,15 @@ class LogrosHabitosServiceTest {
 
         assertTrue(logrosHabitosService.evaluarTrasVolver(usuario).isEmpty());
     }
+
+    @Test
+    void deLosLogrosDeRitmoCumplidos_seConcedenSoloLosQueNoTenia() {
+        when(logroService.otorgarSiNoTiene(usuario, "RITMO_BUENO")).thenReturn(false);
+        when(logroService.otorgarSiNoTiene(usuario, "RITMO_FUERTE")).thenReturn(true);
+
+        List<String> otorgados = logrosHabitosService.evaluarLogrosDeRitmo(
+                usuario, List.of("RITMO_BUENO", "RITMO_FUERTE"));
+
+        assertEquals(List.of("RITMO_FUERTE"), otorgados);
+    }
 }

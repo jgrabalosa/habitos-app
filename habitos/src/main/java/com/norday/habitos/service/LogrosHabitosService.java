@@ -78,6 +78,17 @@ public class LogrosHabitosService {
         return logrosOtorgados;
     }
 
+    // ── Evento: abrir Hoy con los ritmos al día ──
+    // Qué logros de ritmo se cumplen lo decide CalculoRitmo.logrosDeRitmo;
+    // aquí se conceden los que el usuario todavía no tiene.
+    public List<String> evaluarLogrosDeRitmo(Usuario usuario, List<String> codigosCumplidos) {
+        List<String> otorgados = new ArrayList<>();
+        for (String codigo : codigosCumplidos) {
+            if (logroService.otorgarSiNoTiene(usuario, codigo)) otorgados.add(codigo);
+        }
+        return otorgados;
+    }
+
     // ── Evento: volver a un hábito tras un tiempo sin hacerlo ──
     // Cuándo un paso es una vuelta lo decide CalculoPremio.esUnaVuelta; aquí
     // solo se concede el logro, que se gana una vez.

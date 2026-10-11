@@ -56,6 +56,13 @@ public class LogrosHabitosInitializer implements CommandLineRunner {
             {"RACHA_90", "Casi cien", "Completa un mismo hábito 90 veces", "Constancia", "Dificil", "250"},
             {"RACHA_100", "Maestro de la constancia", "Completa un mismo hábito 100 veces", "Constancia", "Dificil", "250"},
             {"RACHA_365", "Leyenda", "Completa un mismo hábito 365 veces", "Constancia", "Dificil", "250"},
+            // Ritmo
+            {"RITMO_BUENO", "Coge el paso", "Lleva un hábito a «Buen ritmo»", "Ritmo", "Facil", "50"},
+            {"RITMO_FUERTE", "A buen paso", "Lleva un hábito a «Gran ritmo»", "Ritmo", "Medio", "100"},
+            {"RITMO_IMPARABLE", "Paso firme", "Lleva un hábito a «Imparable»", "Ritmo", "Dificil", "250"},
+            {"RITMO_GENERAL_FUERTE", "Todo en marcha", "Lleva tu ritmo general a «Gran ritmo»", "Ritmo", "Medio", "100"},
+            {"RITMO_TODOS", "Todos a una", "Ten tres hábitos o más, todos en «Buen ritmo» o por encima", "Ritmo", "Dificil", "250"},
+            {"RITMO_VUELTA", "De vuelta", "Sube un hábito de «Retomando» a «Buen ritmo» en una semana", "Ritmo", "Medio", "100"},
             // Volumen
             {"HABITOS_ACTIVOS_3", "Coleccionista de hábitos", "Ten 3 hábitos activos a la vez", "Volumen", "Facil", "50"},
             {"HABITOS_ACTIVOS_5", "Vida equilibrada", "Ten 5 hábitos activos a la vez", "Volumen", "Medio", "100"},
