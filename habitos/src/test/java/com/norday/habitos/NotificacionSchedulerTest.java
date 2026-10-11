@@ -106,7 +106,8 @@ class NotificacionSchedulerTest {
         notificacionScheduler.enviarRecordatorios();
 
         // Madrid y Sao Paulo no comparten hora local, así que no debe enviarse
-        verify(notificacionService, never()).enviarNotificacion(anyString(), anyString(), anyString());
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
     }
 
     @Test
@@ -116,7 +117,8 @@ class NotificacionSchedulerTest {
         notificacionScheduler.enviarRecordatorios();
 
         verify(registroDAO, never()).findByFecha(any());
-        verify(notificacionService, never()).enviarNotificacion(anyString(), anyString(), anyString());
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
     }
 
     /** La hora de la ventana de 5 minutos en curso en Madrid. */
@@ -159,7 +161,8 @@ class NotificacionSchedulerTest {
 
         notificacionScheduler.enviarRecordatorios();
 
-        verify(notificacionService, never()).enviarNotificacion(anyString(), anyString(), anyString());
+        // Ni una llamada, con los textos que sea: anyString() no casa con null.
+        verifyNoInteractions(notificacionService);
     }
 
     @Test
