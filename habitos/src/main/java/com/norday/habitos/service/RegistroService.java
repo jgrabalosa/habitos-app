@@ -143,6 +143,9 @@ public class RegistroService {
             if (anterior.isCompletado()) fechasHechas.add(anterior.getFecha());
         }
         int diasHechosAntes = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+        // ¿Es este paso una vuelta al hábito? Se mira con las fechas que ya
+        // tenía, antes de añadir la de ahora.
+        boolean esUnaVuelta = CalculoPremio.esUnaVuelta(habito.getFrecuencia(), fecha, fechasHechas);
         fechasHechas.add(fecha);
         int diasHechosDespues = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
 
@@ -206,10 +209,15 @@ public class RegistroService {
             mascotaService.registrarDiaCompleto(usuario.getUsuarioId());
         }
 
-        // Los logros de racha leen rachaActual/rachaMaxima en crudo, pero aquí
-        // ya es seguro: actualizarRacha acaba de normalizarla en esta misma
-        // llamada, así que no puede haber valores rancios.
-        List<String> logros = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+        // Los logros de constancia cuentan los días hechos del hábito, con el
+        // registro nuevo ya guardado. Resiliencia se evalúa aparte, solo si
+        // este paso es una vuelta. La lista es una copia: la que devuelve el
+        // servicio de logros puede no admitir añadidos.
+        List<String> logros = new ArrayList<>(
+                logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito));
+        if (esUnaVuelta) {
+            logros.addAll(logrosHabitosService.evaluarTrasVolver(usuario));
+        }
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)

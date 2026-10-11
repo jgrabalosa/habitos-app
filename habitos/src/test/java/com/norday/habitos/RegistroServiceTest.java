@@ -2,6 +2,7 @@ package com.norday.habitos;
 
 import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
+import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
@@ -836,6 +837,52 @@ class RegistroServiceTest {
         assertEquals(0, resultado.get("puntosExtraSemana"));
         assertEquals(50, resultado.get("puntosHito"));
         assertEquals(75, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void alVolverTrasTresDiasSinHacerlo_seConcedeResilienciaYEntraEnLaInstantanea() {
+        // Hecho por última vez hace cuatro días: tres días enteros sin hacerlo.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(4))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(logrosHabitosService.evaluarTrasVolver(usuario))
+                .thenReturn(List.of("RACHA_RECUPERADA"));
+        Logro resiliencia = new Logro();
+        resiliencia.setLogroId(77);
+        when(logroDAO.findByCodigo("RACHA_RECUPERADA")).thenReturn(resiliencia);
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        assertEquals(List.of("RACHA_RECUPERADA"), resultado.get("logros"));
+        ArgumentCaptor<ReversionRegistro> captor =
+                ArgumentCaptor.forClass(ReversionRegistro.class);
+        verify(reversionRegistroDAO).save(captor.capture());
+        assertEquals(1, captor.getValue().getLogros().size());
+        assertEquals(77, captor.getValue().getLogros().get(0).getLogroRef());
+    }
+
+    @Test
+    void sinTresDiasSinHacerlo_noSeEvaluaLaVuelta() {
+        // Hecho anteayer: solo un día sin hacerlo.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(2))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        verify(logrosHabitosService, never()).evaluarTrasVolver(any());
     }
 
 }

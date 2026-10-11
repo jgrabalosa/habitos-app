@@ -6,6 +6,7 @@ import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
@@ -266,5 +267,22 @@ class PremioPorPasoTest {
         Map<String, Object> otraVez =
                 registroService.completarHabito(habito(), "", LUNES.plusDays(2));
         assertTrue(((List<?>) otraVez.get("logros")).contains("RACHA_3"));
+    }
+
+    @Test
+    void resiliencia_volverTrasVariosDiasLaConcede_yDeshacerLaRetira() {
+        unHabito(Frecuencia.DIARIO, 1);
+        // El hábito se hizo por última vez diez días antes del lunes. Se
+        // guarda directamente: la aplicación no deja marcar antes del lunes.
+        em.persist(new Registro(habito(), true, "", LUNES.minusDays(10)));
+        em.flush();
+
+        Map<String, Object> vuelta = registroService.completarHabito(habito(), "", VIERNES);
+        assertTrue(((List<?>) vuelta.get("logros")).contains("RACHA_RECUPERADA"));
+
+        // Si deshacer no la retirase, rehacer no podría concederla otra vez.
+        registroService.deshacerRegistro((Integer) vuelta.get("registroId"));
+        Map<String, Object> otraVez = registroService.completarHabito(habito(), "", VIERNES);
+        assertTrue(((List<?>) otraVez.get("logros")).contains("RACHA_RECUPERADA"));
     }
 }
