@@ -137,14 +137,16 @@ class PremioPorPasoTest {
             assertEquals(25, sesion.get("puntosPaso"), "puntos de la sesión " + (dia + 1));
             assertEquals(0, sesion.get("puntosExtraSemana"), "extra de la sesión " + (dia + 1));
             assertEquals(5, sesion.get("xpGanada"), "xp de la sesión " + (dia + 1));
-            puntos += (Integer) sesion.get("puntosGanados");
+            // El tercer día hecho del hábito trae además su hito, que va aparte.
+            assertEquals(dia == 2 ? 50 : 0, sesion.get("puntosHito"), "hito de la sesión " + (dia + 1));
+            puntos += (Integer) sesion.get("puntosPaso") + (Integer) sesion.get("puntosExtraSemana");
             xpGanada += (Integer) sesion.get("xpGanada");
         }
         int saldoAntesDeLaQuinta = saldo();
         int xpAntesDeLaQuinta = xp();
 
         Map<String, Object> quinta = registroService.completarHabito(habito(), "", VIERNES);
-        puntos += (Integer) quinta.get("puntosGanados");
+        puntos += (Integer) quinta.get("puntosPaso") + (Integer) quinta.get("puntosExtraSemana");
         xpGanada += (Integer) quinta.get("xpGanada");
 
         assertEquals(25, quinta.get("puntosPaso"));
@@ -155,6 +157,7 @@ class PremioPorPasoTest {
         assertEquals(30, xpGanada);
         assertEquals(125, puntosDelLibro("HABITO_COMPLETADO"));
         assertEquals(25, puntosDelLibro("EXTRA_SEMANA_COMPLETA"));
+        assertEquals(50, puntosDelLibro("HITO_DIAS_HECHOS"));
         assertEquals(xpAlEmpezar + 30, xp());
 
         registroService.deshacerRegistro((Integer) quinta.get("registroId"));
@@ -193,20 +196,57 @@ class PremioPorPasoTest {
 
     @Test
     void semanal_pasarseDelObjetivoNoMueveNiElSaldoNiLaExperiencia() {
-        unHabito(Frecuencia.SEMANAL, 2);
+        // Objetivo 3 y cuatro sesiones: la cuarta es la que se pasa. Con
+        // objetivo 2, la sesión de más sería el tercer día hecho del hábito
+        // y traería su hito, que es otra regla.
+        unHabito(Frecuencia.SEMANAL, 3);
         registroService.completarHabito(habito(), "", LUNES);
         registroService.completarHabito(habito(), "", LUNES.plusDays(1));
+        registroService.completarHabito(habito(), "", LUNES.plusDays(2));
         int saldoAntes = saldo();
         int xpAntes = xp();
 
-        Map<String, Object> tercera =
-                registroService.completarHabito(habito(), "", LUNES.plusDays(2));
+        Map<String, Object> cuarta =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(3));
 
-        assertEquals(0, tercera.get("puntosGanados"));
-        assertEquals(0, tercera.get("xpGanada"));
+        assertEquals(0, cuarta.get("puntosGanados"));
+        assertEquals(0, cuarta.get("xpGanada"));
         assertEquals(saldoAntes, saldo());
         assertEquals(xpAntes, xp());
-        assertEquals(50, puntosDelLibro("HABITO_COMPLETADO"));
-        assertEquals(10, puntosDelLibro("EXTRA_SEMANA_COMPLETA"));
+        assertEquals(75, puntosDelLibro("HABITO_COMPLETADO"));
+        assertEquals(15, puntosDelLibro("EXTRA_SEMANA_COMPLETA"));
+    }
+
+    @Test
+    void hito_elTercerDiaHechoSeCobraUnaVez_yNiRellenarNiRehacerLoDuplican() {
+        unHabito(Frecuencia.DIARIO, 1);
+        registroService.completarHabito(habito(), "", LUNES);
+        registroService.completarHabito(habito(), "", LUNES.plusDays(2));
+        int saldoAntesDelTercero = saldo();
+
+        // Lunes, miércoles y jueves: el tercer día hecho, con el martes vacío.
+        Map<String, Object> jueves =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(3));
+        assertEquals(50, jueves.get("puntosHito"));
+        assertEquals(75, jueves.get("puntosGanados"));
+        assertEquals(50, puntosDelLibro("HITO_DIAS_HECHOS"));
+        int saldoConElHito = saldo();
+
+        // Rellenar el hueco del martes es el cuarto día hecho: no paga otro hito.
+        Map<String, Object> martes =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(1));
+        assertEquals(0, martes.get("puntosHito"));
+        assertEquals(25, martes.get("puntosGanados"));
+        assertEquals(50, puntosDelLibro("HITO_DIAS_HECHOS"));
+
+        // Deshacer devuelve el hito con el resto, y rehacer lo paga una sola vez.
+        registroService.deshacerRegistro((Integer) martes.get("registroId"));
+        registroService.deshacerRegistro((Integer) jueves.get("registroId"));
+        assertEquals(saldoAntesDelTercero, saldo());
+
+        Map<String, Object> otraVez =
+                registroService.completarHabito(habito(), "", LUNES.plusDays(3));
+        assertEquals(50, otraVez.get("puntosHito"));
+        assertEquals(saldoConElHito, saldo());
     }
 }

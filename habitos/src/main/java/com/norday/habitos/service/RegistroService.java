@@ -67,10 +67,12 @@ public class RegistroService {
 
     // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
     // números, ParametrosPremio.
-    /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
-    private static final int[][] HITOS_RACHA = {
-            {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
-    };
+    // B2: los hitos ya no cuelgan de la racha; sus números están en
+    // ParametrosPremio. Se conserva comentado.
+    // /** Umbral de racha y puntos que paga. Ordenados de menor a mayor. */
+    // private static final int[][] HITOS_RACHA = {
+    //         {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
+    // };
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
@@ -134,6 +136,16 @@ public class RegistroService {
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
         Set<Integer> logrosPrevios = idsLogros(usuario);
 
+        // Días hechos del hábito antes y después de este completado, para
+        // los hitos. Se leen antes de guardar el registro nuevo.
+        List<LocalDate> fechasHechas = new ArrayList<>();
+        for (Registro anterior : registroDAO.findByHabito(habito)) {
+            if (anterior.isCompletado()) fechasHechas.add(anterior.getFecha());
+        }
+        int diasHechosAntes = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+        fechasHechas.add(fecha);
+        int diasHechosDespues = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+
         Registro registro = new Registro(habito, true, nota, fecha);
         registroDAO.save(registro);
 
@@ -170,12 +182,22 @@ public class RegistroService {
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
 
-        int puntosHito = 0;
-        boolean metaAlcanzadaAhora = actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
-        if (metaAlcanzadaAhora) {
-            puntosHito = otorgarPuntosPorHitoRacha(usuario, habito, rachaPrevia, rachaActualPrevia);
-            puntosGanados += puntosHito;
+        // La racha se sigue actualizando hasta que se apague (paso B5), pero
+        // ya no paga nada: los hitos van por días hechos.
+        actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
+
+        // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
+        // hechos en total, seguidos o no. Rellenar un hueco no vuelve a
+        // pagar: el contador solo sube. Deshacer lo devuelve con el resto de
+        // las monedas.
+        int puntosHito = CalculoPremio.puntosDeHitos(diasHechosAntes, diasHechosDespues);
+        if (puntosHito > 0) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, puntosHito, "HITO_DIAS_HECHOS", habito.getHabitoId(),
+                    "Hito de " + diasHechosDespues + " días en: " + habito.getNombre()
+            );
         }
+        puntosGanados += puntosHito;
 
         // Con este registro puede haberse cerrado el día entero. Va después de
         // guardar el Registro a propósito: la consulta de esDiaCompleto es JPQL,
@@ -343,43 +365,45 @@ public class RegistroService {
         return actual > actualAntes;
     }
 
-    /**
-     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
-     * el del valor exacto. Con el completado retroactivo la racha puede saltar
-     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
-     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
-     *
-     * En el camino normal la racha sube de uno en uno, así que el intervalo
-     * (previa, actual] contiene un único valor y el comportamiento es idéntico
-     * al de antes. El límite de la semana en curso acota el salto máximo.
-     *
-     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
-     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
-     */
-    // Misma razón que en actualizarRacha: la instancia la da quien llama.
-    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Racha racha,
-                                          Integer rachaPrevia) {
-        if (racha == null) return 0;
-
-        int actual = racha.getRachaActual();
-        int desde = rachaPrevia != null ? rachaPrevia : 0;
-        if (actual <= desde) return 0;
-
-        int puntos = 0;
-        for (int[] hito : HITOS_RACHA) {
-            if (hito[0] > desde && hito[0] <= actual) {
-                puntos += hito[1];
-            }
-        }
-
-        if (puntos > 0) {
-            usuarioMonedaService.registrarMovimiento(
-                    usuario, puntos, "HITO_RACHA", habito.getHabitoId(),
-                    "Hito de racha (" + actual + ") en: " + habito.getNombre()
-            );
-        }
-        return puntos;
-    }
+    // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.puntosDeHitos).
+    // Se conserva comentado.
+    //    /**
+    //     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
+    //     * el del valor exacto. Con el completado retroactivo la racha puede saltar
+    //     * —rellenar un hueco que une dos tramos lleva de 2 a 5— y con un switch
+    //     * sobre el valor exacto esos hitos intermedios no se cobraban nunca.
+    //     *
+    //     * En el camino normal la racha sube de uno en uno, así que el intervalo
+    //     * (previa, actual] contiene un único valor y el comportamiento es idéntico
+    //     * al de antes. El límite de la semana en curso acota el salto máximo.
+    //     *
+    //     * Los hitos siguen siendo recobrables: si la racha se rompe y se reconstruye,
+    //     * se vuelven a pagar. Eso ya era así y no se cambia aquí.
+    //     */
+    //    // Misma razón que en actualizarRacha: la instancia la da quien llama.
+    //    private int otorgarPuntosPorHitoRacha(Usuario usuario, Habito habito, Racha racha,
+    //                                          Integer rachaPrevia) {
+    //        if (racha == null) return 0;
+    //
+    //        int actual = racha.getRachaActual();
+    //        int desde = rachaPrevia != null ? rachaPrevia : 0;
+    //        if (actual <= desde) return 0;
+    //
+    //        int puntos = 0;
+    //        for (int[] hito : HITOS_RACHA) {
+    //            if (hito[0] > desde && hito[0] <= actual) {
+    //                puntos += hito[1];
+    //            }
+    //        }
+    //
+    //        if (puntos > 0) {
+    //            usuarioMonedaService.registrarMovimiento(
+    //                    usuario, puntos, "HITO_RACHA", habito.getHabitoId(),
+    //                    "Hito de racha (" + actual + ") en: " + habito.getNombre()
+    //            );
+    //        }
+    //        return puntos;
+    //    }
 
     public boolean estaCompletadoHoy(Habito habito) {
         return registroDAO.existeRegistroEnFecha(habito, rachaService.hoyDe(habito));
