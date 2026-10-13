@@ -77,6 +77,9 @@ public class RitmoService {
         if (ritmo == null) {
             return empezarHoy(habito, hoy);
         }
+        if (!habito.isActivo()) {
+            return congelado(ritmo);
+        }
         return ponerAlDia(ritmo, habito, fechasHechas(ritmo, habito, hoy), hoy);
     }
 
@@ -129,8 +132,10 @@ public class RitmoService {
             Ritmo ritmo = anclas.get(habito.getHabitoId());
             RitmoLeido leido = ritmo == null
                     ? empezarHoy(habito, hoy)
-                    : ponerAlDia(ritmo, habito,
-                            fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of()), hoy);
+                    : !habito.isActivo()
+                            ? congelado(ritmo)
+                            : ponerAlDia(ritmo, habito,
+                                    fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of()), hoy);
             leidos.put(habito.getHabitoId(), leido);
         }
         return leidos;
@@ -203,6 +208,8 @@ public class RitmoService {
      *
      * A partir de aquí, marcar un día anterior al cambio ya no mueve el
      * ritmo: esos días quedaron cerrados.
+     *
+     * Un hábito en pausa no se toca.
      */
     @Transactional
     public void anclarAntesDeCambiar(Habito habitoComoEstaba) {
@@ -213,6 +220,11 @@ public class RitmoService {
     /** Igual, con el día dado, para que los tests lo fijen. */
     @Transactional
     public void anclarAntesDeCambiar(Habito habitoComoEstaba, LocalDate hoy) {
+        // En pausa no se toca: el ritmo se quedó donde se pausó, y al
+        // reanudar el ancla pasa a ese día y ya cuenta con las reglas nuevas.
+        if (!habitoComoEstaba.isActivo()) {
+            return;
+        }
         Ritmo ritmo = ritmoDAO.findByHabito(habitoComoEstaba);
         if (ritmo == null) {
             ritmo = new Ritmo(habitoComoEstaba, hoy);
@@ -225,6 +237,30 @@ public class RitmoService {
         ritmo.setValor(vigente);
         ritmo.setDesde(hoy);
         ritmo.setCambio(hoy);
+        ritmoDAO.update(ritmo);
+    }
+
+    /**
+     * Hay que llamarlo al reanudar un hábito en pausa, antes de activarlo.
+     *
+     * El ancla pasa al día de la vuelta con el valor que tenía al pausar: los
+     * días de pausa no se juzgan. La vuelta queda como día de cambio, así que
+     * el periodo en curso solo puede subir. Se borra el ancla anterior para
+     * que la tendencia no compare con lo de antes de la pausa.
+     */
+    @Transactional
+    public void reanudar(Habito habito, LocalDate hoy) {
+        Ritmo ritmo = ritmoDAO.findByHabito(habito);
+        if (ritmo == null) {
+            ritmo = new Ritmo(habito, hoy);
+            ritmo.setCambio(hoy);
+            ritmoDAO.save(ritmo);
+            return;
+        }
+        ritmo.setDesde(hoy);
+        ritmo.setCambio(hoy);
+        ritmo.setValorPrevio(null);
+        ritmo.setDesdePrevio(null);
         ritmoDAO.update(ritmo);
     }
 
@@ -248,6 +284,14 @@ public class RitmoService {
                 .filter(Registro::isCompletado)
                 .map(Registro::getFecha)
                 .toList();
+    }
+
+    /**
+     * Un hábito en pausa no se pone al día: su ritmo se queda donde se pausó
+     * y no se guarda nada. Sin esto, abrir su detalle lo haría caer.
+     */
+    private RitmoLeido congelado(Ritmo ritmo) {
+        return new RitmoLeido(ritmo.getValor(), ritmo.getValor());
     }
 
     /**

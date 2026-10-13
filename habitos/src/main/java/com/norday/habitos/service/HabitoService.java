@@ -168,22 +168,6 @@ public class HabitoService {
         }
     }
 
-    public void activar(int id) {
-        Habito habito = habitoDAO.findById(id);
-        if (habito != null) {
-            habito.setActivo(true);
-            habitoDAO.update(habito);
-        }
-    }
-
-    public void desactivar(int id) {
-        Habito habito = habitoDAO.findById(id);
-        if (habito != null) {
-            habito.setActivo(false);
-            habitoDAO.update(habito);
-        }
-    }
-
     @Transactional
     public void eliminar(int id) {
         reversionRegistroDAO.deleteByHabito(id);

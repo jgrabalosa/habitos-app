@@ -67,6 +67,7 @@ class RitmoServiceTest {
         usuario.setZonaHoraria("Europe/Madrid");
 
         habito = new Habito();
+        habito.setActivo(true);
         habito.setHabitoId(10);
         habito.setFrecuencia(Frecuencia.DIARIO);
         habito.setMeta(1);
@@ -180,6 +181,7 @@ class RitmoServiceTest {
 
     private Habito otroHabito(LocalDate fechaInicio) {
         Habito otro = new Habito();
+        otro.setActivo(true);
         otro.setHabitoId(11);
         otro.setFrecuencia(Frecuencia.DIARIO);
         otro.setMeta(1);
