@@ -208,6 +208,28 @@ public class ProductoService {
         usuarioProductoDAO.update(poseido);
     }
 
+    /**
+     * Gasta una unidad de un consumible que una app usa por su cuenta, no
+     * desde Mascota. Lo llama la app en la misma operación que hace lo que
+     * el producto da, para que no quede una cosa sin la otra.
+     *
+     * Lanza ConflictoException si no le queda ninguna. La app lo comprueba
+     * antes y manda a la tienda, así que aquí solo se llega por una carrera
+     * o desde una versión vieja.
+     */
+    @Transactional
+    public void gastarUnidad(Usuario usuario, String codigo) {
+        Producto producto = productoDAO.findByCodigo(codigo);
+        UsuarioProducto poseido = producto == null ? null
+                : usuarioProductoDAO.findByUsuarioYProducto(
+                        usuario.getUsuarioId(), producto.getProductoId());
+        if (poseido == null || poseido.getCantidad() <= 0) {
+            throw new ConflictoException("No te quedan unidades de " + codigo);
+        }
+        poseido.setCantidad(poseido.getCantidad() - 1);
+        usuarioProductoDAO.update(poseido);
+    }
+
     @Transactional
     public Map<String, Object> usarProducto(Usuario usuario, int productoId) {
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
@@ -219,6 +241,13 @@ public class ProductoService {
         Producto producto = poseido.getProducto();
         if (!"CONSUMIBLE".equals(producto.getTipo())) {
             throw new RuntimeException("Este producto no es consumible");
+        }
+
+        // Desde aquí (Mascota) solo se usa la comida. Los consumibles con uso
+        // propio los gasta su app con gastarUnidad, en la misma operación que
+        // hacen: usados aquí se perderían sin hacer nada.
+        if (!producto.getCodigo().startsWith("COMIDA_")) {
+            throw new ConflictoException("Este producto no se usa desde aquí");
         }
 
         if (poseido.getCantidad() <= 0) {

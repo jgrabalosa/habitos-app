@@ -240,4 +240,70 @@ class ProductoServiceTest {
 
         verify(usuarioProductoDAO, never()).save(any());
     }
+
+    private Producto consumible(int id, String codigo) {
+        Producto producto = new Producto();
+        producto.setProductoId(id);
+        producto.setCodigo(codigo);
+        producto.setCategoria("Protección");
+        producto.setTipo("CONSUMIBLE");
+        producto.setActivo(true);
+        producto.setNombre(codigo);
+        return producto;
+    }
+
+    @Test
+    void gastarUnidad_restaUna() {
+        Producto pausa = consumible(30, "PAUSA_X");
+        UsuarioProducto poseido = new UsuarioProducto(usuario, pausa, 2);
+        when(productoDAO.findByCodigo("PAUSA_X")).thenReturn(pausa);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(poseido);
+
+        productoService.gastarUnidad(usuario, "PAUSA_X");
+
+        assertEquals(1, poseido.getCantidad());
+        verify(usuarioProductoDAO).update(poseido);
+    }
+
+    @Test
+    void gastarUnidad_sinUnidades_lanzaConflictoYNoToca() {
+        Producto pausa = consumible(30, "PAUSA_X");
+        UsuarioProducto poseido = new UsuarioProducto(usuario, pausa, 0);
+        when(productoDAO.findByCodigo("PAUSA_X")).thenReturn(pausa);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(poseido);
+
+        assertThrows(ConflictoException.class,
+                () -> productoService.gastarUnidad(usuario, "PAUSA_X"));
+        verify(usuarioProductoDAO, never()).update(any());
+    }
+
+    @Test
+    void gastarUnidad_siNoLoTiene_lanzaConflicto() {
+        Producto pausa = consumible(30, "PAUSA_X");
+        when(productoDAO.findByCodigo("PAUSA_X")).thenReturn(pausa);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(null);
+
+        assertThrows(ConflictoException.class,
+                () -> productoService.gastarUnidad(usuario, "PAUSA_X"));
+    }
+
+    @Test
+    void gastarUnidad_siElProductoNoExiste_lanzaConflicto() {
+        when(productoDAO.findByCodigo("PAUSA_X")).thenReturn(null);
+
+        assertThrows(ConflictoException.class,
+                () -> productoService.gastarUnidad(usuario, "PAUSA_X"));
+    }
+
+    @Test
+    void usarProducto_unConsumibleQueNoEsComida_seRechazaYNoGasta() {
+        Producto pausa = consumible(30, "PAUSA_X");
+        UsuarioProducto poseido = new UsuarioProducto(usuario, pausa, 2);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 30)).thenReturn(poseido);
+
+        assertThrows(ConflictoException.class,
+                () -> productoService.usarProducto(usuario, 30));
+        assertEquals(2, poseido.getCantidad());
+        verify(usuarioProductoDAO, never()).update(any());
+    }
 }
