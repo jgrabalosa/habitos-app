@@ -59,6 +59,8 @@ public class SecurityConfig {
                                 "/privacidad.html",
                                 "/api/usuarios/recuperar",
                                 "/api/usuarios/restablecer",
+                                // Versión mínima de cada app: se pide antes del login.
+                                "/api/version/*",
                                 // Los errores que Spring reenvía por dentro a
                                 // /error no llevan la sesión: sin esto, un fallo
                                 // con sesión válida saldría como 401 y la app
