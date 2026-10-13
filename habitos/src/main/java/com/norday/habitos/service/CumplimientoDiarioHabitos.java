@@ -69,6 +69,11 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
     @Transactional
     public AvanceDeHoy comoVaHoy(Usuario usuario, LocalDate hoy, ZoneId zona) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
+        // Con hábitos, pero todos en pausa: no es una ausencia, es una pausa.
+        // Nori se queda dormida, no triste.
+        if (activos.isEmpty() && !habitoDAO.findByPropietario(usuario).isEmpty()) {
+            return AvanceDeHoy.SIN_EMPEZAR;
+        }
         LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
 
         // Una sola consulta, desde el lunes de la semana pasada: es lo más

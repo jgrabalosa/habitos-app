@@ -89,6 +89,7 @@ class RegistroServiceTest {
         usuario.setUsuarioId(1);
 
         habito = new Habito();
+        habito.setActivo(true);
         habito.setHabitoId(10);
         habito.setNombre("Leer");
         habito.setFrecuencia(Frecuencia.DIARIO);

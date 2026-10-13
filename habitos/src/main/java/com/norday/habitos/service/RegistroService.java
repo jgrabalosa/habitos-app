@@ -81,6 +81,10 @@ public class RegistroService {
 
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota, LocalDate fechaSolicitada) {
+        // Un hábito en pausa no se marca: la pausa lo para todo.
+        if (!habito.isActivo()) {
+            throw new ConflictoException("El hábito está en pausa");
+        }
         LocalDate hoy = rachaService.hoyDe(habito);
         LocalDate fecha = fechaSolicitada != null ? fechaSolicitada : hoy;
         if (fecha.isAfter(hoy)) {
@@ -464,6 +468,10 @@ public class RegistroService {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         Habito habito = registro.getHabito();
+        // Un hábito en pausa no se deshace: la pausa lo para todo.
+        if (!habito.isActivo()) {
+            throw new ConflictoException("El hábito está en pausa");
+        }
         Usuario usuario = habito.getPropietario();
 
         // Solo se puede deshacer el último registro del hábito.

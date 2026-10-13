@@ -10,6 +10,7 @@ import com.norday.habitos.model.dto.HabitoDetalleDTO;
 import com.norday.habitos.model.dto.HabitoEntradaDTO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.HoyService;
+import com.norday.habitos.service.PausaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,9 @@ public class HabitoController extends ControladorAutorizado {
 
     @Autowired
     private HabitoService habitoService;
+
+    @Autowired
+    private PausaService pausaService;
 
     @Autowired
     private HoyService hoyService;
@@ -161,6 +165,7 @@ public class HabitoController extends ControladorAutorizado {
         return ResponseEntity.ok("Hábito actualizado correctamente");
     }
 
+    // Reanudar un hábito en pausa (gratis).
     @PatchMapping("/{id}/activar")
     public ResponseEntity<?> activar(@PathVariable int id, Authentication authentication) {
         Habito habito = habitoService.buscarPorId(id);
@@ -171,10 +176,11 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        habitoService.activar(id);
-        return ResponseEntity.ok("Hábito activado correctamente");
+        pausaService.reanudar(id);
+        return ResponseEntity.ok("Hábito reanudado correctamente");
     }
 
+    // Pausar un hábito: gasta una «Pausa»; 409 si no le queda ninguna o ya estaba en pausa.
     @PatchMapping("/{id}/desactivar")
     public ResponseEntity<?> desactivar(@PathVariable int id, Authentication authentication) {
         Habito habito = habitoService.buscarPorId(id);
@@ -185,8 +191,8 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        habitoService.desactivar(id);
-        return ResponseEntity.ok("Hábito desactivado correctamente");
+        pausaService.pausar(id);
+        return ResponseEntity.ok("Hábito pausado correctamente");
     }
 
     @DeleteMapping("/{id}")
