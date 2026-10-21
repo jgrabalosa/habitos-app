@@ -584,10 +584,13 @@
   }
   function animarCheck(cv, desde, hasta, alFinal) {
     if (quieto) { pintarCheck(cv, hasta); if (alFinal) alFinal(); return; }
+    // La identidad con la que se empezó: las tarjetas de «Identidades»
+    // animan con la suya aunque la página lleve otra.
+    var idCheck = idActual;
     var dur = hasta > desde ? 550 : 320, t0 = performance.now();
     (function paso(ts) {
       var p = clamp((ts - t0) / dur, 0, 1);
-      pintarCheck(cv, desde + (hasta - desde) * p);
+      conIdentidad(idCheck, 0, 0, function () { pintarCheck(cv, desde + (hasta - desde) * p); });
       if (p < 1) requestAnimationFrame(paso); else if (alFinal) alFinal();
     })(t0);
   }
@@ -1050,6 +1053,93 @@
     decorar(media);
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     IDENTIDADES — cada tarjeta, pintada con la suya
+     ══════════════════════════════════════════════════════════════════════ */
+  /* Pinta con otra identidad sin cambiar la de la página: todo lo que dibuja
+     lee idActual, VW, VH y los arrays del fondo, así que se cambian y se
+     devuelven. */
+  function conIdentidad(id, w, h, fn) {
+    var guard = { id: idActual, vw: VW, vh: VH, e: estrellas, b: burbujas };
+    idActual = id;
+    if (w) { VW = w; VH = h; generarCielo(); }
+    try { fn(); } finally {
+      idActual = guard.id; VW = guard.vw; VH = guard.vh; estrellas = guard.e; burbujas = guard.b;
+    }
+  }
+  var CINTURON = [[0.14, 0.77], [0.51, 0.53], [0.86, 0.23]];
+  var IDENTS = [].slice.call(document.querySelectorAll('.ident')).map(function (card, k) {
+    var h = { n: ['Mirar las estrellas', 'Salir a correr', 'Regar las plantas'][k], ritmo: 3 + (k % 2),
+      pasado: [1, 0, 1, 1, 1, 0], hecho: k !== 2 };
+    var id = card.dataset.id;
+    construirFila(h, function (x) {
+      conIdentidad(id, 0, 0, function () {
+        x.hecho = !x.hecho;
+        var hasta = x.hecho ? 1 : 0, desde = x.v;
+        x.v = hasta;
+        pintarFila(x);
+        animarCheck(x.cv, desde, hasta);
+      });
+    });
+    card.querySelector('.ident__f').appendChild(h.el);
+    return { card: card, id: id, h: h };
+  });
+
+  function pintarMundoTarjeta(o) {
+    var card = o.card, w = card.offsetWidth, h = card.offsetHeight, cv = card.querySelector('.ident__cv');
+    var mundo = card.querySelector('.ident__m').offsetHeight;
+    // El cielo y las burbujas cubren la tarjeta entera; la ciudad, solo la
+    // parte de arriba, para que no pase por detrás del texto.
+    conIdentidad(o.id, w, TOKENS[o.id].forma === 'chamfer' ? mundo : h, function () {
+      var t = T(), c = preparar(cv, w, h), r = TOKENS[o.id].forma === 'pill' ? 26 : 24;
+      function forma(k) {
+        k.beginPath();
+        if (t.forma === 'chamfer') {
+          var ch = 12; k.moveTo(ch, 0); k.lineTo(w - ch, 0); k.lineTo(w, ch); k.lineTo(w, h - ch);
+          k.lineTo(w - ch, h); k.lineTo(ch, h); k.lineTo(0, h - ch); k.lineTo(0, ch); k.closePath();
+        } else if (k.roundRect) k.roundRect(0.5, 0.5, w - 1, h - 1, r); else k.rect(0.5, 0.5, w - 1, h - 1);
+      }
+      c.save(); forma(c); c.clip();
+      c.fillStyle = t.bg; c.fillRect(0, 0, w, h);
+      if (t.forma === 'glass') {
+        pintarCielo(c);
+        // El Cinturón de Orión encendido: la constelación de tres hábitos.
+        var q = { x: w * 0.55, y: mundo * 0.08, lado: Math.min(w * 0.4, mundo * 0.42) };
+        c.save(); c.globalCompositeOperation = 'lighter';
+        c.strokeStyle = rgba(t.streak, 0.38); c.lineWidth = 1.2; c.beginPath();
+        CINTURON.forEach(function (p, i) { var x = q.x + p[0] * q.lado, y = q.y + p[1] * q.lado; if (i) c.lineTo(x, y); else c.moveTo(x, y); });
+        c.stroke();
+        CINTURON.forEach(function (p) { estrella(c, q.x + p[0] * q.lado, q.y + p[1] * q.lado, 0.85, 1, 0); });
+        c.restore();
+      } else if (t.forma === 'chamfer') {
+        pintarCiudad(c, 0.2, null, 1);
+      } else {
+        burbujas = burbujas.slice(0, 40);
+        pintarBurbujas(c, 26, null, 1);
+      }
+      c.restore();
+      // El borde de la tarjeta, en el lenguaje de cada identidad.
+      if (t.forma === 'glass') { forma(c); c.lineWidth = 1; c.strokeStyle = 'rgba(255,255,255,0.10)'; c.stroke(); }
+      else if (t.forma === 'chamfer') { forma(c); c.lineWidth = 1.2; c.strokeStyle = rgba(t.primary, 0.7); c.stroke(); }
+      else trazoLapiz(c, rrect(1, 1, w - 2, h - 2, r), t.trazo, 1.6, semillaDe(w, h));
+    });
+  }
+  function pintarIdentidades() {
+    IDENTS.forEach(function (o) {
+      conIdentidad(o.id, 0, 0, function () { pintarFila(o.h); });
+      pintarMundoTarjeta(o);
+      var b = o.card.querySelector('.ident__b'), activa = o.id === idActual;
+      b.setAttribute('aria-pressed', activa ? 'true' : 'false');
+      b.textContent = activa ? 'Así se ve ahora' : 'Ver la página así';
+    });
+  }
+  [].forEach.call(document.querySelectorAll('.ident__b'), function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.ir === idActual) return;
+      aplicar(b.dataset.ir);
+    });
+  });
+
   function redibujar() {
     VW = window.innerWidth; VH = window.innerHeight;
     generarCielo();
@@ -1057,6 +1147,7 @@
     pintarTiraHoy(); pintarTarjetaRitmo(ritmo, 3);
     pintarPasos();
     pintarQueda();
+    pintarIdentidades();
     HABITOS.forEach(pintarFila);
     pintarCieloApp();
     pintarNori(false);

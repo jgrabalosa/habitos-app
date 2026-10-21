@@ -293,6 +293,49 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .bloque__v--nori figcaption{font-size:calc(14px * var(--lectura));color:var(--muted);max-width:14ch}
 .flecha{width:28px;height:28px;fill:none;stroke:var(--trazo);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 
+/* ── Identidades ────────────────────────────────────────────────────────── */
+.idents{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
+.idents__lead{margin-top:16px;max-width:60ch;color:var(--muted);font-size:calc(17px * var(--lectura))}
+.idents__g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(20px,2.4vw,32px);margin-top:clamp(40px,5vw,64px)}
+/* Cada tarjeta se pinta con SU identidad (data-id en la tarjeta), no con la
+   activa: las variables de color y letra se resuelven dentro de ella. */
+.ident{position:relative;display:flex;flex-direction:column;color:var(--text);font-family:var(--cuerpo),sans-serif;
+  font-size:calc(16px * var(--lectura));text-shadow:none}
+.ident__m{position:relative;height:250px;display:flex;align-items:flex-end;padding:0 4px 12px}
+.ident__cv{position:absolute;left:0;top:0;pointer-events:none}
+.ident__f{position:relative;z-index:1;width:100%}
+.ident__f .fila{margin-bottom:0}
+.ident__t{position:relative;z-index:1;padding:20px 24px 24px;display:flex;flex-direction:column;gap:8px;flex:1}
+.ident h3{font-family:var(--display),sans-serif;font-size:24px;font-weight:700;letter-spacing:var(--track-h);text-transform:var(--tt)}
+.ident__l{font-family:var(--display),sans-serif;font-size:12px;font-weight:800;letter-spacing:var(--track-et);color:var(--muted)}
+.ident__t p:not(.ident__l){color:var(--muted)}
+.ident__b{appearance:none;cursor:pointer;margin-top:auto;align-self:flex-start;border:0;padding:11px 20px;
+  font-family:var(--cuerpo),sans-serif;font-size:calc(14px * var(--lectura));font-weight:600;
+  background:var(--primary);color:var(--tinta);border-radius:999px}
+[data-id="neotokyo"] .ident__b{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.ident__b[aria-pressed="true"]{background:transparent;color:var(--muted);cursor:default;box-shadow:inset 0 0 0 1.5px var(--aro)}
+[data-id="neotokyo"] .ident__b[aria-pressed="true"]{box-shadow:none;outline:1.2px solid var(--aro);outline-offset:-1.2px}
+.ident__b:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+
+/* Las reglas de identidad que cuelgan de <html> (las de la identidad activa)
+   también alcanzarían a las tarjetas de las otras dos: aquí se fijan las de
+   cada tarjeta, con más especificidad. */
+.ident[data-id] .fila__n{font-family:var(--display),sans-serif;font-size:16px}
+.ident[data-id="dulce"] .fila__n{font-family:'Caveat',cursive;font-size:20px}
+.ident[data-id] .chip{border-radius:999px;clip-path:none;letter-spacing:normal;color:var(--primary);
+  background:color-mix(in srgb,var(--primary) 12%,transparent)}
+.ident[data-id="neotokyo"] .chip{border-radius:0;letter-spacing:1.1px;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.ident[data-id="dulce"] .chip{background:none;color:var(--success-text)}
+.ident[data-id] .cel{border-radius:5px}
+.ident[data-id] .cel.llena{box-shadow:0 0 6px color-mix(in srgb,var(--success) 55%,transparent)}
+.ident[data-id="neotokyo"] .cel{border-radius:1px}
+.ident[data-id="neotokyo"] .cel.llena{box-shadow:0 0 8px color-mix(in srgb,var(--success) 85%,transparent),0 0 14px color-mix(in srgb,var(--success) 35%,transparent)}
+.ident[data-id] .ident__b{border-radius:999px;clip-path:none}
+.ident[data-id="neotokyo"] .ident__b{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.ident[data-id] .ident__b[aria-pressed="true"]{outline:0;box-shadow:inset 0 0 0 1.5px var(--aro)}
+.ident[data-id="neotokyo"] .ident__b[aria-pressed="true"]{box-shadow:none;clip-path:none;outline:1.2px solid var(--aro);outline-offset:-1.2px}
+
 /* ── Cierre del día (Profundidad) ───────────────────────────────────────── */
 .cierre{position:fixed;inset:0;z-index:50;cursor:pointer;display:none}
 .cierre.on{display:block}
@@ -305,12 +348,13 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
+html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
   .pasos__g{grid-template-columns:1fr;gap:56px}
   .bloque{grid-template-columns:1fr;gap:28px}
+  .idents__g{grid-template-columns:1fr;max-width:440px}
   .bloque--inv .bloque__t{order:0}
   .paso__v{min-height:0}
   .hero__g{grid-template-columns:1fr;gap:48px}
@@ -465,6 +509,45 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
           <figure><img src="img/nori/cria_sonriente.webp" width="120" height="120" alt="Nori contento" loading="lazy"><figcaption>Con tu primer paso</figcaption></figure>
         </div>
       </article>
+    </div>
+  </section>
+
+  <section class="idents" aria-labelledby="identsTit">
+    <div class="cont">
+      <p class="et">IDENTIDADES</p>
+      <h2 id="identsTit">Elige cómo se ve tu día</h2>
+      <p class="idents__lead">Cada identidad cambia la letra, las formas, los colores y lo que pasa al fondo cuando avanzas. Eliges una gratis al empezar. Las otras cuestan 1.000 puntos en la tienda, y los puntos se ganan marcando hábitos.</p>
+      <!-- PENDIENTE (Día D): cuando haya capturas reales de «Hoy», una por
+           identidad, pueden ir en lugar del dibujo de cada tarjeta. -->
+      <div class="idents__g">
+        <article class="ident" data-id="profundidad">
+          <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
+          <div class="ident__t">
+            <h3>Profundidad</h3>
+            <p class="ident__l">Space Grotesk · Manrope</p>
+            <p>Un cielo de noche. Cada hábito enciende una estrella y, al terminar el día, aparece tu constelación.</p>
+            <button class="ident__b" type="button" data-ir="profundidad"></button>
+          </div>
+        </article>
+        <article class="ident" data-id="neotokyo">
+          <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
+          <div class="ident__t">
+            <h3>Neotokyo+</h3>
+            <p class="ident__l">Chakra Petch · IBM Plex Sans</p>
+            <p>Una ciudad de neón. Con cada hábito se encienden más ventanas y los bordes laten hasta que lo haces.</p>
+            <button class="ident__b" type="button" data-ir="neotokyo"></button>
+          </div>
+        </article>
+        <article class="ident" data-id="dulce">
+          <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
+          <div class="ident__t">
+            <h3>Dulce</h3>
+            <p class="ident__l">Quicksand · Caveat</p>
+            <p>Un cuaderno pintado a lápiz de color. Las burbujas se acumulan con lo que haces y el día se cierra con un ramo.</p>
+            <button class="ident__b" type="button" data-ir="dulce"></button>
+          </div>
+        </article>
+      </div>
     </div>
   </section>
 </main>
