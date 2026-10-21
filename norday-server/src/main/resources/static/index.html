@@ -317,6 +317,20 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 [data-id="neotokyo"] .ident__b[aria-pressed="true"]{box-shadow:none;outline:1.2px solid var(--aro);outline-offset:-1.2px}
 .ident__b:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 
+/* ── Tus datos ──────────────────────────────────────────────────────────── */
+.priv{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
+.priv__g{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(32px,6vw,96px);align-items:center}
+.priv__lead{margin-top:16px;color:var(--muted);font-size:calc(17px * var(--lectura));max-width:44ch}
+.priv__a{display:inline-block;margin-top:20px;color:var(--trazo);font-weight:600;font-size:calc(15px * var(--lectura));
+  text-underline-offset:3px}
+.priv__a:focus-visible{outline:2px solid var(--trazo);outline-offset:3px}
+.priv__l{list-style:none;display:flex;flex-direction:column;width:min(440px,100%);justify-self:center}
+.priv__f{display:flex;align-items:center;gap:16px;padding:14px 16px;margin-bottom:12px}
+.priv__f svg{flex:0 0 auto;width:22px;height:22px;fill:none;stroke:var(--trazo);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.priv__f b{display:block;font-family:var(--display),sans-serif;font-size:16px;font-weight:700}
+[data-id="dulce"] .priv__f b{font-family:'Caveat',cursive;font-size:20px}
+.priv__f span{display:block;margin-top:2px;color:var(--muted);font-size:calc(14px * var(--lectura))}
+
 /* Las reglas de identidad que cuelgan de <html> (las de la identidad activa)
    también alcanzarían a las tarjetas de las otras dos: aquí se fijan las de
    cada tarjeta, con más especificidad. */
@@ -348,13 +362,14 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
+html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
   .pasos__g{grid-template-columns:1fr;gap:56px}
   .bloque{grid-template-columns:1fr;gap:28px}
   .idents__g{grid-template-columns:1fr;max-width:440px}
+  .priv__g{grid-template-columns:1fr;gap:32px}
   .bloque--inv .bloque__t{order:0}
   .paso__v{min-height:0}
   .hero__g{grid-template-columns:1fr;gap:48px}
@@ -548,6 +563,35 @@ html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsT
           </div>
         </article>
       </div>
+    </div>
+  </section>
+
+  <section class="priv" aria-labelledby="privTit">
+    <div class="cont priv__g">
+      <div class="priv__t">
+        <p class="et">TUS DATOS</p>
+        <h2 id="privTit">Sin anuncios, y tus datos no se venden</h2>
+        <p class="priv__lead">Norday Habits guarda lo que necesita para funcionar: tu cuenta, tus hábitos y a Nori. No recoge datos de salud, contactos, fotos ni mensajes.</p>
+        <a class="priv__a" href="/privacidad.html">Lee la política de privacidad</a>
+      </div>
+      <ul class="priv__l">
+        <li class="sup priv__f">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          <div><b>Sin anuncios</b><span>Y nunca vendemos tus datos a nadie.</span></div>
+        </li>
+        <li class="sup priv__f">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          <div><b>Borras la cuenta y se va todo</b><span>Desde Perfil, al momento y sin copias guardadas.</span></div>
+        </li>
+        <li class="sup priv__f">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          <div><b>Una copia de tus datos, si la quieres</b><span>Pídela en hola@norday.app.</span></div>
+        </li>
+        <li class="sup priv__f">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <div><b>Todo viaja cifrado</b><span>Entre la app y el servidor, siempre por HTTPS.</span></div>
+        </li>
+      </ul>
     </div>
   </section>
 </main>

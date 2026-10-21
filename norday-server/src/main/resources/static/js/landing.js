@@ -1148,6 +1148,7 @@
     pintarPasos();
     pintarQueda();
     pintarIdentidades();
+    [].forEach.call(document.querySelectorAll('.priv__f'), function (el) { decorar(el); });
     HABITOS.forEach(pintarFila);
     pintarCieloApp();
     pintarNori(false);
