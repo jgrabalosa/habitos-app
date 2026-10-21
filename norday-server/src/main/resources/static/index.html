@@ -331,6 +331,27 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 [data-id="dulce"] .priv__f b{font-family:'Caveat',cursive;font-size:20px}
 .priv__f span{display:block;margin-top:2px;color:var(--muted);font-size:calc(14px * var(--lectura))}
 
+/* ── Detrás y preguntas ─────────────────────────────────────────────────── */
+.dudas{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
+.dudas__g{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(40px,6vw,96px);align-items:start}
+.autor__c{display:flex;gap:16px;align-items:flex-start;margin-top:24px}
+.autor__i{flex:0 0 auto;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--primary) 16%,transparent);color:var(--trazo);
+  font-family:var(--display),sans-serif;font-weight:700;font-size:22px}
+[data-id="neotokyo"] .autor__i{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.autor__c p{color:var(--muted);font-size:calc(17px * var(--lectura));max-width:44ch}
+.autor__c a,.faq a{color:var(--trazo);font-weight:600;text-underline-offset:3px}
+.faq__l{margin-top:24px;border-top:1px solid color-mix(in srgb,var(--aro) 45%,transparent)}
+.faq details{border-bottom:1px solid color-mix(in srgb,var(--aro) 45%,transparent)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;
+  padding:18px 0;font-family:var(--display),sans-serif;font-size:18px;font-weight:700;color:var(--text)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'';flex:0 0 auto;width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(45deg) translateY(-3px);transition:transform .25s var(--curva)}
+.faq details[open] summary::after{transform:rotate(-135deg) translateY(-3px)}
+.faq summary:focus-visible{outline:2px solid var(--trazo);outline-offset:4px}
+.faq details p{padding:0 0 18px;color:var(--muted);font-size:calc(16px * var(--lectura));max-width:56ch}
+
 /* Las reglas de identidad que cuelgan de <html> (las de la identidad activa)
    también alcanzarían a las tarjetas de las otras dos: aquí se fijan las de
    cada tarjeta, con más especificidad. */
@@ -362,7 +383,7 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
+html[data-id="neotokyo"] .dudas,html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
@@ -370,6 +391,7 @@ html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id
   .bloque{grid-template-columns:1fr;gap:28px}
   .idents__g{grid-template-columns:1fr;max-width:440px}
   .priv__g{grid-template-columns:1fr;gap:32px}
+  .dudas__g{grid-template-columns:1fr;gap:64px}
   .bloque--inv .bloque__t{order:0}
   .paso__v{min-height:0}
   .hero__g{grid-template-columns:1fr;gap:48px}
@@ -592,6 +614,35 @@ html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id
           <div><b>Todo viaja cifrado</b><span>Entre la app y el servidor, siempre por HTTPS.</span></div>
         </li>
       </ul>
+    </div>
+  </section>
+
+  <section class="dudas" aria-label="Quién la hace y preguntas">
+    <div class="cont dudas__g">
+      <div class="autor">
+        <p class="et">DETRÁS</p>
+        <h2>La hace una persona, no una empresa</h2>
+        <div class="autor__c">
+          <span class="autor__i" aria-hidden="true">Q</span>
+          <p>La escribí porque dejé cuatro apps de hábitos en el mismo punto: el día que rompes la racha y la app te lo recuerda. Esta no hace eso. Si algo no funciona, me escribes a <a href="mailto:hola@norday.app">hola@norday.app</a> y te contesto yo.</p>
+        </div>
+      </div>
+      <div class="faq">
+        <p class="et">DUDAS</p>
+        <h2>Preguntas</h2>
+        <div class="faq__l">
+          <details open><summary>¿Es gratis?</summary>
+            <p>Sí, y sin anuncios. Las identidades de la tienda se consiguen con los puntos que ganas marcando hábitos, no con dinero.</p></details>
+          <details><summary>¿Y si un día no llego?</summary>
+            <p>No pasa nada: no hay racha que se rompa. El día se queda vacío, sin rojo, y tu ritmo baja poco a poco hasta tu siguiente paso.</p></details>
+          <details><summary>¿Necesito conexión?</summary>
+            <p>Sí. Tus hábitos se guardan en tu cuenta y no solo en el móvil, así que si cambias de teléfono entras con tu cuenta y lo tienes todo.</p></details>
+          <details><summary>¿Hay versión para iPhone?</summary>
+            <p>Todavía no. Por ahora Norday Habits es solo para Android.</p></details>
+          <details><summary>¿En qué idiomas está?</summary>
+            <p>En español, inglés y portugués.</p></details>
+        </div>
+      </div>
     </div>
   </section>
 </main>
