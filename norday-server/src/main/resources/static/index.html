@@ -352,6 +352,22 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .faq summary:focus-visible{outline:2px solid var(--trazo);outline-offset:4px}
 .faq details p{padding:0 0 18px;color:var(--muted);font-size:calc(16px * var(--lectura));max-width:56ch}
 
+/* ── Cierre y pie ───────────────────────────────────────────────────────── */
+.final{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(72px,10vw,140px)}
+.final__c{display:flex;flex-direction:column;align-items:center;text-align:center}
+.final__nori{width:120px;height:120px}
+.final h2{margin-top:16px;max-width:18ch;font-size:clamp(34px,4.6vw,60px)}
+.final__lead{margin-top:16px;color:var(--muted);font-size:calc(18px * var(--lectura));max-width:44ch}
+.final__d{justify-content:center}
+.pie{position:relative;z-index:10;border-top:1px solid color-mix(in srgb,var(--aro) 40%,transparent);padding:32px 0 40px}
+.pie__c{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 32px}
+.pie__m{font-family:var(--display),sans-serif;font-weight:700;font-size:16px;letter-spacing:var(--track-h);text-transform:var(--tt)}
+.pie__n{display:flex;flex-wrap:wrap;gap:8px 24px}
+.pie__n a{color:var(--muted);text-decoration:none;font-size:calc(14px * var(--lectura))}
+.pie__n a:hover{color:var(--trazo)}
+.pie__n a:focus-visible{outline:2px solid var(--trazo);outline-offset:3px}
+.pie__a{color:var(--muted);font-size:calc(13px * var(--lectura))}
+
 /* Las reglas de identidad que cuelgan de <html> (las de la identidad activa)
    también alcanzarían a las tarjetas de las otras dos: aquí se fijan las de
    cada tarjeta, con más especificidad. */
@@ -383,7 +399,7 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-html[data-id="neotokyo"] .dudas,html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
+html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neotokyo"] .dudas,html[data-id="neotokyo"] .priv__t,html[data-id="neotokyo"] .priv__f,html[data-id="neotokyo"] .idents > .cont > .et,html[data-id="neotokyo"] #identsTit,html[data-id="neotokyo"] .idents__lead,[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
@@ -645,7 +661,38 @@ html[data-id="neotokyo"] .dudas,html[data-id="neotokyo"] .priv__t,html[data-id="
       </div>
     </div>
   </section>
+
+  <section class="final" aria-labelledby="finalTit">
+    <div class="cont final__c">
+      <img class="final__nori" src="img/nori/huevo_sonriente.webp" width="120" height="120" alt="Nori en fase de huevo" loading="lazy">
+      <h2 id="finalTit">Empieza con un hábito pequeño</h2>
+      <p class="final__lead">Gratis, sin anuncios y sin rachas que se rompen. Nori te espera en el huevo.</p>
+      <div class="descarga final__d">
+        <!-- PENDIENTE (Día D): la misma insignia y el mismo enlace UTM que en el hero. -->
+        <div class="pendiente insignia" data-pendiente="insignia-play-cierre">Insignia de<br>Google Play</div>
+        <!-- PENDIENTE (Día D): el mismo QR que en el hero. -->
+        <div class="qr">
+          <div class="pendiente qr__c" data-pendiente="qr-cierre">QR</div>
+          <p class="qr__t">¿Estás en el ordenador? Escanéalo con el móvil.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
+
+<footer class="pie">
+  <div class="cont pie__c">
+    <span class="pie__m">Norday Habits</span>
+    <nav class="pie__n" aria-label="Enlaces">
+      <a href="/privacidad.html">Privacidad</a>
+      <a href="/eliminar-cuenta.html">Eliminar cuenta</a>
+      <a href="mailto:hola@norday.app">hola@norday.app</a>
+      <a href="https://www.instagram.com/nordayapp/" rel="noopener">Instagram</a>
+      <a href="https://www.threads.net/@nordayapp" rel="noopener">Threads</a>
+    </nav>
+    <span class="pie__a">Hecha por Joaquim Grabalosa</span>
+  </div>
+</footer>
 
 <div class="cierre" id="cierre" role="dialog" aria-live="polite" aria-label="Cierre del día">
   <canvas id="cierreCv"></canvas>
