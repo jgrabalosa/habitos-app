@@ -81,11 +81,17 @@ body{min-height:100vh;background:var(--bg);color:var(--text);
   font-family:var(--cuerpo),system-ui,sans-serif;font-size:calc(17px * var(--lectura));line-height:1.55;
   -webkit-font-smoothing:antialiased;overflow-x:hidden}
 .cont{width:min(1200px,100% - 32px);margin-inline:auto}
+/* Los dibujos que sobresalen (el cielo de la constelación, las sombras a lápiz)
+   se recortan aquí, para que la página nunca se mueva de lado. */
+main{overflow-x:clip}
 button{font:inherit;color:inherit}
 a{color:inherit}
 
 /* Fondo de la identidad: el mismo dibujo que hay detrás de Hoy en la app. */
-#fondo{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#fondo{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;transition:opacity .6s ease}
+/* Pasado el hero, el mundo se aleja: es el NivelFondo.habitacion de la app,
+   el mismo cielo, ciudad o burbujas al 0,55. */
+#fondo.lejos{opacity:.55}
 /* El grano de papel de Dulce, por encima de todo, como `GranoPapel`. */
 #grano{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none;display:none}
 [data-id="dulce"] #grano{display:block}
@@ -209,6 +215,33 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
 @keyframes neon{from{opacity:.7}to{opacity:1}}
 .fila__deco.late{animation:neon 1.2s ease-in-out infinite alternate}
 
+/* ── Cómo funciona ──────────────────────────────────────────────────────── */
+.pasos{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
+/* La etiqueta de sección de la app (titleSmall): 12, 800, espaciada. */
+.et{font-family:var(--display),sans-serif;font-size:12px;font-weight:800;letter-spacing:var(--track-et);color:var(--muted)}
+h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--track-h);
+  text-transform:var(--tt);font-size:clamp(30px,3.6vw,46px);line-height:1.08;text-wrap:balance;max-width:20ch}
+.pasos__g{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(32px,4vw,56px);margin-top:clamp(40px,5vw,64px)}
+.paso{display:flex;flex-direction:column;min-width:0}
+/* Los tres dibujos comparten alto: así los títulos quedan alineados. */
+.paso__v{min-height:236px;display:flex;flex-direction:column;justify-content:center;margin-bottom:24px}
+.paso__n{font-family:var(--display),sans-serif;font-size:14px;font-weight:700;color:var(--points);font-variant-numeric:tabular-nums}
+.paso h3{margin-top:6px;font-family:var(--display),sans-serif;font-size:22px;font-weight:700;line-height:1.2;
+  letter-spacing:var(--track-h);text-transform:var(--tt);text-wrap:balance}
+[data-id="neotokyo"] .paso h3{font-size:19px}
+.paso p{margin-top:10px;color:var(--muted);font-size:calc(16px * var(--lectura));max-width:38ch}
+.fila--sola{margin-bottom:0}
+.paso__v--nori{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:8px}
+.paso__v--nori figure{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}
+.paso__v--nori img{width:100%;max-width:104px;height:auto;aspect-ratio:1}
+.paso__v--nori figure:nth-child(1) img{max-width:84px}
+.paso__v--nori figure:nth-child(2) img{max-width:96px}
+.paso__v--nori figcaption{font-family:var(--display),sans-serif;font-size:12px;font-weight:800;letter-spacing:var(--track-et);
+  color:var(--muted);text-transform:uppercase}
+.tira--sola{grid-template-columns:repeat(7,1fr)}
+.paso__v--ritmo .ritmo{margin-top:16px}
+.paso__nota{margin-top:4px;padding-inline:16px;font-size:calc(14px * var(--lectura));color:var(--muted)}
+
 /* ── Cierre del día (Profundidad) ───────────────────────────────────────── */
 .cierre{position:fixed;inset:0;z-index:50;cursor:pointer;display:none}
 .cierre.on{display:block}
@@ -221,10 +254,12 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-[data-id="neotokyo"] .hero__t{text-shadow:0 0 14px #090614,0 0 4px #090614}
+[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
+  .pasos__g{grid-template-columns:1fr;gap:56px}
+  .paso__v{min-height:0}
   .hero__g{grid-template-columns:1fr;gap:48px}
   .lead{max-width:44ch}
 }
@@ -270,7 +305,7 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
       <div class="app" id="app" role="group" aria-label="La pantalla Hoy de Norday Habits. Puedes marcar los hábitos.">
         <div class="tira" id="tira" aria-hidden="true"></div>
         <div class="ritmo" id="ritmo" aria-label="Tu ritmo: Buen ritmo, nivel 3 de 5">
-          <span class="ritmo__p">Buen ritmo</span><canvas id="ritmoInd" width="1" height="1"></canvas>
+          <span class="ritmo__p">Buen ritmo</span><canvas class="ritmo__i" width="1" height="1"></canvas>
         </div>
         <div class="sec" aria-hidden="true">HOY <b id="cuenta">1 de 4</b>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></div>
@@ -278,6 +313,43 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
         <canvas class="app__cielo" id="cielo" aria-hidden="true"></canvas>
         <div class="nori" id="nori"><img id="noriImg" src="img/nori/cria_sonriente.webp" width="108" height="108" alt="Nori, la mascota"></div>
       </div>
+    </div>
+  </section>
+
+  <section class="pasos" aria-labelledby="pasosTit">
+    <div class="cont">
+      <p class="et">CÓMO FUNCIONA</p>
+      <h2 id="pasosTit">Marcas, Nori crece y nada se rompe</h2>
+      <ol class="pasos__g">
+        <li class="paso">
+          <div class="paso__v" id="pasoFila"></div>
+          <span class="paso__n">1</span>
+          <h3>Marca lo que has hecho</h3>
+          <p>Un toque en el círculo y queda hecho. Si te equivocas, otro toque lo deshace.</p>
+        </li>
+        <li class="paso">
+          <div class="paso__v paso__v--nori">
+            <figure><img src="img/nori/huevo_sonriente.webp" width="96" height="96" alt="Nori en fase de huevo" loading="lazy"><figcaption>Huevo</figcaption></figure>
+            <figure><img src="img/nori/cria_sonriente.webp" width="96" height="96" alt="Nori en fase de cría" loading="lazy"><figcaption>Cría</figcaption></figure>
+            <figure><img src="img/nori/adulto_sonriente.webp" width="96" height="96" alt="Nori adulto" loading="lazy"><figcaption>Adulto</figcaption></figure>
+          </div>
+          <span class="paso__n">2</span>
+          <h3>Nori crece contigo</h3>
+          <p>Cada hábito que marcas le da experiencia. Empieza siendo un huevo, sale del cascarón y llega a adulto. Se despierta en cuanto das el primer paso del día.</p>
+        </li>
+        <li class="paso">
+          <div class="paso__v paso__v--ritmo">
+            <div class="tira tira--sola" id="pasoTira" aria-hidden="true"></div>
+            <div class="ritmo" id="pasoRitmo" aria-label="Tu ritmo: Cogiendo ritmo, nivel 2 de 5">
+              <span class="ritmo__p">Cogiendo ritmo</span><canvas class="ritmo__i" width="1" height="1"></canvas>
+            </div>
+            <p class="paso__nota">Un paso hoy y vuelve a subir.</p>
+          </div>
+          <span class="paso__n">3</span>
+          <h3>Si un día no llegas, no se rompe nada</h3>
+          <p>No hay racha que vuelva a cero. Tu ritmo baja poco a poco y sube otra vez con el siguiente paso.</p>
+        </li>
+      </ol>
     </div>
   </section>
 </main>

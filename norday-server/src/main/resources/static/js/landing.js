@@ -689,9 +689,9 @@
   }
 
   /* ── Las filas ───────────────────────────────────────────────────────── */
-  HABITOS.forEach(function (h, i) {
+  function construirFila(h, alTocar) {
     var f = document.createElement('div');
-    f.className = 'fila'; f.dataset.i = i;
+    f.className = 'fila';
     f.innerHTML =
       '<canvas class="fila__deco" aria-hidden="true"></canvas>' +
       '<div class="fila__i"><span class="fila__n">' + h.n + '</span>' +
@@ -702,8 +702,10 @@
     h.check = f.querySelector('.check');
     h.cv = f.querySelector('.check canvas');
     h.v = h.hecho ? 1 : 0;
-    h.check.addEventListener('click', function () { alternar(h); });
-  });
+    h.check.addEventListener('click', function () { alTocar(h); });
+    return f;
+  }
+  HABITOS.forEach(function (h) { construirFila(h, alternar); });
 
   function pintarFila(h) {
     var f = h.el;
@@ -753,16 +755,18 @@
     if (i > indiceHoy) return null;
     return HABITOS.filter(function (h) { return estadoDia(h, i) === 'lleno'; }).length / HABITOS.length;
   }
-  function pintarTira() {
-    var t = T(), html = FL_IZQ;
+  /* La tira de siete días (tira_semana.dart). `avanceDe(i)` da lo hecho ese
+     día de 0 a 1, o null si no se espera nada; `elegido` es el día marcado. */
+  function pintarTira(cont, desde, avanceDe, elegido, flechas) {
+    var t = T(), html = flechas ? FL_IZQ : '';
     for (var i = 0; i < 7; i++) {
-      var d = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
-      html += '<div class="dia"><span class="dia__n">' + DIAS[i] + '</span><span class="dia__c' + (i === indiceHoy ? ' sel' : '') +
+      var d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate() + i);
+      html += '<div class="dia"><span class="dia__n">' + DIAS[i] + '</span><span class="dia__c' + (i === elegido ? ' sel' : '') +
         '"><canvas aria-hidden="true"></canvas><span style="position:relative">' + d.getDate() + '</span></span><canvas class="dia__b"></canvas></div>';
     }
-    tira.innerHTML = html + FL_DER;
-    [].forEach.call(tira.querySelectorAll('.dia'), function (el, i) {
-      var sel = i === indiceHoy, cv = el.querySelector('.dia__c canvas'), pad = 8;
+    cont.innerHTML = html + (flechas ? FL_DER : '');
+    [].forEach.call(cont.querySelectorAll('.dia'), function (el, i) {
+      var sel = i === elegido, cv = el.querySelector('.dia__c canvas'), pad = 8;
       cv.style.position = 'absolute'; cv.style.left = cv.style.top = -pad + 'px';
       var c = preparar(cv, 32 + 2 * pad, 32 + 2 * pad); c.translate(pad, pad);
       var color = sel ? rgba(t.primary, 0.18) : t.inactivo;
@@ -779,7 +783,7 @@
         c.restore();
         if (sel) { c.lineWidth = 2; c.strokeStyle = t.text; c.beginPath(); if (c.roundRect) c.roundRect(1, 1, 30, 30, r); else c.rect(1, 1, 30, 30); c.stroke(); }
       }
-      var av = avanceDia(i), bc = preparar(el.querySelector('.dia__b'), 14, 4);
+      var av = avanceDe(i), bc = preparar(el.querySelector('.dia__b'), 14, 4);
       if (av == null) { bc.fillStyle = t.inactivo; bc.beginPath(); bc.arc(7, 2, 2, 0, Math.PI * 2); bc.fill(); }
       else if (t.forma === 'pill') {
         trazoLapiz(bc, linea(0, 2, 14, 2), t.aro, 1.6, 12);
@@ -793,11 +797,11 @@
 
   /* ── Tarjeta del ritmo ───────────────────────────────────────────────── */
   var ritmo = document.getElementById('ritmo');
-  function pintarTarjetaRitmo() {
-    var deco = ritmo.querySelector('.fila__deco');
-    if (!deco) { deco = document.createElement('canvas'); deco.className = 'fila__deco'; deco.setAttribute('aria-hidden', 'true'); ritmo.insertBefore(deco, ritmo.firstChild); }
-    pintarSuperficie(deco, ritmo.offsetWidth, ritmo.offsetHeight, 'fijo', 20);
-    pintarRitmo(document.getElementById('ritmoInd'), 3, 20);
+  function pintarTarjetaRitmo(tarjeta, nivel) {
+    var deco = tarjeta.querySelector('.fila__deco');
+    if (!deco) { deco = document.createElement('canvas'); deco.className = 'fila__deco'; deco.setAttribute('aria-hidden', 'true'); tarjeta.insertBefore(deco, tarjeta.firstChild); }
+    pintarSuperficie(deco, tarjeta.offsetWidth, tarjeta.offsetHeight, 'fijo', 20);
+    pintarRitmo(tarjeta.querySelector('.ritmo__i'), nivel, 20);
   }
 
   /* ── Nori ────────────────────────────────────────────────────────────── */
@@ -821,7 +825,7 @@
     // El fondo cambia con el avance del día, como publicarProgresoDia.
     if (idActual === 'neotokyo') animarFondo(h.hecho ? antes * 0.55 : null);
     else if (idActual === 'dulce') animarFondo(h.hecho ? visiblesBurbujas(antes) : null);
-    pintarTira();
+    pintarTiraHoy();
     if (h.hecho) {
       if (!quieto) vuelos[antesHechos] = { t: 0, t0: performance.now(), dur: 900 };
       pintarNori(true);
@@ -896,11 +900,47 @@
   }
   botones.forEach(function (b) { b.addEventListener('click', function () { aplicar(b.dataset.ir); }); });
 
+  function pintarTiraHoy() { pintarTira(tira, lunes, avanceDia, indiceHoy, true); }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     CÓMO FUNCIONA — tres pasos
+     ══════════════════════════════════════════════════════════════════════ */
+  // Paso 1: una fila suelta, que se marca y se desmarca sin tocar el resto.
+  var DEMO = { n: 'Estirar 5 minutos', ritmo: 3, pasado: [1, 1, 0, 1, 1, 0], hecho: false };
+  construirFila(DEMO, function (h) {
+    h.hecho = !h.hecho;
+    var hasta = h.hecho ? 1 : 0, desde = h.v;
+    h.v = hasta;
+    pintarFila(h);
+    animarCheck(h.cv, desde, hasta);
+    pintarSuperficie(h.el.querySelector('.fila__deco'), h.el.offsetWidth, h.el.offsetHeight, h.hecho ? 'encendido' : 'late', 20);
+  });
+  DEMO.el.classList.add('fila--sola');
+  document.getElementById('pasoFila').appendChild(DEMO.el);
+
+  // Paso 3: la semana pasada, con un día sin nada. La barrita se queda
+  // vacía, sin rojo: la app nunca pinta un fallo.
+  var SEMANA_PASADA = [1, 0.75, 0, 0.5, 1, 0.75, 1];
+  var lunesPasado = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() - 7);
+  function pintarPasos() {
+    pintarTira(document.getElementById('pasoTira'), lunesPasado, function (i) { return SEMANA_PASADA[i]; }, -1, false);
+    pintarTarjetaRitmo(document.getElementById('pasoRitmo'), 2);
+    pintarFila(DEMO);
+  }
+
+  // El fondo se aleja (0,55) en cuanto el hero deja de verse.
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) {
+      fondo.classList.toggle('lejos', !e[0].isIntersecting);
+    }, { threshold: 0.35 }).observe(document.querySelector('.hero'));
+  }
+
   function redibujar() {
     VW = window.innerWidth; VH = window.innerHeight;
     generarCielo();
     pintarFondo(); pintarGrano();
-    pintarTira(); pintarTarjetaRitmo();
+    pintarTiraHoy(); pintarTarjetaRitmo(ritmo, 3);
+    pintarPasos();
     HABITOS.forEach(pintarFila);
     pintarCieloApp();
     pintarNori(false);
