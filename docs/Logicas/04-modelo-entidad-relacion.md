@@ -97,16 +97,16 @@ Cada logro desbloqueado por ese completado, incluidos los que dispara indirectam
 
 ### Racha (heredada)
 
-La tabla `racha` sigue existiendo. `RegistroService` la sigue escribiendo al completar un hábito: cuando se alcanza la meta del periodo, `actualizarRacha` sube `rachaActual` y `rachaMaxima` y guarda `periodoMetaAlcanzada` y `ultimaFecha`; si se completa una fecha pasada, la recalcula a partir de los registros.
+La tabla `racha` sigue existiendo, pero ya no se escribe: desde el 21-oct-2026 `RegistroService` no la actualiza al completar un hábito y `HabitoService.actualizar` no la reinicia al cambiar la frecuencia. Los valores guardados quedan congelados.
 
 Es una racha heredada:
 
 - ya no da puntos ni cuenta para los logros de constancia: el hito de racha ya no se genera (el bloque que lo creaba está comentado), y los hitos y logros van por días hechos del hábito;
-- el backend sigue enviándola en el detalle del hábito (`rachaActual` y `rachaMaxima` en `HabitoDetalleDTO`), porque la app ya instalada la lee; la app nueva lee el ritmo;
+- el backend sigue enviándola en el detalle del hábito (`rachaActual` y `rachaMaxima` en `HabitoDetalleDTO`), porque la app ya instalada la lee; como ya no se actualiza, `rachaActual` acaba en cero por la rotura perezosa y `rachaMaxima` no cambia; la app nueva lee el ritmo;
 - su rotura sigue siendo perezosa: `Racha.sigueViva` y `RachaService.rachaActualVigente` ponen `rachaActual` a cero cuando se lee una racha rota;
 - el aviso de racha en peligro (`NotificadorRachaEnPeligro`) existe, pero su programación está comentada: hoy no se envía.
 
-Al deshacer un completado, la racha vuelve a su estado previo a partir de la `ReversionRegistro`.
+Al deshacer un completado, la racha vuelve a su estado previo a partir de la `ReversionRegistro`; como la racha ya no cambia, restaura los mismos valores.
 
 ### Ritmo
 
@@ -318,7 +318,7 @@ Esto es especialmente relevante para:
 
 - Un hábito pertenece a un usuario.
 - Un registro pertenece a un hábito.
-- La racha heredada se escribe al completar un hábito cuando se alcanza la meta de su periodo; deshacer un completado la devuelve a su estado previo.
+- La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
 - Un hábito en pausa no se puede completar, no se pone al día y no entra en Hoy ni en el ritmo general.
 - Los efectos de gamificación se registran mediante movimientos y concesiones de logros.

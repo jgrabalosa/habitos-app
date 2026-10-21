@@ -157,15 +157,6 @@ public class HabitoService {
             ritmoService.anclarAntesDeCambiar(existente);
         }
         habitoDAO.update(habito);
-
-        if (cambioFrecuencia) {
-            Racha racha = rachaDAO.findByHabito(habito);
-            if (racha != null) {
-                racha.setRachaActual(0);
-                racha.setPeriodoMetaAlcanzada(null);
-                rachaDAO.update(racha);
-            }
-        }
     }
 
     @Transactional

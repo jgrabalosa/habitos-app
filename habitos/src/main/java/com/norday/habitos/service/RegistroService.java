@@ -25,8 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -124,13 +122,11 @@ public class RegistroService {
         // abajo y aquí leeríamos ya los valores nuevos.
         int saldoAntes = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
         Racha rachaPrevia = rachaDAO.findByHabito(habito);
-        // La rotura perezosa se materializa aquí, antes de la instantánea.
-        // La regla vive en Racha.sigueViva y la materializa
-        // RachaService.rachaActualVigente: no se duplica en este servicio.
-        // Si la racha ya no está viva queda en 0 en BD, y tanto la
-        // instantánea como actualizarRacha parten de ese 0. Sin esto,
-        // completar tras dos semanas de abandono continúa la racha vieja
-        // y cobra hitos que no corresponden.
+        // La racha ya no se actualiza al completar (apagada el 21-oct-2026,
+        // C3 del roadmap); solo se conserva su estado para que deshacer lo
+        // restaure. La rotura perezosa se materializa aquí, antes de la
+        // instantánea: la regla vive en Racha.sigueViva y la materializa
+        // RachaService.rachaActualVigente.
         rachaService.rachaActualVigente(rachaPrevia);
         Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
         Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
@@ -188,11 +184,6 @@ public class RegistroService {
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
         }
-
-        // La racha se sigue actualizando para la app ya instalada, que la
-        // enseña en el detalle; se apaga al publicar la app nueva (bloque G).
-        // Ya no paga nada: los hitos van por días hechos.
-        actualizarRacha(habito, rachaPrevia, completadosAntes + 1, meta, hoy, fecha);
 
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
         // hechos en total, seguidos o no. Rellenar un hueco no vuelve a
@@ -280,102 +271,6 @@ public class RegistroService {
     public int contarCompletadosPeriodoActual(Habito habito) {
         LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(rachaService.hoyDe(habito));
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
-    }
-
-    /**
-     * Actualiza la racha SOLO si se alcanza la meta del periodo por primera vez en ese periodo.
-     * Devuelve true si la racha acaba de subir en esta llamada (para disparar puntos de hito).
-     */
-    // La Racha llega como parámetro, no se relee: completarHabito ya la leyó
-    // y rachaService.rachaActualVigente pudo normalizarla a 0. Releerla aquí
-    // devolvería otra instancia sin ese 0 si las lecturas no comparten
-    // contexto de persistencia, y una racha muerta continuaría en vez de
-    // reiniciarse.
-    private boolean actualizarRacha(Habito habito, Racha racha, int completadosEnPeriodo,
-                                    int meta, LocalDate hoy, LocalDate fecha) {
-        if (racha == null) return false;
-
-        int actualAntes = racha.getRachaActual();
-        LocalDate[] periodoObjetivo = habito.getFrecuencia().rangoPeriodo(fecha);
-
-        if (racha.getPeriodoMetaAlcanzada() != null
-                && racha.getPeriodoMetaAlcanzada().equals(periodoObjetivo[0])) {
-            return false; // ya subió este periodo, completar de más no hace nada
-        }
-
-        if (completadosEnPeriodo >= meta) {
-            if (!fecha.equals(hoy)) {
-                return recalcularRachaTrasFechaPasada(habito, racha, meta, hoy, actualAntes);
-            }
-            racha.setRachaActual(actualAntes + 1);
-            if (racha.getRachaActual() > racha.getRachaMaxima()) racha.setRachaMaxima(racha.getRachaActual());
-            racha.setPeriodoMetaAlcanzada(periodoObjetivo[0]);
-            racha.setUltimaFecha(fecha);
-            rachaDAO.update(racha);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Una fecha pasada puede rellenar un hueco y conectar dos tramos. En ese
-     * caso no basta con sumar uno al valor materializado: se reconstruyen las
-     * rachas de periodos a partir de los registros existentes. El snapshot de
-     * ReversionRegistro conserva el estado anterior para poder deshacerlo.
-     */
-    private boolean recalcularRachaTrasFechaPasada(Habito habito, Racha racha, int meta,
-                                                   LocalDate hoy, int actualAntes) {
-        Map<LocalDate, Integer> completadosPorPeriodo = new HashMap<>();
-        for (Registro registro : registroDAO.findByHabito(habito)) {
-            if (!registro.isCompletado()) continue;
-            LocalDate inicio = habito.getFrecuencia().rangoPeriodo(registro.getFecha())[0];
-            completadosPorPeriodo.merge(inicio, 1, Integer::sum);
-        }
-
-        Set<LocalDate> cumplidos = new HashSet<>();
-        for (Map.Entry<LocalDate, Integer> entrada : completadosPorPeriodo.entrySet()) {
-            if (entrada.getValue() >= meta) cumplidos.add(entrada.getKey());
-        }
-        if (cumplidos.isEmpty()) return false;
-
-        LocalDate ultimoPeriodo = cumplidos.stream().max(Comparator.naturalOrder()).orElseThrow();
-        LocalDate periodoAnterior = habito.getFrecuencia().inicioPeriodoAnterior(hoy);
-        int actual = 0;
-        if (!ultimoPeriodo.isBefore(periodoAnterior)) {
-            LocalDate cursor = ultimoPeriodo;
-            while (cumplidos.contains(cursor)) {
-                actual++;
-                cursor = habito.getFrecuencia() == Frecuencia.SEMANAL
-                        ? cursor.minusWeeks(1) : cursor.minusDays(1);
-            }
-        }
-
-        int maxima = 0;
-        int tramo = 0;
-        LocalDate cursor = cumplidos.stream().min(Comparator.naturalOrder()).orElseThrow();
-        LocalDate limite = ultimoPeriodo;
-        while (!cursor.isAfter(limite)) {
-            if (cumplidos.contains(cursor)) {
-                tramo++;
-                maxima = Math.max(maxima, tramo);
-            } else {
-                tramo = 0;
-            }
-            cursor = habito.getFrecuencia() == Frecuencia.SEMANAL
-                    ? cursor.plusWeeks(1) : cursor.plusDays(1);
-        }
-
-        racha.setRachaActual(actual);
-        racha.setRachaMaxima(Math.max(racha.getRachaMaxima(), maxima));
-        racha.setPeriodoMetaAlcanzada(ultimoPeriodo);
-        List<Registro> registros = registroDAO.findByHabito(habito);
-        registros.stream()
-                .filter(r -> habito.getFrecuencia().rangoPeriodo(r.getFecha())[0].equals(ultimoPeriodo))
-                .max(Comparator.comparing(Registro::getFecha).thenComparing(Registro::getRegistroId))
-                .ifPresent(r -> racha.setUltimaFecha(r.getFecha()));
-        rachaDAO.update(racha);
-        return actual > actualAntes;
     }
 
     // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.puntosDeHitos).

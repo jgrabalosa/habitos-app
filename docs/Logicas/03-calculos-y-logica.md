@@ -72,7 +72,7 @@ Los valores están en un solo sitio y son provisionales: se ajustan con uso real
 
 Antes de guardar el cambio, el ritmo se ancla con el hábito tal como estaba, calculado con las reglas antiguas. Así lo ya cerrado no se vuelve a juzgar con las reglas nuevas. El ancla pasa a hoy y el periodo en curso solo puede subir: un cambio nunca perjudica.
 
-Un cambio de **frecuencia** además pone la racha a cero y borra su periodo de meta alcanzada. Un cambio de **objetivo** no toca la racha.
+La racha no se toca en ninguno de los dos cambios.
 
 ### Pausa
 
@@ -84,12 +84,11 @@ Un hábito en pausa no se pone al día: su ritmo se queda donde se pausó. Al re
 
 La racha ya no es la medida que se muestra al usuario: la sustituye el ritmo. Lo que sigue pasando con la racha es esto, y nada más.
 
-- **Qué se escribe**: al completar un hábito, si se alcanza la meta del periodo por primera vez en ese periodo, sube `rachaActual` y, si supera a la máxima, también `rachaMaxima`. Se guardan `periodoMetaAlcanzada` y `ultimaFecha`. Completar más registros en un periodo ya cumplido no toca la racha.
-- **Completar una fecha pasada**: solo si esa fecha alcanza la meta de su periodo, la racha se recalcula a partir de los registros existentes. Así un registro que rellena un hueco y conecta dos tramos los une.
-- **Rotura perezosa**: no hay ningún proceso que ponga rachas a cero. Una racha está viva si la meta se alcanzó en el periodo actual o en el anterior. Cuando se lee una racha muerta, `RachaService.rachaActualVigente` pone `rachaActual` a cero, lo guarda y devuelve cero. `rachaMaxima` no cambia al romperse.
+- **Qué se escribe**: nada. Desde el 21-oct-2026 ni completar un hábito (tampoco una fecha pasada) ni cambiar su frecuencia tocan la racha: los valores guardados quedan congelados.
+- **Rotura perezosa**: no hay ningún proceso que ponga rachas a cero. Una racha está viva si la meta se alcanzó en el periodo actual o en el anterior. Cuando se lee una racha muerta, `RachaService.rachaActualVigente` pone `rachaActual` a cero, lo guarda y devuelve cero. `rachaMaxima` no cambia al romperse. Con la racha congelada, es lo único que ya la modifica.
 - **Qué no hace**: no da puntos, no cuenta para ningún logro y no genera ningún hito. Los logros de constancia van por días hechos (ver «Catálogo de logros»).
-- **Qué sigue enviando el backend**: `rachaActual` y `rachaMaxima` en el detalle del hábito, porque la aplicación ya instalada las lee.
-- **Reversión**: deshacer un completado devuelve la racha a su estado previo (ver «Reversión de un completado»).
+- **Qué sigue enviando el backend**: `rachaActual` y `rachaMaxima` en el detalle del hábito, porque la aplicación ya instalada las lee. Como ya no se actualiza, `rachaActual` acaba en cero y `rachaMaxima` no cambia.
+- **Reversión**: deshacer un completado restaura el estado previo de la racha, que no ha cambiado (ver «Reversión de un completado»).
 
 ---
 
