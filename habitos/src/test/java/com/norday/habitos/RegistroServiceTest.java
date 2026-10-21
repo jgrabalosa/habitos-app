@@ -216,7 +216,7 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarTrasAlcanzarLaMeta_seRechazaConflicto() {
+    void alCompletarTrasAlcanzarLaMeta_seRechazaConConflicto() {
         habito.setMeta(3);
 
         List<Registro> registrosPrevios = List.of(
