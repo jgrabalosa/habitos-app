@@ -105,7 +105,7 @@ class HabitoServiceTest {
     }
 
     @Test
-    void alCambiarLaFrecuencia_laRachaSeReseteaACero() {
+    void alCambiarLaFrecuencia_laRachaNoSeToca() {
         // Arrange: llega un hábito con la MISMA id pero frecuencia distinta (SEMANAL)
         Habito habitoEditado = new Habito();
         habitoEditado.setHabitoId(20);
@@ -115,15 +115,16 @@ class HabitoServiceTest {
         habitoEditado.setPropietario(usuario);
 
         when(habitoDAO.findById(20)).thenReturn(existente);
-        when(rachaDAO.findByHabito(habitoEditado)).thenReturn(racha);
 
         // Act
         habitoService.actualizar(habitoEditado, null);
 
-        // Assert: la racha se resetea, pero la racha máxima NO se toca
-        assertEquals(0, racha.getRachaActual());
-        assertNull(racha.getPeriodoMetaAlcanzada());
+        // Assert: la racha ya no se reinicia al cambiar la frecuencia
+        verify(rachaDAO, never()).findByHabito(any());
+        verify(rachaDAO, never()).update(any());
+        assertEquals(5, racha.getRachaActual());
         assertEquals(5, racha.getRachaMaxima());
+        assertNotNull(racha.getPeriodoMetaAlcanzada());
     }
 
     @Test
