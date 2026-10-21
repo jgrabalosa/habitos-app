@@ -23,21 +23,21 @@
       forma: 'glass', bg: '#070D19', surface: '#1E2E4C', surface2: '#101B2F',
       primary: '#27C76F', success: '#27C76F', streak: '#FFB020', points: '#FFB020',
       text: '#EEF2F6', muted: '#A3B3C9', inactivo: '#3F4551', aro: '#8D95A0',
-      trazo: '#27C76F', successText: '#27C76F', transicion: 280,
+      trazo: '#27C76F', successText: '#27C76F', pointsText: '#FFB020', surfaceAlta: '#2B4068', transicion: 280,
       curva: [0.215, 0.61, 0.355, 1]
     },
     neotokyo: {
       forma: 'chamfer', bg: '#090614', surface: '#110B21', surface2: '#160F28',
       primary: '#FF2E88', success: '#FF2E88', streak: '#00E5FF', points: '#FFE347',
       text: '#F5EEFF', muted: '#A08FC2', inactivo: '#473E5B', aro: '#6A5D85',
-      trazo: '#FF2E88', successText: '#FF2E88', transicion: 200, chaflan: 10,
+      trazo: '#FF2E88', successText: '#FF2E88', pointsText: '#FFE347', surfaceAlta: '#1D1433', transicion: 200, chaflan: 10,
       curva: [0.19, 1, 0.22, 1]
     },
     dulce: {
       forma: 'pill', bg: '#FFFCF5', surface: '#FFFCF5', surface2: '#F6EFE3',
       primary: '#FF6FA5', success: '#E53F80', streak: '#E53F80', points: '#E86A58',
       text: '#4A2E3D', muted: '#7E3A67', inactivo: '#C9ABB9', aro: '#A57492',
-      trazo: '#E53F80', successText: '#B01E5A', transicion: 320,
+      trazo: '#E53F80', successText: '#B01E5A', pointsText: '#BB2E1A', surfaceAlta: '#FFFCF5', transicion: 320,
       curva: [0.175, 0.885, 0.32, 1.275]
     }
   };
@@ -623,17 +623,24 @@
   }
 
   /* ── Superficie de una fila (superficie_identidad.dart) ──────────────── */
-  function pintarSuperficie(cv, w, h, estado, radio) {
+  function pintarSuperficie(cv, w, h, estado, radio, prota) {
     var t = T(), pad = 14;
     cv.style.left = cv.style.top = -pad + 'px';
     var c = preparar(cv, w + 2 * pad, h + 2 * pad);
     c.translate(pad, pad);
     cv.classList.toggle('late', t.forma === 'chamfer' && estado === 'late' && !quieto);
+    // La protagonista de Profundidad: surfaceAlta plana y un filo claro.
+    if (t.forma === 'glass' && prota) {
+      c.beginPath(); if (c.roundRect) c.roundRect(0.5, 0.5, w - 1, h - 1, 24); else c.rect(0.5, 0.5, w - 1, h - 1);
+      c.fillStyle = t.surfaceAlta; c.fill(); c.lineWidth = 1; c.strokeStyle = 'rgba(255,255,255,0.08)'; c.stroke();
+      return;
+    }
     if (t.forma === 'glass') return; // la fila de Profundidad no lleva superficie
     if (t.forma === 'chamfer') {
       var ch = Math.min(t.chaflan, h / 2), o = 0.6;
       c.beginPath(); c.moveTo(o + ch, o); c.lineTo(w - o - ch, o); c.lineTo(w - o, o + ch); c.lineTo(w - o, h - o - ch);
       c.lineTo(w - o - ch, h - o); c.lineTo(o + ch, h - o); c.lineTo(o, h - o - ch); c.lineTo(o, o + ch); c.closePath();
+      if (prota) { c.fillStyle = t.surface; c.fill(); }
       c.lineWidth = 1.2; c.strokeStyle = rgba(t.primary, estado === 'fijo' ? 0.7 : 1); c.stroke();
       if (estado === 'late') cv.style.animationDelay = -(Date.now() % 2400) + 'ms';
       return;
@@ -935,12 +942,121 @@
     }, { threshold: 0.35 }).observe(document.querySelector('.hero'));
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     LO QUE SE QUEDA — mes, valoración y vuelta
+     ══════════════════════════════════════════════════════════════════════ */
+  function decorar(el, prota) {
+    var deco = el.querySelector(':scope > .fila__deco');
+    if (!deco) { deco = document.createElement('canvas'); deco.className = 'fila__deco'; deco.setAttribute('aria-hidden', 'true'); el.insertBefore(deco, el.firstChild); }
+    pintarSuperficie(deco, el.offsetWidth, el.offsetHeight, 'fijo', prota ? 26 : 20, prota);
+  }
+
+  /* Una celda del calendario del detalle (celdaHeatmap): llena o vacía. */
+  function pintarCelda(celda, llena, lado) {
+    var t = T();
+    celda.innerHTML = '';
+    if (idActual === 'dulce') {
+      var cv = document.createElement('canvas'), pad = 3;
+      cv.style.position = 'absolute'; cv.style.left = cv.style.top = -pad + 'px';
+      celda.appendChild(cv);
+      var c = preparar(cv, lado + 2 * pad, lado + 2 * pad); c.translate(pad, pad);
+      var fig = circulo(lado / 2, lado / 2, lado / 2 - 0.8);
+      if (llena) sombreado(c, fig, { color: t.success, separacion: 2.6, alfa: 0.7, grosor: 1, semilla: Math.round(lado) + 3 });
+      else trazoLapiz(c, fig, t.aro, 1.2, Math.round(lado) + 9);
+      return;
+    }
+    var d = document.createElement('span');
+    d.className = 'cel ' + (llena ? 'llena' : 'vacia');
+    celda.appendChild(d);
+  }
+
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  // El mes pasado entero, con días marcados que salen de una semilla fija.
+  var mesPasado = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+  var diasMesPasado = new Date(mesPasado.getFullYear(), mesPasado.getMonth() + 1, 0).getDate();
+  var marcados = (function () { var r = azar(2026), a = []; for (var i = 0; i < diasMesPasado; i++) a.push(r() < 0.72); return a; })();
+
+  function pintarMes() {
+    document.getElementById('mesTit').textContent = MESES[mesPasado.getMonth()] + ' de ' + mesPasado.getFullYear();
+    var g = document.getElementById('mesG'), hueco = (mesPasado.getDay() + 6) % 7;
+    g.innerHTML = '';
+    for (var k = 0; k < hueco; k++) g.appendChild(document.createElement('span'));
+    for (var i = 0; i < diasMesPasado; i++) g.appendChild(document.createElement('i'));
+    var lado = g.querySelector('i').offsetWidth;
+    [].forEach.call(g.querySelectorAll('i'), function (el, i) { pintarCelda(el, marcados[i], lado); });
+    [].forEach.call(document.querySelectorAll('.mes__li'), function (el) { pintarCelda(el, el.dataset.v === '1', 10); });
+    document.getElementById('diasMes').textContent = marcados.filter(Boolean).length;
+    decorar(document.getElementById('mes'));
+    [].forEach.call(document.querySelectorAll('.cifra'), function (el) { decorar(el); });
+  }
+
+  /* La estrella de la valoración (estrella_valoracion.dart): Lucide en
+     Profundidad y Neotokyo+, a lápiz en Dulce. Llena en pointsText. */
+  var ESTRELLA = 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z';
+  function estrellaLapiz(cv, marcada, tam) {
+    var t = T(), c = preparar(cv, tam + 4, tam + 4); c.translate(2, 2);
+    var grosor = Math.max(1, tam * 0.08), d = grosor / 2, r = (tam - grosor) / 2, cx = d + r, cy = d + r, pts = [];
+    for (var k = 0; k < 10; k++) {
+      var rr = k % 2 === 0 ? r : r * 0.45, a = -Math.PI / 2 + k * Math.PI / 5;
+      pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]);
+    }
+    var dens = [];
+    for (var j = 0; j < 10; j++) { var p0 = pts[j], p1 = pts[(j + 1) % 10], n = Math.ceil(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 1.5); for (var q = 0; q < n; q++) dens.push([p0[0] + (p1[0] - p0[0]) * q / n, p0[1] + (p1[1] - p0[1]) * q / n]); }
+    var path2 = new Path2D(); pts.forEach(function (p, i) { if (i) path2.lineTo(p[0], p[1]); else path2.moveTo(p[0], p[1]); }); path2.closePath();
+    var fig = { pts: dens, cerrado: true, dentro: function (x, y) { return c.isPointInPath(path2, (x + 2) * DPR, (y + 2) * DPR); },
+      path: function (k) { k.beginPath(); pts.forEach(function (p, i) { if (i) k.lineTo(p[0], p[1]); else k.moveTo(p[0], p[1]); }); k.closePath(); } };
+    if (marcada) {
+      var bx = cx - r * 0.34, by = cy - r * 0.34;
+      sombreado(c, fig, { color: t.pointsText, separacion: Math.max(1.2, tam * 0.08), grosor: Math.max(0.6, tam * 0.045), alfa: 0.95, cruzado: true, semilla: Math.round(tam),
+        intensidad: function (x, y) { return clamp((Math.hypot(x - bx, y - by) - r * 0.3) / r * 1.6, 0, 1); } });
+    }
+    trazoLapiz(c, fig, marcada ? t.pointsText : t.aro, grosor, Math.round(tam) + 5);
+  }
+  function pintarEstrella(btn, marcada, tam) {
+    var t = T();
+    if (idActual === 'dulce') {
+      btn.innerHTML = '<canvas aria-hidden="true"></canvas>';
+      estrellaLapiz(btn.firstChild, marcada, tam);
+    } else {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:' + tam + 'px;height:' + tam + 'px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:' +
+        (marcada ? t.pointsText : t.aro) + '"><path d="' + ESTRELLA + '"/></svg>';
+    }
+  }
+  var valoracion = 4;
+  var cajaEstrellas = document.getElementById('estrellas');
+  for (var e = 1; e <= 5; e++) {
+    (function (v) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'estrella'; b.setAttribute('role', 'radio');
+      b.setAttribute('aria-label', v + (v === 1 ? ' estrella' : ' estrellas'));
+      b.addEventListener('click', function () { valoracion = valoracion === v ? null : v; pintarEstrellas(); });
+      cajaEstrellas.appendChild(b);
+    })(e);
+  }
+  function pintarEstrellas() {
+    [].forEach.call(cajaEstrellas.children, function (b, i) {
+      b.setAttribute('aria-checked', valoracion === i + 1 ? 'true' : 'false');
+      pintarEstrella(b, valoracion != null && i < valoracion, 36);
+    });
+  }
+  function pintarQueda() {
+    pintarMes();
+    pintarEstrellas();
+    decorar(document.getElementById('hoja'), true);
+    var media = document.getElementById('media'), me = media.querySelector('.media__e');
+    var hueco = document.createElement('span'); hueco.className = 'media__e'; hueco.setAttribute('aria-hidden', 'true');
+    media.replaceChild(hueco, me);
+    pintarEstrella(hueco, true, 20);
+    decorar(media);
+  }
+
   function redibujar() {
     VW = window.innerWidth; VH = window.innerHeight;
     generarCielo();
     pintarFondo(); pintarGrano();
     pintarTiraHoy(); pintarTarjetaRitmo(ritmo, 3);
     pintarPasos();
+    pintarQueda();
     HABITOS.forEach(pintarFila);
     pintarCieloApp();
     pintarNori(false);

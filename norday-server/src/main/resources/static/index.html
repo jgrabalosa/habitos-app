@@ -242,6 +242,57 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .paso__v--ritmo .ritmo{margin-top:16px}
 .paso__nota{margin-top:4px;padding-inline:16px;font-size:calc(14px * var(--lectura));color:var(--muted)}
 
+/* ── Lo que se queda ─────────────────────────────────────────────────────── */
+.queda{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
+.bloque{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(32px,6vw,96px);align-items:center;
+  margin-top:clamp(48px,6vw,88px)}
+.bloque--inv .bloque__t{order:2}
+.bloque__t h3{font-family:var(--display),sans-serif;font-size:clamp(22px,2.2vw,28px);font-weight:700;line-height:1.2;
+  letter-spacing:var(--track-h);text-transform:var(--tt);text-wrap:balance}
+.bloque__t p{margin-top:12px;color:var(--muted);font-size:calc(17px * var(--lectura));max-width:42ch}
+.bloque__v{width:min(380px,100%);justify-self:center;display:flex;flex-direction:column;gap:8px}
+/* Superficie de la identidad (TarjetaIdentidad): el dibujo lo pone el JS. */
+.sup{position:relative}
+.sup > *:not(.fila__deco){position:relative;z-index:1}
+.mes{padding:16px}
+.mes__c{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 8px}
+.mes__t{font-family:var(--display),sans-serif;font-size:16px;font-weight:700}
+[data-id="dulce"] .mes__t{font-family:'Caveat';font-size:20px}
+.mes__f{color:var(--muted);font-size:22px;line-height:1;padding:0 8px}
+.mes__d,.mes__g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.mes__d span{text-align:center;font-family:var(--display),sans-serif;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--muted)}
+.mes__g{margin-top:6px}
+.mes__g i{position:relative;aspect-ratio:1;display:block;max-width:100%}
+.mes__l{display:flex;align-items:center;justify-content:center;gap:3px;margin-top:10px;
+  font-size:calc(11px * var(--lectura));font-weight:600;color:var(--muted)}
+.mes__li{position:relative;display:inline-block;width:10px;height:10px;margin:0 1.5px}
+.cifras{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cifra{display:flex;flex-direction:column;align-items:center;padding:12px 4px;text-align:center;color:var(--success-text)}
+.cifra svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cifra b{margin-top:4px;font-family:var(--display),sans-serif;font-size:20px;font-weight:700;line-height:1.2}
+.cifra span{font-size:calc(11px * var(--lectura));font-weight:600;color:var(--muted)}
+.hoja{padding:20px 24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.hoja__t{font-family:var(--display),sans-serif;font-size:20px;font-weight:700;color:var(--text)}
+.estrellas{display:flex;gap:0}
+.estrella{appearance:none;border:0;background:none;cursor:pointer;padding:0 4px;line-height:0;border-radius:6px}
+.estrella:focus-visible{outline:2px solid var(--trazo);outline-offset:2px}
+.estrella svg{width:36px;height:36px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hoja__nota{width:100%;padding:12px 14px;border:1px solid var(--aro);border-radius:12px;
+  font-size:calc(14px * var(--lectura));color:var(--muted);min-height:64px}
+[data-id="neotokyo"] .hoja__nota{border-radius:0;border-color:color-mix(in srgb,var(--primary) 50%,transparent)}
+[data-id="dulce"] .hoja__nota{border:0;background:var(--surface2);border-radius:14px}
+.hoja__b{width:100%;text-align:center;padding:12px;border-radius:999px;background:var(--primary);color:var(--tinta);
+  font-size:calc(14px * var(--lectura));font-weight:600}
+[data-id="neotokyo"] .hoja__b{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.media{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px}
+.media b{font-family:var(--display),sans-serif;font-size:16px;font-weight:700}
+.media span{font-size:calc(12px * var(--lectura));color:var(--muted)}
+.bloque__v--nori{flex-direction:row;align-items:center;justify-content:center;gap:16px}
+.bloque__v--nori figure{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.bloque__v--nori img{width:120px;height:120px}
+.bloque__v--nori figcaption{font-size:calc(14px * var(--lectura));color:var(--muted);max-width:14ch}
+.flecha{width:28px;height:28px;fill:none;stroke:var(--trazo);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
 /* ── Cierre del día (Profundidad) ───────────────────────────────────────── */
 .cierre{position:fixed;inset:0;z-index:50;cursor:pointer;display:none}
 .cierre.on{display:block}
@@ -254,11 +305,13 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
-[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos{text-shadow:0 0 14px #090614,0 0 4px #090614}
+[data-id="neotokyo"] .hero__t,[data-id="neotokyo"] .pasos,[data-id="neotokyo"] .bloque__t,[data-id="neotokyo"] .queda > .cont > .et,[data-id="neotokyo"] #quedaTit{text-shadow:0 0 14px #090614,0 0 4px #090614}
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
   .pasos__g{grid-template-columns:1fr;gap:56px}
+  .bloque{grid-template-columns:1fr;gap:28px}
+  .bloque--inv .bloque__t{order:0}
   .paso__v{min-height:0}
   .hero__g{grid-template-columns:1fr;gap:48px}
   .lead{max-width:44ch}
@@ -350,6 +403,68 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
           <p>No hay racha que vuelva a cero. Tu ritmo baja poco a poco y sube otra vez con el siguiente paso.</p>
         </li>
       </ol>
+    </div>
+  </section>
+
+  <section class="queda" aria-labelledby="quedaTit">
+    <div class="cont">
+      <p class="et">LO QUE SE QUEDA</p>
+      <h2 id="quedaTit">Todo lo que haces se queda contigo</h2>
+
+      <article class="bloque">
+        <div class="bloque__t">
+          <h3>El mes entero, de un vistazo</h3>
+          <p>Cada hábito tiene su calendario. Al lado, las veces que lo has marcado desde que lo creaste, una cifra que nunca baja.</p>
+        </div>
+        <div class="bloque__v">
+          <div class="sup mes" id="mes" aria-label="Calendario de un hábito: un mes con los días marcados">
+            <div class="mes__c"><span class="mes__f" aria-hidden="true">‹</span><span class="mes__t" id="mesTit"></span><span class="mes__f" aria-hidden="true">›</span></div>
+            <div class="mes__d" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+            <div class="mes__g" id="mesG" aria-hidden="true"></div>
+            <div class="mes__l" aria-hidden="true">Menos <i class="mes__li" data-v="0"></i><i class="mes__li" data-v="1"></i> Más</div>
+          </div>
+          <div class="cifras">
+            <div class="sup cifra">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+              <b>46</b><span>Lo que llevas</span>
+            </div>
+            <div class="sup cifra">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+              <b id="diasMes">0</b><span>Días del mes</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="bloque bloque--inv">
+        <div class="bloque__t">
+          <h3>Puntúa cómo te ha ido</h3>
+          <p>Al marcar un hábito puedes darle de una a cinco estrellas y añadir una nota. Con el tiempo, la media te dice qué hábito te está costando más.</p>
+        </div>
+        <div class="bloque__v">
+          <div class="sup sup--prota hoja" id="hoja">
+            <p class="hoja__t">¿Cómo te sentiste?</p>
+            <div class="estrellas" id="estrellas" role="radiogroup" aria-label="Valoración de 1 a 5 estrellas"></div>
+            <div class="hoja__nota" aria-hidden="true">Añade una nota (opcional)</div>
+            <span class="hoja__b" aria-hidden="true">Guardar</span>
+          </div>
+          <div class="sup media" id="media">
+            <canvas class="media__e" aria-hidden="true"></canvas><b>4,2</b><span>Satisfacción media</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="bloque">
+        <div class="bloque__t">
+          <h3>Vuelve cuando quieras</h3>
+          <p>Los puntos no caducan, lo que compras en la tienda es tuyo y lo que llevas no baja. Tu ritmo habrá bajado y Nori te habrá echado de menos, pero con el primer paso los dos vuelven a ponerse en marcha.</p>
+        </div>
+        <div class="bloque__v bloque__v--nori">
+          <figure><img src="img/nori/cria_triste.webp" width="120" height="120" alt="Nori triste" loading="lazy"><figcaption>Tras unos días sin nada</figcaption></figure>
+          <svg class="flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          <figure><img src="img/nori/cria_sonriente.webp" width="120" height="120" alt="Nori contento" loading="lazy"><figcaption>Con tu primer paso</figcaption></figure>
+        </div>
+      </article>
     </div>
   </section>
 </main>
