@@ -231,6 +231,35 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
 @keyframes neon{from{opacity:.7}to{opacity:1}}
 .fila__deco.late{animation:neon 1.2s ease-in-out infinite alternate}
 
+/* ── Hero: la app dentro de un móvil y Nori delante ────────────────────── */
+.escena{position:relative;justify-self:center;width:min(348px,100%);margin-bottom:24px}
+.escena::before{content:'';position:absolute;inset:8% -18% 4%;z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--primary) 20%,transparent),transparent);filter:blur(10px)}
+.movil{position:relative;border-radius:54px;padding:10px;
+  background:linear-gradient(155deg,#3A404D 0%,#12151B 28%,#0B0D12 70%,#262B35 100%);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.10),inset 0 0 0 4px #05070A,
+    0 50px 90px -30px rgba(0,0,0,.75),0 20px 40px -20px rgba(0,0,0,.5)}
+.movil__p{position:relative;border-radius:44px;overflow:hidden;aspect-ratio:9/18.6;
+  background:color-mix(in srgb,var(--bg) 84%,transparent);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);padding:52px 10px 0}
+.movil__p::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(125deg,rgba(255,255,255,.07),transparent 38%)}
+.movil__isla{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:96px;height:28px;
+  border-radius:20px;background:#000;z-index:6}
+.escena .app{width:100%;padding-bottom:0}
+.escena .nori{right:auto;left:-112px;bottom:-34px;width:200px;height:200px;z-index:7}
+.escena .nori img{inset:0;width:200px;height:200px;filter:drop-shadow(0 22px 22px rgba(0,0,0,.45))}
+[data-id="dulce"] .escena .nori img{filter:drop-shadow(0 16px 18px rgba(126,58,103,.28))}
+[data-id="dulce"] .movil__p{background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none}
+@media (max-width:900px){
+  .hero__g{grid-template-columns:minmax(0,1fr)}
+  .escena{width:min(380px,100%)}
+  .movil{border-radius:46px;padding:8px}
+  .movil__p{border-radius:38px;padding:46px 6px 0}
+  .escena .nori{left:-14px;bottom:-34px;width:130px;height:130px}
+  .escena .nori img{width:130px;height:130px}
+}
+
 /* ── Cómo funciona ──────────────────────────────────────────────────────── */
 .pasos{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
 /* La etiqueta de sección de la app (titleSmall): 12, 800, espaciada. */
@@ -257,6 +286,26 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .tira--sola{grid-template-columns:repeat(7,1fr)}
 .paso__v--ritmo .ritmo{margin-top:16px}
 .paso__nota{margin-top:4px;padding-inline:16px;font-size:calc(14px * var(--lectura));color:var(--muted)}
+
+/* Cada paso tiene su ventana, del mismo alto: los tres dibujos comparten suelo. */
+.pasos .paso__v{height:280px;min-height:0;margin-bottom:28px;padding:28px 24px}
+.pasos .paso__v,.queda .bloque__v{position:relative;overflow:hidden;
+  border-radius:var(--r-hero);background:color-mix(in srgb,var(--surface) 34%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--aro) 22%,transparent)}
+.pasos .paso__v::before,.queda .bloque__v::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(70% 60% at 50% 100%,color-mix(in srgb,var(--primary) 12%,transparent),transparent)}
+.pasos .paso__v > *,.queda .bloque__v > *{position:relative}
+[data-id="neotokyo"] .pasos .paso__v,[data-id="neotokyo"] .queda .bloque__v{background:color-mix(in srgb,var(--surface2) 70%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 28%,transparent)}
+[data-id="dulce"] .pasos .paso__v,[data-id="dulce"] .queda .bloque__v{background:var(--surface2);box-shadow:none}
+[data-id="dulce"] .pasos .paso__v::before,[data-id="dulce"] .queda .bloque__v::before{display:none}
+.pasos .paso__v > .ventana__cv,.queda .bloque__v > .ventana__cv{position:absolute;left:0;top:0;pointer-events:none}
+.pasos .paso__v--nori{align-items:flex-end;padding-bottom:32px}
+.pasos .paso__v--nori figure:nth-child(1) img{max-width:92px}
+.pasos .paso__v--nori figure:nth-child(2) img{max-width:112px}
+.pasos .paso__v--nori figure:nth-child(3) img{max-width:132px}
+.pasos .paso__v--ritmo .tira{margin-inline:4px}
+@media (max-width:900px){.pasos .paso__v{height:auto;min-height:220px;padding:24px 16px}}
 
 /* ── Lo que se queda ─────────────────────────────────────────────────────── */
 .queda{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
@@ -309,6 +358,14 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .bloque__v--nori figcaption{font-size:calc(14px * var(--lectura));color:var(--muted);max-width:14ch}
 .flecha{width:28px;height:28px;fill:none;stroke:var(--trazo);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 
+/* Lo que se queda: cada pieza en su ventana, a tamaño de móvil y no de cartel. */
+.queda .bloque{margin-top:clamp(40px,5vw,72px)}
+.queda .bloque__v{width:min(460px,100%);padding:clamp(24px,3vw,36px);align-items:center;gap:12px}
+.queda .bloque__v > .mes,.queda .bloque__v > .cifras{width:min(300px,100%)}
+.queda .bloque__v > .hoja{width:min(320px,100%)}
+.queda .bloque__v--nori{min-height:260px;justify-content:center}
+@media (max-width:900px){.queda .bloque__v{justify-self:stretch;width:100%}}
+
 /* ── Identidades ────────────────────────────────────────────────────────── */
 .idents{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
 .idents__lead{margin-top:16px;max-width:60ch;color:var(--muted);font-size:calc(17px * var(--lectura))}
@@ -347,6 +404,14 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 [data-id="dulce"] .priv__f b{font-family:'Caveat',cursive;font-size:20px}
 .priv__f span{display:block;margin-top:2px;color:var(--muted);font-size:calc(14px * var(--lectura))}
 
+/* En Profundidad las filas no llevan superficie: la lista va en la misma
+   ventana que Cómo funciona y Lo que se queda, con un filo entre fila y fila.
+   En Neotokyo+ y Dulce cada fila ya es una tarjeta de la app. */
+html:not([data-id="neotokyo"]):not([data-id="dulce"]) .priv__l{padding:8px 12px;border-radius:var(--r-hero);
+  background:color-mix(in srgb,var(--surface) 34%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--aro) 22%,transparent)}
+html:not([data-id="neotokyo"]):not([data-id="dulce"]) .priv__f{margin-bottom:0;padding:18px 12px}
+html:not([data-id="neotokyo"]):not([data-id="dulce"]) .priv__f + .priv__f{border-top:1px solid color-mix(in srgb,var(--aro) 18%,transparent)}
+
 /* ── Detrás y preguntas ─────────────────────────────────────────────────── */
 .dudas{position:relative;z-index:10;padding:clamp(48px,7vw,96px) 0 clamp(64px,9vw,128px)}
 .dudas__g{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(40px,6vw,96px);align-items:start}
@@ -375,6 +440,10 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .final h2{margin-top:16px;max-width:18ch;font-size:clamp(34px,4.6vw,60px)}
 .final__lead{margin-top:16px;color:var(--muted);font-size:calc(18px * var(--lectura));max-width:44ch}
 .final__d{justify-content:center}
+.final__redes{margin-top:clamp(40px,5vw,56px);padding-top:24px;max-width:46ch;color:var(--muted);font-size:calc(15px * var(--lectura));
+  border-top:1px solid color-mix(in srgb,var(--aro) 30%,transparent)}
+.final__redes a{color:var(--trazo);font-weight:600;text-underline-offset:3px}
+.final__redes a:focus-visible{outline:2px solid var(--trazo);outline-offset:3px}
 .pie{position:relative;z-index:10;border-top:1px solid color-mix(in srgb,var(--aro) 40%,transparent);padding:32px 0 40px}
 .pie__c{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 32px}
 .pie__m{font-family:var(--display),sans-serif;font-weight:700;font-size:16px;letter-spacing:var(--track-h);text-transform:var(--tt)}
@@ -383,6 +452,12 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .pie__n a:hover{color:var(--trazo)}
 .pie__n a:focus-visible{outline:2px solid var(--trazo);outline-offset:3px}
 .pie__a{color:var(--muted);font-size:calc(13px * var(--lectura))}
+.pie__b{display:flex;flex-direction:column;gap:4px}
+.pie__r a{display:inline-flex;align-items:center;gap:8px}
+.pie__r svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.autor__x{display:flex;flex-direction:column;gap:14px;min-width:0}
+.autor__f{display:flex;flex-direction:column;gap:2px;font-size:calc(15px * var(--lectura))}
+.autor__f b{font-family:var(--display),sans-serif;font-weight:700;color:var(--text)}
 
 /* Las reglas de identidad que cuelgan de <html> (las de la identidad activa)
    también alcanzarían a las tarjetas de las otras dos: aquí se fijan las de
@@ -402,6 +477,10 @@ h2{margin-top:12px;font-family:var(--display),sans-serif;font-weight:700;letter-
 .ident[data-id="neotokyo"] .ident__b{border-radius:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
 .ident[data-id] .ident__b[aria-pressed="true"]{outline:0;box-shadow:inset 0 0 0 1.5px var(--aro)}
 .ident[data-id="neotokyo"] .ident__b[aria-pressed="true"]{box-shadow:none;clip-path:none;outline:1.2px solid var(--aro);outline-offset:-1.2px}
+
+/* En la tarjeta de Neotokyo+ la ciudad sube detrás de la fila: el mismo halo
+   que lleva el texto de la página sobre las ventanas encendidas. */
+.ident[data-id="neotokyo"] .ident__f{text-shadow:0 0 10px #090614,0 0 4px #090614,0 0 2px #090614}
 
 /* ── Cierre del día (Profundidad) ───────────────────────────────────────── */
 .cierre{position:fixed;inset:0;z-index:50;cursor:pointer;display:none}
@@ -468,6 +547,8 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
         <p class="nota">Gratis y sin anuncios. Para Android.</p>
       </div>
 
+      <div class="escena">
+        <div class="movil"><div class="movil__p"><span class="movil__isla" aria-hidden="true"></span>
       <div class="app" id="app" role="group" aria-label="La pantalla Hoy de Norday Habits. Puedes marcar los hábitos.">
         <div class="tira" id="tira" aria-hidden="true"></div>
         <div class="ritmo" id="ritmo" aria-label="Tu ritmo: Buen ritmo, nivel 3 de 5">
@@ -477,6 +558,8 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></div>
         <div class="lista" id="lista"></div>
         <canvas class="app__cielo" id="cielo" aria-hidden="true"></canvas>
+      </div>
+        </div></div>
         <div class="nori" id="nori"><img id="noriImg" src="img/nori/cria_sonriente.webp" width="108" height="108" alt="Nori, la mascota"></div>
       </div>
     </div>
@@ -593,7 +676,6 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
           <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
           <div class="ident__t">
             <h3>Profundidad</h3>
-            <p class="ident__l">Space Grotesk · Manrope</p>
             <p>Un cielo de noche. Cada hábito enciende una estrella y, al terminar el día, aparece tu constelación.</p>
             <button class="ident__b" type="button" data-ir="profundidad"></button>
           </div>
@@ -602,7 +684,6 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
           <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
           <div class="ident__t">
             <h3>Neotokyo+</h3>
-            <p class="ident__l">Chakra Petch · IBM Plex Sans</p>
             <p>Una ciudad de neón. Con cada hábito se encienden más ventanas y los bordes laten hasta que lo haces.</p>
             <button class="ident__b" type="button" data-ir="neotokyo"></button>
           </div>
@@ -611,7 +692,6 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
           <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
           <div class="ident__t">
             <h3>Dulce</h3>
-            <p class="ident__l">Quicksand · Caveat</p>
             <p>Un cuaderno pintado a lápiz de color. Las burbujas se acumulan con lo que haces y el día se cierra con un ramo.</p>
             <button class="ident__b" type="button" data-ir="dulce"></button>
           </div>
@@ -635,7 +715,7 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
         </li>
         <li class="sup priv__f">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-          <div><b>Borras la cuenta y se va todo</b><span>Desde Perfil, al momento y sin copias guardadas.</span></div>
+          <div><b>Borras la cuenta y se va todo</b><span>Desde Perfil, al momento. En las copias de seguridad desaparece en un máximo de 90 días.</span></div>
         </li>
         <li class="sup priv__f">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
@@ -656,7 +736,10 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
         <h2>La hace una persona, no una empresa</h2>
         <div class="autor__c">
           <span class="autor__i" aria-hidden="true">Q</span>
-          <p>La escribí porque dejé cuatro apps de hábitos en el mismo punto: el día que rompes la racha y la app te lo recuerda. Esta no hace eso. Si algo no funciona, me escribes a <a href="mailto:hola@norday.app">hola@norday.app</a> y te contesto yo.</p>
+          <div class="autor__x">
+            <p>La escribí porque dejé cuatro apps de hábitos en el mismo punto: el día que rompes la racha y la app te lo recuerda. Esta no hace eso. Si algo no funciona, me escribes a <a href="mailto:hola@norday.app">hola@norday.app</a> y te contesto yo.</p>
+            <p class="autor__f"><b>Joaquim Grabalosa, Quim</b><a href="https://www.linkedin.com/in/labibliotecadequim/" rel="noopener">Cuento cómo la construyo en LinkedIn</a></p>
+          </div>
         </div>
       </div>
       <div class="faq">
@@ -692,21 +775,27 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
           <p class="qr__t">¿Estás en el ordenador? Escanéalo con el móvil.</p>
         </div>
       </div>
+      <p class="final__redes">¿Quieres aprender más sobre hábitos y productividad? Cada semana compartimos ideas en <a href="https://www.instagram.com/nordayapp/" rel="noopener">Instagram</a> y <a href="https://www.threads.net/@nordayapp" rel="noopener">Threads</a>.</p>
     </div>
   </section>
 </main>
 
 <footer class="pie">
   <div class="cont pie__c">
-    <span class="pie__m">Norday Habits</span>
-    <nav class="pie__n" aria-label="Enlaces">
+    <div class="pie__b">
+      <span class="pie__m">Norday Habits</span>
+      <span class="pie__a">Hecha por Joaquim Grabalosa</span>
+    </div>
+    <nav class="pie__n" aria-label="Norday Habits">
       <a href="/privacidad.html">Privacidad</a>
       <a href="/eliminar-cuenta.html">Eliminar cuenta</a>
       <a href="mailto:hola@norday.app">hola@norday.app</a>
-      <a href="https://www.instagram.com/nordayapp/" rel="noopener">Instagram</a>
-      <a href="https://www.threads.net/@nordayapp" rel="noopener">Threads</a>
     </nav>
-    <span class="pie__a">Hecha por Joaquim Grabalosa</span>
+    <nav class="pie__n pie__r" aria-label="Redes sociales">
+      <a href="https://www.instagram.com/nordayapp/" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/></svg>Instagram</a>
+      <a href="https://www.threads.net/@nordayapp" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1"/></svg>Threads</a>
+      <a href="https://www.linkedin.com/in/labibliotecadequim/" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7"/><path d="M8 7v.01"/><path d="M12 17v-4a2 2 0 0 1 4 0v4"/><path d="M12 10v7"/></svg>LinkedIn de Quim</a>
+    </nav>
   </div>
 </footer>
 

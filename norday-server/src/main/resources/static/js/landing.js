@@ -1140,6 +1140,22 @@
     });
   });
 
+  /* Las ventanas de Cómo funciona y Lo que se queda. En Dulce van en papel con
+     el filo a lápiz, como las superficies de la app; en las otras dos las
+     dibuja el CSS y aquí no se pinta nada. */
+  function pintarVentanas() {
+    [].forEach.call(document.querySelectorAll('.pasos .paso__v, .queda .bloque__v'), function (v) {
+      var cv = v.querySelector(':scope > canvas.ventana__cv');
+      if (idActual !== 'dulce') { if (cv) v.removeChild(cv); return; }
+      if (!cv) {
+        cv = document.createElement('canvas'); cv.className = 'ventana__cv'; cv.setAttribute('aria-hidden', 'true');
+        v.insertBefore(cv, v.firstChild);
+      }
+      var w = v.offsetWidth, h = v.offsetHeight, c = preparar(cv, w, h);
+      trazoLapiz(c, rrect(2, 2, w - 4, h - 4, 20), T().trazo, 1.5, semillaDe(w, h));
+    });
+  }
+
   function redibujar() {
     VW = window.innerWidth; VH = window.innerHeight;
     generarCielo();
@@ -1147,6 +1163,7 @@
     pintarTiraHoy(); pintarTarjetaRitmo(ritmo, 3);
     pintarPasos();
     pintarQueda();
+    pintarVentanas();
     pintarIdentidades();
     [].forEach.call(document.querySelectorAll('.priv__f'), function (el) { decorar(el); });
     HABITOS.forEach(pintarFila);
