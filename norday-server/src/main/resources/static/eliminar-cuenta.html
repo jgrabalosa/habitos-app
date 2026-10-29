@@ -4,26 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eliminar tu cuenta de Norday Habits</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#070D19">
+    <!-- Pone la identidad que el visitante eligió en la web (data-id). -->
+    <script src="js/legal.js"></script>
     <style>
-        :root {
-            --azul-noche: #0A1628;
-            --gris-muy-claro: #EEF2F6;
-            --verde-esmeralda: #27C76F;
+        /* Las tres identidades de la app, como en la landing (index.html y
+           TOKENS de js/landing.js): si allí cambian, aquí también. Las letras
+           son las mismas de img/fuentes/, sin Google Fonts; el navegador solo
+           descarga las de la identidad activa. */
+        @font-face{font-family:'Space Grotesk';font-weight:700 800;font-display:swap;src:url(img/fuentes/SpaceGrotesk-Bold.woff2) format('woff2')}
+        @font-face{font-family:'Manrope';font-weight:400 500;font-display:swap;src:url(img/fuentes/Manrope-Regular.woff2) format('woff2')}
+        @font-face{font-family:'Manrope';font-weight:600;font-display:swap;src:url(img/fuentes/Manrope-SemiBold.woff2) format('woff2')}
+        @font-face{font-family:'Chakra Petch';font-weight:700 800;font-display:swap;src:url(img/fuentes/ChakraPetch-Bold.woff2) format('woff2')}
+        @font-face{font-family:'IBM Plex Sans';font-weight:400 500;font-display:swap;src:url(img/fuentes/IBMPlexSans-Regular.woff2) format('woff2')}
+        @font-face{font-family:'IBM Plex Sans';font-weight:600;font-display:swap;src:url(img/fuentes/IBMPlexSans-SemiBold.woff2) format('woff2')}
+        @font-face{font-family:'Quicksand';font-weight:700 800;font-display:swap;src:url(img/fuentes/Quicksand-Bold.woff2) format('woff2')}
+        @font-face{font-family:'Caveat';font-weight:400 500;font-display:swap;src:url(img/fuentes/Caveat-Regular.woff2) format('woff2')}
+        @font-face{font-family:'Caveat';font-weight:600;font-display:swap;src:url(img/fuentes/Caveat-SemiBold.woff2) format('woff2')}
+
+        /* --enlace: el color de los enlaces, que tiene que leerse en texto
+           pequeño (4,5:1). En Dulce es successText: el rosa del trazo no llega. */
+        :root, [data-id="profundidad"] {
+            --bg: #070D19; --surface2: #101B2F;
+            --text: #EEF2F6; --muted: #A3B3C9; --aro: #8D95A0; --enlace: #27C76F;
+            --display: 'Space Grotesk'; --cuerpo: 'Manrope'; --lectura: 1;
+            --tt: none; --track-h: -.015em; --r: 10px;
+        }
+        [data-id="neotokyo"] {
+            --bg: #090614; --surface2: #160F28;
+            --text: #F5EEFF; --muted: #A08FC2; --aro: #6A5D85; --enlace: #FF2E88;
+            --display: 'Chakra Petch'; --cuerpo: 'IBM Plex Sans'; --lectura: 1;
+            --tt: uppercase; --track-h: .05em; --r: 0;
+        }
+        [data-id="dulce"] {
+            --bg: #FFFCF5; --surface2: #F6EFE3;
+            --text: #4A2E3D; --muted: #7E3A67; --aro: #A57492; --enlace: #B01E5A;
+            --display: 'Quicksand'; --cuerpo: 'Caveat'; --lectura: 1.25;
+            --tt: none; --track-h: -.01em; --r: 14px;
         }
 
         * { box-sizing: border-box; }
 
+        html { background: var(--bg); color-scheme: dark; }
+        html[data-id="dulce"] { color-scheme: light; }
+
         body {
             margin: 0;
             padding: 32px 20px 64px;
-            background: var(--azul-noche);
-            color: var(--gris-muy-claro);
-            /* Si Manrope no carga, la página se lee igual */
-            font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-            font-size: 17px;
+            background: var(--bg);
+            color: var(--text);
+            /* Si la letra no carga, la página se lee igual */
+            font-family: var(--cuerpo), system-ui, -apple-system, 'Segoe UI', sans-serif;
+            font-size: calc(17px * var(--lectura));
             line-height: 1.65;
             -webkit-text-size-adjust: 100%;
         }
@@ -34,26 +66,37 @@
         }
 
         h1 {
+            font-family: var(--display), system-ui, sans-serif;
             font-size: 1.6rem;
-            font-weight: 800;
+            font-weight: 700;
             line-height: 1.25;
+            letter-spacing: var(--track-h);
+            text-transform: var(--tt);
+            text-wrap: balance;
             margin: 0 0 28px;
         }
 
         h2 {
+            font-family: var(--display), system-ui, sans-serif;
             font-size: 1.05rem;
-            font-weight: 600;
+            font-weight: 700;
+            letter-spacing: var(--track-h);
+            text-transform: var(--tt);
             margin: 36px 0 8px;
         }
+        /* Caveat se lee más pequeña: los títulos de Dulce no pueden quedar por
+           debajo del texto. */
+        [data-id="dulce"] h2 { font-size: 1.15rem; }
 
         p { margin: 0 0 20px; }
 
         a {
-            color: var(--verde-esmeralda);
+            color: var(--enlace);
             font-weight: 600;
             /* Palabra larga en pantalla estrecha: que parta en vez de desbordar */
             word-break: break-word;
         }
+        a:focus-visible { outline: 2px solid var(--enlace); outline-offset: 3px; }
 
         ul {
             margin: 0 0 20px;
@@ -90,7 +133,7 @@
         <li>Ritmo y pausas de cada hábito</li>
         <li>Mascota y su progreso</li>
         <li>Saldo de puntos</li>
-        <li>Avatares y productos obtenidos</li>
+        <li>Lo que conseguiste en la tienda (identidades y pausas)</li>
         <li>Categorías personalizadas</li>
     </ul>
 
