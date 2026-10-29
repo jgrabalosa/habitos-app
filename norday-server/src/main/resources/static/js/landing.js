@@ -5,6 +5,7 @@
  *   - fondo_estelar.dart, capa_constelacion.dart, constelaciones.dart
  *   - fondo_ciudad.dart, fondo_burbujas.dart, grano_papel.dart, lapiz.dart
  *   - check_circular.dart, superficie_identidad.dart, indicador_nivel.dart
+ *   - cierre_del_dia.dart, ramo_dulce.dart (sólo el ramo de 4 hábitos)
  * y en habitos_app_mobile: dashboard_screen.dart, identidad_ui.dart y
  * tira_semana.dart. Mismos colores, tamaños, tiempos y curvas. Si la app
  * cambia, esto también.
@@ -824,7 +825,7 @@
   }
 
   /* ── Marcar y deshacer ───────────────────────────────────────────────── */
-  var cierreHecho = false;
+  var cierreHecho = {}; // por identidad: { profundidad: true, dulce: true }
   function alternar(h) {
     var antes = avance(), antesHechos = hechos();
     h.hecho = !h.hecho;
@@ -854,15 +855,593 @@
     }, quieto ? 0 : (h.hecho ? 450 : 200));
   }
 
-  /* ── El cierre del día (cierre_del_dia.dart), sólo en Profundidad ─────── */
+  /* ── El ramo de Dulce (ramo_dulce.dart), sólo el de 4 hábitos ────────────
+   * Traducción literal de ramo_dulce.dart (core v0.54.0): mismos nombres,
+   * números, orden de dibujo y semillas. La web sólo enseña el «Ramo de
+   * campo» (4 hábitos: rosa, margarita, cosmos y tulipán, con envoltorio y
+   * lazo); el resto de ramos no se traduce. Marco de 260 x 360. */
+  function rngRamo(semilla) {
+    var s = (semilla % 2147483646) + 1;
+    return function () { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  }
+  var R_PAP = '#FFFCF5', R_RO = '#E53F80', R_RO2 = '#B01E5A', R_PR = '#FF6FA5',
+    R_CO = '#E86A58', R_TX = '#4A2E3D', R_MU = '#7E3A67', R_MAU = '#A57492',
+    R_NOTA = '#FFF4D6', R_MIEL = '#E3A23B', R_VE = '#7F9A6B', R_VE2 = '#56703F',
+    R_KR = '#C99A62', R_MARG_OSC = '#B87A1E', R_MARG_PUN = '#8A5A16',
+    R_COS_BORDE = '#C24A3A', R_ENVOLTORIO = '#9C7445';
+
+  function rCl(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rHypot(a, b) { return Math.sqrt(a * a + b * b); }
+
+  function rLinea(x, a, b, col, ancho, alfa, cap) {
+    x.globalAlpha = rCl(alfa, 0, 1);
+    x.strokeStyle = col;
+    x.lineWidth = ancho;
+    x.lineCap = cap || 'butt';
+    x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
+    x.globalAlpha = 1;
+  }
+  function rCamino(x, pts) {
+    x.beginPath();
+    x.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) x.lineTo(pts[i][0], pts[i][1]);
+    x.closePath();
+  }
+  function rSamp(p, closed, st) {
+    st = st || 1.4;
+    var o = [], n = p.length, m = closed ? n : n - 1;
+    for (var i = 0; i < m; i++) {
+      var a = p[i], b = p[(i + 1) % n], d = rHypot(b[0] - a[0], b[1] - a[1]);
+      var k = Math.max(1, Math.ceil(d / st));
+      for (var j = 0; j < k; j++) o.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k]);
+    }
+    if (!closed) o.push(p[n - 1]); else o.push(o[0]);
+    return o;
+  }
+  // o: { closed (true), al (.9), passes (2) }
+  function rLap(x, pts, col, w, seed, o) {
+    o = o || {};
+    var closed = o.closed !== false, al = o.al !== undefined ? o.al : 0.9,
+      passes = o.passes !== undefined ? o.passes : 2;
+    var q = rSamp(pts, closed), n = q.length;
+    if (n < 2) return;
+    for (var p = 0; p < passes; p++) {
+      var r = rngRamo(seed * 7 + p * 31);
+      var f1 = 0.035 + r() * 0.04, f2 = 0.12 + r() * 0.1, h1 = r() * 6, h2 = r() * 6;
+      var amp = p !== 0 ? 0.75 : 0.4, off = p !== 0 ? (r() - 0.5) * 0.9 : 0;
+      var s = 0, d = [];
+      for (var i = 0; i < n; i++) {
+        var a = q[Math.max(0, i - 1)], b = q[Math.min(n - 1, i + 1)];
+        var tx = b[0] - a[0], ty = b[1] - a[1], len = rHypot(tx, ty), L = len === 0 ? 1 : len;
+        tx /= L; ty /= L;
+        if (i !== 0) s += rHypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]);
+        var k = amp * (0.6 * Math.sin(s * f1 + h1) + 0.4 * Math.sin(s * f2 + h2)) + off;
+        d.push([q[i][0] - ty * k, q[i][1] + tx * k]);
+      }
+      for (i = 1; i < n; i++) {
+        var t = i / n;
+        var pr = closed ? 1 : Math.pow(Math.sin(Math.PI * rCl(t, 0.02, 0.98)), 0.4);
+        var g = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(i * 0.83 + h2) * Math.sin(i * 0.29 + h1)) + (r() - 0.5) * 0.15;
+        rLinea(x, d[i - 1], d[i], col,
+          w * (0.5 + 0.5 * pr) * (p !== 0 ? 0.65 : 1),
+          al * (p === 0 ? 1 : 0.45) * g * (0.55 + 0.45 * pr), 'round');
+      }
+    }
+  }
+  // o: { intensidad, sep (2), al (.6), ang (.8), cruz (null) }
+  function rHat(x, poly, col, seed, o) {
+    o = o || {};
+    var r = rngRamo(seed * 13 + 3);
+    var tinta = o.intensidad || function () { return 1; };
+    var sep = o.sep !== undefined ? o.sep : 2, al = o.al !== undefined ? o.al : 0.6,
+      ang = o.ang !== undefined ? o.ang : 0.8, cruz = o.cruz;
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    poly.forEach(function (p) {
+      minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+      minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+    });
+    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, rad = rHypot(maxX - minX, maxY - minY) / 2 + 3;
+    function capa(a, s, alp, umb) {
+      var nx = -Math.sin(a), ny = Math.cos(a), dx = Math.cos(a), dy = Math.sin(a);
+      for (var desp = -rad; desp < rad; desp += s * (0.7 + r() * 0.6)) {
+        var j = (r() - 0.5) * 0.25, ex = r() * 0.3, prev = null;
+        for (var t = -rad * (1 - ex * 0.3); t < rad * (1 - r() * 0.2); t += 1.6) {
+          var px = cx + nx * desp + dx * t + nx * t * j * 0.05;
+          var py = cy + ny * desp + dy * t + ny * t * j * 0.05;
+          var v = tinta(px, py);
+          if (v > umb && v > r() * 0.22) {
+            if (prev !== null) {
+              var ancho = 0.75 + r() * 0.35;
+              var alfaTramo = alp * Math.min(1, v * 1.1) * (0.65 + r() * 0.35);
+              rLinea(x, prev, [px, py], col, ancho, alfaTramo);
+            }
+            prev = [px, py];
+          } else {
+            prev = null;
+          }
+        }
+      }
+    }
+    x.save();
+    rCamino(x, poly); x.clip();
+    capa(ang, sep, al, 0);
+    if (cruz !== undefined && cruz !== null) capa(ang + 1.22, sep * 1.35, al * 0.55, cruz);
+    x.restore();
+  }
+  function rRot(cx, cy, a, pts) {
+    var c = Math.cos(a), s = Math.sin(a);
+    return pts.map(function (p) { return [cx + p[0] * c - p[1] * s, cy + p[0] * s + p[1] * c]; });
+  }
+  // o: { b (0), notch (0), taper (.2), pw (.8) }
+  function rPetalo(cx, cy, a, len, wid, o) {
+    o = o || {};
+    var b = o.b || 0, notch = o.notch || 0, tp = o.taper !== undefined ? o.taper : 0.2,
+      pw = o.pw !== undefined ? o.pw : 0.8, N = 18, L = [], R = [];
+    for (var i = 0; i <= N; i++) {
+      var t = i / N, w = wid * Math.pow(Math.sin(Math.PI * Math.min(t, 0.96)), pw) * (1 - tp * t);
+      L.push([b + len * t, w]); R.push([b + len * t, -w]);
+    }
+    var p = L.slice();
+    p.push([b + len - (notch !== 0 ? notch : -wid * 0.04), 0]);
+    return rRot(cx, cy, a, p.concat(R.reverse()));
+  }
+  function rCirc(cx, cy, r, n) {
+    n = n || 36;
+    var o = [];
+    for (var i = 0; i < n; i++) o.push([cx + r * Math.cos(i / n * 6.2832), cy + r * Math.sin(i / n * 6.2832)]);
+    return o;
+  }
+  function rBezPts(p0, p1, p2) {
+    var n = 60, out = [];
+    for (var i = 0; i <= n; i++) {
+      var t = i / n, u = 1 - t;
+      out.push([u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]);
+    }
+    return out;
+  }
+  function rPuntos(x, cx, cy, r, n, col, seed, sz) {
+    sz = sz === undefined ? 0.9 : sz;
+    var q = rngRamo(seed);
+    for (var i = 0; i < n; i++) {
+      var a = q() * 6.28, d = Math.sqrt(q()) * r, radio = sz * (0.6 + q() * 0.6), alfa = 0.55 + q() * 0.4;
+      x.globalAlpha = alfa; x.fillStyle = col;
+      x.beginPath(); x.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, radio, 0, 2 * Math.PI); x.fill();
+      x.globalAlpha = 1;
+    }
+  }
+  function rRadial(cx, cy, b, len, k, e) {
+    k = k === undefined ? 0.9 : k; e = e === undefined ? 1.3 : e;
+    return function (X, Y) { return Math.pow(rCl(1.05 - (rHypot(X - cx, Y - cy) - b) / len * k, 0, 1), e); };
+  }
+  function rRellenar(x, p, col) { rCamino(x, p); x.fillStyle = col || R_PAP; x.fill(); }
+  function rRecortado(x, poly, fn) { x.save(); rCamino(x, poly); x.clip(); fn(); x.restore(); }
+  function rEnTallo(pts, t) {
+    var i = Math.min(pts.length - 2, Math.max(1, Math.round(t * (pts.length - 1))));
+    var a = pts[i - 1], b = pts[i + 1];
+    return { p: pts[i], ang: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+  }
+
+  function rTalloGrueso(x, pts, w, s) {
+    var nor = [];
+    for (var i = 0; i < pts.length; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      var tx = b[0] - a[0], ty = b[1] - a[1], len = rHypot(tx, ty), L = len === 0 ? 1 : len;
+      nor.push([-ty / L, tx / L]);
+    }
+    var Li = pts.map(function (p, k) { return [p[0] - nor[k][0] * w, p[1] - nor[k][1] * w]; });
+    var Ri = pts.map(function (p, k) { return [p[0] + nor[k][0] * w, p[1] + nor[k][1] * w]; });
+    var poly = Li.concat(Ri.slice().reverse());
+    rRellenar(x, poly);
+    rHat(x, poly, R_VE, s, { sep: 1.2, al: 0.7, ang: 0.3 });
+    rLap(x, Ri, R_VE2, 1, s + 1, { closed: false, al: 0.85 });
+    rLap(x, Li, R_VE2, 0.7, s + 2, { closed: false, al: 0.6 });
+  }
+  function rSepalos(x, cx, cy, r, s) {
+    var ang = Math.PI / 2;
+    for (var k = 0; k < 5; k++) {
+      var a = ang + (k - 2) * 0.42, p = rPetalo(cx, cy, a, r, r * 0.18, { taper: 0.35, pw: 0.7 });
+      rRellenar(x, p);
+      rHat(x, p, R_VE, s + k, { sep: 1.1, al: 0.8, cruz: 0.5 });
+      rLap(x, p, R_VE2, 0.8, s + 10 + k, { al: 0.85 });
+    }
+  }
+  function rHoja2(x, cx, cy, a, len, wid, s) {
+    var p = rPetalo(cx, cy, a, len, wid, { taper: 0.3, pw: 0.9 });
+    rRellenar(x, p);
+    rHat(x, p, R_VE, s, {
+      intensidad: function (X, Y) { return 0.3 + 0.7 * rCl(1 - rHypot(X - cx, Y - cy) / len, 0, 1); },
+      sep: 1.6, al: 0.7, cruz: 0.7, ang: a + 0.9
+    });
+    rRecortado(x, p, function () {
+      rLap(x, rRot(cx, cy, a, [[2, 0], [len * 0.9, 0]]), R_VE2, 0.75, s + 2, { closed: false, al: 0.65 });
+      for (var k = 1; k < 5; k++) {
+        var t = k / 5.2 * len;
+        [1, -1].forEach(function (sg) {
+          rLap(x, rRot(cx, cy, a, [[t, 0], [t + wid * 0.55, sg * wid * 0.62]]), R_VE2, 0.5,
+            s + k * 5 + (sg > 0 ? 1 : 2), { closed: false, al: 0.42, passes: 1 });
+        });
+      }
+    });
+    rLap(x, p, R_VE2, 0.95, s + 1, { al: 0.85 });
+  }
+  function rHojaDe(x, pts, t, lado, len, wid, s, abre) {
+    abre = abre === undefined ? 0.75 : abre;
+    var e = rEnTallo(pts, t), a = e.ang + Math.PI + lado * abre;
+    var pe = [e.p[0] + Math.cos(a) * 5, e.p[1] + Math.sin(a) * 5];
+    rLap(x, [e.p, pe], R_VE2, 1, s + 50, { closed: false, al: 0.85 });
+    rHoja2(x, pe[0], pe[1], a, len, wid, s);
+  }
+  function rHojaEstrecha(x, cx, cy, a, len, wid, s) {
+    var N = 20, L = [], R = [];
+    for (var i = 0; i <= N; i++) {
+      var t = i / N, diente = (i === 8 || i === 13) ? 1.18 : 1;
+      var w = wid * Math.pow(Math.sin(Math.PI * Math.min(t, 0.97)), 0.7) * diente;
+      L.push([len * t, w]);
+      R.push([len * t, -w * (i === 10 || i === 15 ? 1.15 : 1)]);
+    }
+    var p = rRot(cx, cy, a, L.concat([[len * 1.02, 0]], R.reverse()));
+    rRellenar(x, p);
+    rHat(x, p, R_VE, s, { sep: 1.3, al: 0.75, cruz: 0.7, ang: a + 1 });
+    rRecortado(x, p, function () {
+      rLap(x, rRot(cx, cy, a, [[1, 0], [len * 0.92, 0]]), R_VE2, 0.6, s + 2, { closed: false, al: 0.6 });
+    });
+    rLap(x, p, R_VE2, 0.85, s + 1, { al: 0.85 });
+  }
+  function rHojaEstrechaDe(x, pts, t, lado, len, wid, s, abre) {
+    abre = abre === undefined ? 0.6 : abre;
+    var e = rEnTallo(pts, t);
+    rHojaEstrecha(x, e.p[0], e.p[1], e.ang + Math.PI + lado * abre, len, wid, s);
+  }
+  function rHojaPlumosa(x, cx, cy, a, len, s) {
+    var base = [];
+    for (var i = 0; i <= 20; i++) base.push([len * i / 20, Math.sin(i / 20 * Math.PI) * len * 0.06]);
+    var raquis = rRot(cx, cy, a, base);
+    rLap(x, raquis, R_VE2, 1.1, s, { closed: false, al: 0.9 });
+    for (var k = 1; k <= 7; k++) {
+      var q = raquis[Math.round(k / 8 * 20)], l = len * (0.46 - 0.04 * k);
+      [1, -1].forEach(function (sg) {
+        var aa = a + sg * (0.75 - 0.04 * k);
+        var h = [q,
+          [q[0] + Math.cos(aa) * l * 0.5 + Math.cos(a) * l * 0.15, q[1] + Math.sin(aa) * l * 0.5 + Math.sin(a) * l * 0.15],
+          [q[0] + Math.cos(aa) * l + Math.cos(a) * l * 0.35, q[1] + Math.sin(aa) * l + Math.sin(a) * l * 0.35]];
+        rLap(x, h, R_VE2, 1.05, s + k * 7 + (sg > 0 ? 1 : 3), { closed: false, al: 0.85 });
+        var m = h[1];
+        rLap(x, [m, [m[0] + Math.cos(aa + sg * 0.6) * l * 0.32, m[1] + Math.sin(aa + sg * 0.6) * l * 0.32]],
+          R_VE, 0.7, s + k * 7 + (sg > 0 ? 2 : 4), { closed: false, al: 0.7 });
+      });
+    }
+  }
+  function rHojaPlumosaDe(x, pts, t, lado, len, s, abre) {
+    abre = abre === undefined ? 0.6 : abre;
+    var e = rEnTallo(pts, t);
+    rHojaPlumosa(x, e.p[0], e.p[1], e.ang + Math.PI + lado * abre, len, s);
+  }
+  function rHojaTulipan(x, base, a, len, wid, s) {
+    var N = 24, L = [], R = [];
+    for (var i = 0; i <= N; i++) {
+      var t = i / N, w = wid * Math.pow(Math.sin(Math.PI * Math.min(t, 0.98)), 0.6) * (1 - 0.3 * t), cur = len * 0.12 * t * t;
+      L.push([len * t, w + cur]); R.push([len * t, -w + cur]);
+    }
+    var p = rRot(base[0], base[1], a, L.concat([[len * 1.02, len * 0.12]], R.reverse()));
+    rRellenar(x, p);
+    rHat(x, p, R_VE, s, {
+      sep: 1.7, al: 0.6, cruz: 0.8, ang: a + 1.1,
+      intensidad: function (X, Y) { return 0.3 + 0.6 * rCl(1 - rHypot(X - base[0], Y - base[1]) / len, 0, 1); }
+    });
+    rRecortado(x, p, function () {
+      for (var k = -1; k <= 1; k++) {
+        var linea = [];
+        for (var i = 0; i <= 10; i++) linea.push([len * i / 10 * 0.95, k * wid * 0.35 * (1 - i / 12) + len * 0.12 * (i / 10) * (i / 10)]);
+        rLap(x, rRot(base[0], base[1], a, linea), R_VE2, 0.5, s + 3 + k, { closed: false, al: 0.5, passes: 1 });
+      }
+    });
+    rLap(x, p, R_VE2, 0.95, s + 1, { al: 0.85 });
+  }
+
+  function rRosa2(x, cx, cy, R, s) {
+    function corona(n, len, anch, giro, b, col, colB, semilla, dark) {
+      for (var k = 0; k < n; k++) {
+        var a = giro + k * 6.2832 / n;
+        var p = rPetalo(cx, cy, a, len, anch, { b: b, taper: -0.05, pw: 0.55, notch: len * 0.06 });
+        rRellenar(x, p);
+        rHat(x, p, col, semilla + k, { intensidad: rRadial(cx, cy, b, len, 0.9, 1.1), sep: 1.7, al: 0.6, ang: a + 1.2 });
+        rHat(x, p, colB, semilla + 20 + k, {
+          intensidad: function (X, Y) {
+            return Math.pow(rCl(1 - (rHypot(X - cx, Y - cy) - b) / (len * 0.72), 0, 1), 0.9) * dark;
+          },
+          sep: 1.5, al: 0.85, cruz: 0.45, ang: a + 0.4
+        });
+        rLap(x, p, R_RO, 1.05, semilla + 40 + k, { al: 0.85 });
+      }
+    }
+    corona(5, R, R * 0.62, 0.3, R * 0.1, R_PR, R_RO, s, 0.8);
+    corona(5, R * 0.78, R * 0.5, 0.3 + 0.63, R * 0.08, R_PR, R_RO, s + 60, 0.95);
+    corona(4, R * 0.56, R * 0.42, 0.1, R * 0.05, R_RO, R_RO2, s + 120, 1);
+    // centro: tres piezas enrolladas en forma de C
+    var c = rCirc(cx, cy, R * 0.3, 36);
+    rRellenar(x, c);
+    rHat(x, c, R_RO, s + 200, { sep: 1.3, al: 0.8, cruz: 0.3, intensidad: rRadial(cx, cy, 0, R * 0.3, 0.5, 1) });
+    var arcos = [[0.2, 3.6, 0.28], [2.3, 5.6, 0.2], [4.4, 7.4, 0.12]];
+    for (var i = 0; i < arcos.length; i++) {
+      var arc = [];
+      for (var t = arcos[i][0]; t <= arcos[i][1]; t += 0.08) {
+        arc.push([cx + R * arcos[i][2] * Math.cos(t), cy + R * arcos[i][2] * 0.9 * Math.sin(t)]);
+      }
+      rLap(x, arc, R_RO2, 1.1, s + 210 + i, { closed: false, al: 0.9 });
+    }
+    rLap(x, c, R_RO2, 1, s + 220, { al: 0.7 });
+  }
+  function rMargarita2(x, cx, cy, R, s) {
+    function corona(n, giro, len, anch, semilla) {
+      for (var k = 0; k < n; k++) {
+        var a = giro + k * 6.2832 / n;
+        var p = rPetalo(cx, cy, a, len, anch, { b: R * 0.18, taper: 0.05, pw: 0.7, notch: 1.6 });
+        rRellenar(x, p);
+        rHat(x, p, R_PR, semilla + k, { intensidad: rRadial(cx, cy, R * 0.2, len, 1.5, 1.4), sep: 1.5, al: 0.5, ang: a + 1.45 });
+        rLap(x, p, R_MU, 0.7, semilla + 30 + k, { al: 0.6 });
+        rLap(x, rRot(cx, cy, a, [[R * 0.3, 0], [len * 0.75, 0]]), R_MAU, 0.45, semilla + 60 + k, { closed: false, al: 0.35, passes: 1 });
+      }
+    }
+    corona(13, 0.12, R, R * 0.13, s);
+    corona(13, 0.12 + 0.24, R * 0.92, R * 0.13, s + 100);
+    var c = rCirc(cx, cy, R * 0.27, 30);
+    rRellenar(x, c);
+    rHat(x, c, R_MIEL, s + 200, {
+      sep: 1.2, al: 0.9, cruz: 0.25,
+      intensidad: function (X, Y) { return 0.45 + 0.55 * rCl(rHypot(X - cx + R * 0.08, Y - cy + R * 0.08) / (R * 0.3), 0, 1); }
+    });
+    rLap(x, c, R_MARG_OSC, 1, s + 201, { al: 0.8 });
+    rPuntos(x, cx + R * 0.05, cy + R * 0.06, R * 0.19, 26, R_MARG_PUN, s + 202, 0.75);
+  }
+  function rCaliz(x, cx, cy, r, s) {
+    var p = [];
+    for (var t = 0; t <= Math.PI; t += 0.1) p.push([cx + r * Math.cos(t), cy + r * 0.55 * Math.sin(t)]);
+    rRellenar(x, p);
+    rHat(x, p, R_VE, s, { sep: 1.1, al: 0.8, cruz: 0.4 });
+    rLap(x, p, R_VE2, 0.8, s + 1, { al: 0.85 });
+    for (var k = -2; k <= 2; k++) {
+      rLap(x, [[cx + k * r * 0.35, cy], [cx + k * r * 0.3, cy + r * 0.45]], R_VE2, 0.45, s + 5 + k, { closed: false, al: 0.5, passes: 1 });
+    }
+  }
+  function rPetaloCosmos(cx, cy, a, len, wid, b) {
+    var N = 16, L = [], R = [];
+    for (var i = 0; i <= N; i++) {
+      var t = i / N;
+      var w = wid * (0.22 + 0.78 * Math.sin(Math.min(1, t * 1.15) * Math.PI / 2)) * (t > 0.9 ? 1 - (t - 0.9) * 2.5 : 1);
+      L.push([b + len * t, w]); R.push([b + len * t, -w]);
+    }
+    var tip = [[b + len, wid * 0.6], [b + len * 0.95, wid * 0.34], [b + len * 1.03, wid * 0.14],
+      [b + len * 0.97, -wid * 0.08], [b + len * 1.02, -wid * 0.32], [b + len * 0.96, -wid * 0.58]];
+    return rRot(cx, cy, a, L.slice(0, N).concat(tip, R.slice(0, N).reverse()));
+  }
+  function rCosmos2(x, cx, cy, R, s) {
+    for (var k = 0; k < 8; k++) {
+      var a = 0.2 + k * 0.785 + (k % 2 !== 0 ? 0.04 : -0.03);
+      var p = rPetaloCosmos(cx, cy, a, R * 0.9, R * 0.37, R * 0.14);
+      rRellenar(x, p);
+      rHat(x, p, R_CO, s + k, { intensidad: rRadial(cx, cy, R * 0.12, R, 0.85, 1.3), sep: 1.6, al: 0.65, ang: a + 1.35 });
+      rHat(x, p, R_RO, s + 20 + k, {
+        intensidad: function (X, Y) { return rCl(1 - (rHypot(X - cx, Y - cy) - R * 0.12) / (R * 0.32), 0, 1); },
+        sep: 1.4, al: 0.75, cruz: 0.4, ang: a + 0.3
+      });
+      rRecortado(x, p, function () {
+        for (var j = 0; j < 3; j++) {
+          var o = [-0.35, 0, 0.35][j];
+          rLap(x, rRot(cx, cy, a, [[R * 0.16, o * R * 0.05], [R * 0.85, o * R * 0.22]]), R_COS_BORDE, 0.45,
+            s + 40 + k * 3 + j, { closed: false, al: 0.4, passes: 1 });
+        }
+      });
+      rLap(x, p, R_COS_BORDE, 0.95, s + 70 + k, { al: 0.85 });
+    }
+    var c = rCirc(cx, cy, R * 0.24, 28);
+    rRellenar(x, c);
+    rHat(x, c, R_MU, s + 90, { sep: 1.1, al: 0.9, cruz: 0.2 });
+    rLap(x, c, R_TX, 0.9, s + 91, { al: 0.85 });
+    var q = rngRamo(s + 92);
+    for (var i = 0; i < 22; i++) {
+      var an = i / 22 * 6.2832 + q() * 0.2, rad = R * (0.2 + q() * 0.06);
+      var px = cx + Math.cos(an) * rad, py = cy + Math.sin(an) * rad, radio = 0.9 + q() * 0.5;
+      x.globalAlpha = 0.9; x.fillStyle = R_MIEL;
+      x.beginPath(); x.arc(px, py, radio, 0, 2 * Math.PI); x.fill();
+      x.globalAlpha = 1;
+    }
+    rPuntos(x, cx, cy, R * 0.1, 8, R_MIEL, s + 93, 0.8);
+  }
+  function rTulipan2(x, cx, cy, R, s) {
+    function pet(a0, len, anch, dx) { return rPetalo(cx + dx, cy + R * 0.75, a0, len, anch, { taper: 0.3, pw: 0.55 }); }
+    var piezas = [pet(-1.5708, R * 1.55, R * 0.55, 0), pet(-1.95, R * 1.35, R * 0.5, -R * 0.08), pet(-1.19, R * 1.35, R * 0.5, R * 0.08)];
+    var angulos = [-1.5708, -1.95, -1.19];
+    function intensidad(X, Y) { return Math.pow(rCl((Y - (cy - R * 0.9)) / (R * 1.7), 0, 1), 1.1) + 0.06; }
+    for (var i = 0; i < piezas.length; i++) {
+      var p = piezas[i];
+      rRellenar(x, p);
+      rHat(x, p, R_PR, s + i, { intensidad: intensidad, sep: 1.6, al: 0.7, ang: 1.45 - i * 0.2 });
+      rHat(x, p, R_RO, s + 10 + i, {
+        intensidad: function (X, Y) { return rCl((Y - (cy + R * 0.1)) / (R * 0.7), 0, 1); },
+        sep: 1.4, al: 0.75, cruz: 0.5, ang: 0.5
+      });
+      (function (ii) {
+        rRecortado(x, p, function () {
+          rLap(x, rRot(cx, cy + R * 0.75, angulos[ii], [[R * 0.2, 0], [R * 1.2, 0]]), R_RO, 0.5, s + 20 + ii,
+            { closed: false, al: 0.45, passes: 1 });
+        });
+      })(i);
+      rLap(x, p, R_RO2, 1, s + 30 + i, { al: 0.85 });
+    }
+  }
+
+  function rEnvCortoAtras(x, s) {
+    var p = [[70, 238], [78, 222], [100, 212], [124, 216], [146, 206], [168, 213], [188, 210], [198, 224], [192, 236], [146, 340], [116, 340]];
+    rRellenar(x, p, R_NOTA);
+    rHat(x, p, R_KR, s, { sep: 1.8, al: 0.55, ang: 1.2, intensidad: function (X, Y) { return 0.5 + 0.5 * rCl((Y - 208) / 50, 0, 1); } });
+    rHat(x, p, R_ENVOLTORIO, s + 1, { sep: 2.2, al: 0.35, ang: 2.2, intensidad: function (X, Y) { return rCl((Y - 224) / 36, 0, 1); } });
+    rLap(x, p, R_KR, 1, s + 2, { al: 0.85 });
+  }
+  function rEnvCortoDelante(x, s) {
+    var borde = [[70, 238], [86, 244], [102, 240], [118, 247], [134, 242], [150, 248], [166, 241], [180, 245], [192, 236]];
+    var p = borde.concat([[146, 340], [116, 340]]);
+    rRellenar(x, p, R_NOTA);
+    rHat(x, p, R_KR, s, {
+      sep: 2.1, al: 0.45, ang: 1.85,
+      intensidad: function (X, Y) { return 0.3 + 0.7 * rCl((X - 70) / 120, 0, 1) * 0.6 + 0.4 * rCl((Y - 240) / 100, 0, 1); }
+    });
+    rRecortado(x, p, function () {
+      var bandas = [[102, 240, -1], [134, 242, 1], [166, 241, 1]];
+      for (var i = 0; i < bandas.length; i++) {
+        var px = bandas[i][0], py = bandas[i][1], sg = bandas[i][2], fin = [121 + i * 10, 340];
+        rLap(x, [[px, py], fin], R_ENVOLTORIO, 0.8, s + 10 + i, { closed: false, al: 0.6 });
+        rHat(x, [[px, py], fin, [fin[0] + sg * 4, fin[1]], [px + sg * 8, py + 2]], R_ENVOLTORIO, s + 20 + i, { sep: 1.3, al: 0.4, ang: 1.7 });
+      }
+    });
+    rLap(x, p, R_KR, 1.15, s + 1, { al: 0.9 });
+    rLap(x, borde, R_ENVOLTORIO, 0.7, s + 2, { closed: false, al: 0.5 });
+  }
+  function rCintaCono(x, cx, cy, w, s) {
+    var dys = [-6, 1, 8];
+    for (var i = 0; i < dys.length; i++) {
+      var dy = dys[i], h = 5.2, sag = 4.5, N = 24, arriba = [], abajo = [];
+      for (var k = 0; k <= N; k++) {
+        var u = -1 + 2 * k / N, X = cx + u * (w - dy * 0.12), c = sag * (1 - u * u);
+        arriba.push([X, cy + dy + c]); abajo.push([X, cy + dy + c + h]);
+      }
+      var p = arriba.concat(abajo.reverse());
+      rRellenar(x, p);
+      rHat(x, p, R_RO, s + i, {
+        sep: 1.2, al: 0.8, cruz: 0.3, ang: 1.45,
+        intensidad: function (X) { return 0.55 + 0.45 * rCl(Math.abs(X - cx) / w, 0, 1); }
+      });
+      rLap(x, p, R_RO2, 0.9, s + i + 10, { al: 0.85 });
+    }
+  }
+  function rLazoCono(x, cx, cy, k, w, s) {
+    var tails = [
+      [[cx - 4, cy + 6], [cx - 14 * k, cy + 26 * k], [cx - 26 * k, cy + 46 * k], [cx - 17 * k, cy + 43 * k], [cx - 14 * k, cy + 50 * k], [cx - 6 * k, cy + 28 * k], [cx, cy + 8]],
+      [[cx + 4, cy + 6], [cx + 12 * k, cy + 28 * k], [cx + 22 * k, cy + 50 * k], [cx + 14 * k, cy + 45 * k], [cx + 10 * k, cy + 52 * k], [cx + 4 * k, cy + 28 * k], [cx, cy + 8]]
+    ];
+    for (var i = 0; i < tails.length; i++) {
+      rRellenar(x, tails[i]);
+      rHat(x, tails[i], R_RO, s + i, {
+        sep: 1.5, al: 0.75, cruz: 0.5,
+        intensidad: function (X, Y) { return 0.45 + 0.55 * rCl(1 - (Y - cy) / (50 * k), 0, 1); }
+      });
+      rLap(x, tails[i], R_RO2, 1, s + i + 5, { al: 0.85 });
+    }
+    rCintaCono(x, cx, cy, w, s + 30);
+    var lazos = [rPetalo(cx, cy, 3.45, 30 * k, 12 * k, { taper: -0.2, pw: 0.6 }), rPetalo(cx, cy, -0.31, 30 * k, 12 * k, { taper: -0.2, pw: 0.6 })];
+    for (i = 0; i < lazos.length; i++) {
+      rRellenar(x, lazos[i]);
+      rHat(x, lazos[i], R_RO, s + 10 + i, { sep: 1.5, al: 0.75, cruz: 0.6, intensidad: rRadial(cx, cy, 0, 30 * k, 0.8, 1) });
+      rLap(x, lazos[i], R_RO2, 1.1, s + 12 + i, { al: 0.85 });
+      rHat(x, rPetalo(cx, cy, i !== 0 ? -0.31 : 3.45, 16 * k, 5 * k, { taper: 0 }), R_RO2, s + 14 + i, { sep: 1.3, al: 0.55 });
+    }
+    var n = rCirc(cx, cy, 5.5 * k, 20);
+    rRellenar(x, n);
+    rHat(x, n, R_RO2, s + 20, { sep: 1.2, al: 0.85, cruz: 0.1 });
+    rLap(x, n, R_RO2, 1, s + 21);
+  }
+
+  /* _ramoGrande con n = 4: se ven las [flores] primeras y, si [atado], el
+     envoltorio y el lazo. En el marco de 260 x 360. */
+  function dibujarRamoCampo(x, flores, atado) {
+    var tTul = rBezPts([90, 86], [100, 226], [124, 356]);
+    var tRosa = rBezPts([138, 152], [134, 250], [130, 356]);
+    var tMarg = rBezPts([78, 170], [104, 250], [120, 356]);
+    var tCos = rBezPts([192, 172], [160, 250], [138, 356]);
+    var rosa = flores >= 1, margarita = flores >= 2, cosmos = flores >= 3, tulipan = flores >= 4;
+    if (atado) rEnvCortoAtras(x, 300);
+    if (cosmos) rTalloGrueso(x, tCos, 1.1, 41);
+    if (margarita) rTalloGrueso(x, tMarg, 1.3, 21);
+    if (tulipan) rTalloGrueso(x, tTul, 1.9, 51);
+    if (rosa) rTalloGrueso(x, tRosa, 1.6, 1);
+    if (tulipan) rHojaTulipan(x, rEnTallo(tTul, 0.6).p, -1.3, 50, 7, 61);
+    if (margarita) rHojaEstrechaDe(x, tMarg, 0.3, -1, 36, 4.8, 31, 0.6);
+    if (rosa) rHojaDe(x, tRosa, 0.36, 1, 36, 12, 13, 0.8);
+    if (cosmos) rHojaPlumosaDe(x, tCos, 0.27, 1, 42, 71, 0.65);
+    if (tulipan) rTulipan2(x, 90, 70, 24, 110);
+    if (cosmos) rCaliz(x, 192, 170, 7, 80);
+    if (cosmos) rCosmos2(x, 192, 146, 28, 90);
+    if (margarita) rCaliz(x, 78, 167, 9, 40);
+    if (margarita) rMargarita2(x, 78, 143, 30, 50);
+    if (rosa) rSepalos(x, 138, 152, 13, 20);
+    if (rosa) rRosa2(x, 138, 116, 37, 10);
+    if (atado) rEnvCortoDelante(x, 320);
+    if (atado) rLazoCono(x, 131, 290, 1, 35, 130);
+  }
+
+  /* ── El cierre del día (cierre_del_dia.dart), en Profundidad y Dulce ─────
+     Profundidad: velo negro y la constelación. Dulce: velo crema (fondoNota
+     al 94 %) y el ramo, que se forma flor a flor (500 ms de velo y 500 ms por
+     etapa); los textos esperan a que esté atado. Neotokyo+ no tiene cierre.
+     Cada identidad lo enseña una vez por visita. */
   var cierre = document.getElementById('cierre'), cierreCv = document.getElementById('cierreCv');
-  var cierreTextos = 0, cierreVelo = 0, cerrando = false;
+  var cierreTextos = 0, cierreVelo = 0, cierreRamo = 0, cerrando = false, cierreDulce = false;
+  var ETAPAS_RAMO = 5; // 4 flores y el atado
+  // Cada etapa del ramo se dibuja una vez y se guarda, como pintarConCache.
+  // Dibujarla son miles de rayas: se preparan al elegir Dulce (una etapa por
+  // hueco libre del navegador) para que la ceremonia no dé tirones.
+  var lienzosRamo = {}, altoPre = 0;
+  function altoRamo() {
+    var el = document.documentElement;
+    return Math.round(cuadroConstelacion(el.clientWidth, el.clientHeight).lado);
+  }
+  function precalentarRamo() {
+    if (idActual !== 'dulce') return;
+    var alto = altoRamo();
+    if (alto === altoPre) return; // ya preparadas, o preparándose
+    altoPre = alto; lienzosRamo = {};
+    var e = 1;
+    var luego = window.requestIdleCallback
+      ? function (fn) { window.requestIdleCallback(fn, { timeout: 600 }); }
+      : function (fn) { setTimeout(fn, 40); };
+    function una() {
+      if (alto !== altoPre || e > ETAPAS_RAMO) return;
+      lienzoRamo(e++, alto);
+      luego(una);
+    }
+    luego(una);
+  }
+  function lienzoRamo(e, alto) {
+    if (e <= 0) return null;
+    var clave = e + '@' + alto;
+    if (lienzosRamo[clave]) return lienzosRamo[clave];
+    var ancho = alto * 260 / 360, cv = document.createElement('canvas');
+    cv.width = Math.ceil((ancho + 4) * DPR); cv.height = Math.ceil((alto + 4) * DPR);
+    var x = cv.getContext('2d');
+    x.setTransform(DPR, 0, 0, DPR, 2 * DPR, 2 * DPR);
+    x.scale(alto / 360, alto / 360);
+    dibujarRamoCampo(x, Math.min(e, 4), e > 4);
+    lienzosRamo[clave] = cv;
+    return cv;
+  }
+  function pintarRamo(c, q) {
+    // Si las etapas preparadas son de un tamaño casi igual (la barra del
+    // navegador del móvil que aparece o se esconde), se escalan.
+    var real = Math.round(q.lado);
+    var alto = altoPre && Math.abs(altoPre - real) <= 16 ? altoPre : real, k0 = real / alto;
+    var ancho = real * 260 / 360;
+    var x0 = q.x + (q.lado - ancho) / 2 - 2 * k0, y0 = q.y + (q.lado - real) / 2 - 2 * k0;
+    var p = clamp(cierreRamo * (1 + ETAPAS_RAMO) - 1, 0, ETAPAS_RAMO), k = Math.floor(p), f = p - k;
+    function etapa(e, alfa) {
+      var cv = lienzoRamo(e, alto);
+      if (!cv || alfa <= 0) return;
+      c.globalAlpha = alfa;
+      c.drawImage(cv, x0, y0, cv.width / DPR * k0, cv.height / DPR * k0);
+    }
+    etapa(k, cierreVelo);
+    if (k + 1 <= ETAPAS_RAMO) etapa(k + 1, cierreVelo * f);
+    c.globalAlpha = 1;
+  }
   function pintarCierre() {
     var w = cierre.clientWidth, h = cierre.clientHeight, c = preparar(cierreCv, w, h), q = cuadroConstelacion(w, h);
-    c.fillStyle = 'rgba(0,0,0,' + (0.75 * cierreVelo) + ')'; c.fillRect(0, 0, w, h);
-    c.globalAlpha = cierreVelo;
-    pintarConstelacion(c, w, h, HABITOS.length, { realce: cierreVelo, velo: false });
-    c.globalAlpha = 1;
+    if (cierreDulce) {
+      c.fillStyle = 'rgba(255,244,214,' + (0.94 * cierreVelo) + ')'; c.fillRect(0, 0, w, h);
+      pintarRamo(c, q);
+    } else {
+      c.fillStyle = 'rgba(0,0,0,' + (0.75 * cierreVelo) + ')'; c.fillRect(0, 0, w, h);
+      c.globalAlpha = cierreVelo;
+      pintarConstelacion(c, w, h, HABITOS.length, { realce: cierreVelo, velo: false });
+      c.globalAlpha = 1;
+    }
     var arriba = document.getElementById('cierreArriba'), abajo = document.getElementById('cierreAbajo');
     arriba.style.opacity = abajo.style.opacity = 1;
     arriba.style.bottom = (h - q.y + 16) + 'px';
@@ -873,14 +1452,24 @@
     document.getElementById('cierreDes').style.opacity = alfa(0.83, 1.0);
   }
   function cerrarDia() {
-    if (cierreHecho || idActual !== 'profundidad' || hechos() !== HABITOS.length) return;
-    cierreHecho = true;
+    if (idActual !== 'profundidad' && idActual !== 'dulce') return;
+    if (cierreHecho[idActual] || hechos() !== HABITOS.length) return;
+    cierreHecho[idActual] = true;
+    cierreDulce = idActual === 'dulce';
+    document.getElementById('cierreNom').textContent = cierreDulce ? 'Ramo de campo' : 'Cruz del Sur';
     cierre.classList.add('on');
-    if (quieto) { cierreVelo = 1; cierreTextos = 1; pintarCierre(); return; }
-    var t0 = performance.now();
+    if (quieto) { cierreVelo = 1; cierreRamo = 1; cierreTextos = 1; pintarCierre(); return; }
+    cierreVelo = 0; cierreRamo = 0; cierreTextos = 0;
+    var t0 = performance.now(), durRamo = 500 + 500 * ETAPAS_RAMO;
     (function paso(ts) {
-      cierreVelo = clamp((ts - t0) / 500, 0, 1);
-      cierreTextos = clamp((ts - t0) / 2900, 0, 1);
+      var t = ts - t0;
+      cierreVelo = clamp(t / 500, 0, 1);
+      if (cierreDulce) {
+        cierreRamo = clamp(t / durRamo, 0, 1);
+        cierreTextos = clamp((t - durRamo) / 2900, 0, 1);
+      } else {
+        cierreTextos = clamp(t / 2900, 0, 1);
+      }
       pintarCierre();
       if (cierreTextos < 1) requestAnimationFrame(paso);
     })(t0);
@@ -888,7 +1477,10 @@
   cierre.addEventListener('click', function () {
     if (cerrando || cierreTextos < 1) return;
     cerrando = true;
-    function fin() { cierre.classList.remove('on'); cerrando = false; realce = 1; pintarCieloApp(); }
+    function fin() {
+      cierre.classList.remove('on'); cerrando = false;
+      if (!cierreDulce) { realce = 1; pintarCieloApp(); }
+    }
     if (quieto) { cierreVelo = 0; fin(); return; }
     var t0 = performance.now();
     (function paso(ts) {
@@ -907,6 +1499,7 @@
     botones.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.ir === id ? 'true' : 'false'); });
     try { localStorage.setItem('norday-identidad', id); } catch (e) { /* sin almacenamiento, da igual */ }
     redibujar();
+    precalentarRamo();
   }
   botones.forEach(function (b) { b.addEventListener('click', function () { aplicar(b.dataset.ir); }); });
 
@@ -1181,14 +1774,19 @@
   document.documentElement.setAttribute('data-id', idActual);
   ordenar(false);
   redibujar();
+  precalentarRamo();
   // Las letras llegan después: las medidas de los chips y las filas cambian.
   if (document.fonts) {
+    // El título del cierre de Dulce es la única letra en Quicksand 600: se
+    // pide ya, con las demás, porque al llegar redibuja toda la página y en
+    // medio de la ceremonia sería un parón.
+    if (document.fonts.load) document.fonts.load('600 22px Quicksand');
     document.fonts.ready.then(redibujar);
     document.fonts.addEventListener('loadingdone', function () { cache = {}; redibujar(); });
   }
   var espera;
   window.addEventListener('resize', function () {
     clearTimeout(espera);
-    espera = setTimeout(function () { cache = {}; redibujar(); }, 150);
+    espera = setTimeout(function () { cache = {}; redibujar(); precalentarRamo(); }, 150);
   });
 })();

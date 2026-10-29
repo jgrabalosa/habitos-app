@@ -482,7 +482,7 @@ html:not([data-id="neotokyo"]):not([data-id="dulce"]) .priv__f + .priv__f{border
    que lleva el texto de la página sobre las ventanas encendidas. */
 .ident[data-id="neotokyo"] .ident__f{text-shadow:0 0 10px #090614,0 0 4px #090614,0 0 2px #090614}
 
-/* ── Cierre del día (Profundidad) ───────────────────────────────────────── */
+/* ── Cierre del día (Profundidad y Dulce) ───────────────────────────────── */
 .cierre{position:fixed;inset:0;z-index:50;cursor:pointer;display:none}
 .cierre.on{display:block}
 .cierre canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -490,7 +490,9 @@ html:not([data-id="neotokyo"]):not([data-id="dulce"]) .priv__f + .priv__f{border
 .cierre__tit{font-family:var(--display),sans-serif;font-size:22px;font-weight:600;color:var(--text)}
 .cierre__nom{font-family:var(--display),sans-serif;font-size:34px;font-weight:700;color:var(--streak);
   text-shadow:0 0 18px color-mix(in srgb,var(--streak) 60%,transparent);margin-top:6px}
-.cierre__des{font-family:var(--cuerpo),sans-serif;font-size:16px;color:var(--muted)}
+.cierre__des{font-family:var(--cuerpo),sans-serif;font-size:calc(16px * var(--lectura));color:var(--muted)}
+/* En Dulce, el nombre del ramo va en su color de texto, sin brillo. */
+[data-id="dulce"] .cierre__nom{color:var(--success-text);text-shadow:none}
 
 /* En Neotokyo+ la ciudad sube hasta media pantalla: el texto del hero lleva
    un halo del fondo para leerse sobre las ventanas encendidas. */
