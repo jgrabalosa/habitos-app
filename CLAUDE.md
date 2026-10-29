@@ -373,7 +373,7 @@ suite esté verde.
 
 En `norday-server/src/main/resources/static/` sólo viven la landing
 (`index.html`), las dos páginas legales (`privacidad.html`,
-`eliminar-cuenta.html`), `js/nori.js` y las imágenes.
+`eliminar-cuenta.html`), `js/landing.js`, `js/legal.js`, y en `img/` las imágenes y las letras.
 
 El dashboard web antiguo —`app.html`, `login.html`, `habito.html`,
 `habito-detalle.html`, `logros.html` y sus `js/` y `css/`— se borró el
