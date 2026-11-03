@@ -188,9 +188,9 @@ más `request_body max_size 1MB`, el log de acceso y el `reverse_proxy`.
 La `Content-Security-Policy` va en un bloque aparte con matcher
 (`@estaticos`), no en el `header *`: se aplica sólo a `/`,
 `/index.html`, `/privacidad.html` y `/eliminar-cuenta.html`. En las
-respuestas JSON de la API no pinta nada. Desde el 14-sep-2026 está en
-los dos bloques, producción y staging, porque staging sirve los mismos
-estáticos.
+respuestas JSON de la API no pinta nada. Está en los tres bloques
+(`api.norday.app`, `staging-api.norday.app` y, desde el 3-nov-2026,
+`norday.app`), porque los tres sirven los mismos estáticos.
 
 **Estuvo documentada desde el 12-sep-2026 pero no aplicada.** El cambio
 de aquel día no llegó a guardarse: `Caddyfile.antes-csp` y
@@ -200,38 +200,38 @@ verdad el 14-sep. Lección: una cabecera se verifica con `curl` contra el
 servidor, nunca leyendo el fichero de configuración ni dando por hecho
 que un cambio descrito se aplicó.
 
-El valor exacto que se sirve hoy:
+El valor exacto que se sirve hoy (desde el 3-nov-2026):
 
     default-src 'none'; script-src 'self'; style-src 'self'
-    'unsafe-inline' https://fonts.googleapis.com; font-src
-    https://fonts.gstatic.com; img-src 'self'; base-uri 'none';
+    'unsafe-inline'; font-src 'self'; img-src 'self'; base-uri 'none';
     form-action 'none'
 
 (en el Caddyfile va todo en una sola línea).
 
-`script-src 'self'` va limpio y sin hashes porque desde el 12-sep-2026 no
-queda JavaScript en línea en ningún estático: el de la landing vive en
-`js/nori.js`. No hay ningún atributo `onclick` en las tres páginas.
+`script-src 'self'` va limpio y sin hashes: no queda JavaScript en línea
+en ningún estático ni ningún atributo `onclick`. El de la landing vive en
+`js/landing.js` y el de las páginas legales en `js/legal.js`.
 
-`'unsafe-inline'` sobrevive sólo en `style-src`, y por dos motivos, no
-uno: los 60 atributos `style=` de la landing, y un bloque `<style>` en
-cada una de las tres páginas. Quitar los atributos no bastaría para
-retirarlo.
+`'unsafe-inline'` sobrevive sólo en `style-src`, por el bloque `<style>`
+de cada una de las tres páginas. Ya no queda ningún atributo `style=`; el
+JavaScript cambia estilos con `element.style`, que la CSP no bloquea.
 
-`style-src` incluye además `https://fonts.googleapis.com` y hay un
-`font-src https://fonts.gstatic.com`: las tres páginas cargan fuentes de
-Google (la landing ocho familias, las dos legales sólo Manrope). **Sin
-esas dos directivas la tipografía se rompe en silencio**, que es el
-riesgo real de `default-src 'none'`. Las directivas no se deducen de la
-prosa: se derivan de lo que las páginas cargan de verdad, mirando los
-`src=` y `href=` de cada fichero.
+Las letras se sirven desde `img/fuentes/` (`@font-face` en cada página),
+sin Google Fonts. Por eso `font-src 'self'` y `style-src` ya no incluye
+`fonts.googleapis.com`. **Si alguna página vuelve a cargar una fuente de
+otro origen, la tipografía se rompe en silencio**, que es el riesgo real
+de `default-src 'none'`. Las directivas no se deducen de la prosa: se
+derivan de lo que las páginas cargan de verdad, mirando los `src=`,
+`href=` y `url(` de cada fichero.
 
-`img-src 'self'` cubre el favicon y los tres iconos de `/img/`. No hace
-falta `connect-src`: `js/nori.js` no hace `fetch` ni `XMLHttpRequest`.
+`img-src 'self'` cubre el favicon, los iconos de `/img/`, Nori
+(`img/nori/*.webp`), la insignia de Google Play y el QR. No hace falta
+`connect-src`: ni `js/landing.js` ni `js/legal.js` hacen `fetch` ni
+`XMLHttpRequest`.
 
 Comprobación después de cualquier cambio:
 
-    curl -sI https://api.norday.app/ | grep -i content-security-policy
+    curl -sI https://api.norday.app/privacidad.html | grep -i content-security-policy
     curl -sI https://api.norday.app/api/habitos | grep -i content-security-policy
 
 La primera debe devolver la cabecera; la segunda, nada. Y abrir las
@@ -249,6 +249,42 @@ Al validar: `caddy validate` ejecutado como root puede crear el fichero de
 log como root, y entonces el servicio, que corre como `caddy`, no puede
 abrirlo y el `reload` falla. Comprobar el propietario del log antes de
 recargar.
+
+## La web en `norday.app` (3-nov-2026)
+
+La landing y las dos páginas legales viven en
+`norday-server/src/main/resources/static/` y las sirve el backend de
+producción, empaquetadas en el jar. No hay otra copia: se despliegan con
+el backend.
+
+`norday.app` es la dirección pública de la web. Su bloque de Caddy lo
+resuelve todo dentro de un `route`, en este orden:
+
+1. Los enlaces cortos (`/ig`, `/threads`, `/web`, `/qr`, `/descargar`…):
+   un `redir` 302 a la ficha de Google Play con sus UTM. `/web` es la
+   insignia de la landing y `/qr`, su QR.
+2. `/linkedin`: una página propia, servida desde `/var/www/norday-enlaces`.
+3. La web: `reverse_proxy` al backend de producción **sólo** para `/`,
+   `/index.html`, `/privacidad.html`, `/eliminar-cuenta.html`,
+   `/favicon.ico`, `/img/*` y `/js/*`. La API no sale por `norday.app`.
+4. Todo lo demás: `redir *` a Google Play.
+
+`api.norday.app/` y `/index.html` redirigen con un 301 a
+`https://norday.app/`. `api.norday.app/privacidad.html` y
+`/eliminar-cuenta.html` se siguen sirviendo ahí, porque son las
+direcciones dadas de alta en Google Play Console: no se cambian sin
+cambiarlas antes en la consola. `og:url` y `og:image` de la landing
+apuntan a `norday.app`.
+
+Comprobación después de cualquier cambio:
+
+    curl -sI https://norday.app/ | grep -i -E "^HTTP|content-security-policy"
+    curl -sI https://norday.app/api/habitos | grep -i -E "^HTTP|^location"
+    curl -sI https://api.norday.app/ | grep -i -E "^HTTP|^location"
+    curl -sI https://api.norday.app/privacidad.html | grep -i "^HTTP"
+
+La primera, 200 con la CSP; la segunda, 302 a Google Play (la API no sale
+por `norday.app`); la tercera, 301 a `https://norday.app/`; la cuarta, 200.
 
 ## Staging en `staging-api.norday.app` (14-sep-2026)
 
