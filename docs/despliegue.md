@@ -276,15 +276,35 @@ direcciones dadas de alta en Google Play Console: no se cambian sin
 cambiarlas antes en la consola. `og:url` y `og:image` de la landing
 apuntan a `norday.app`.
 
+**La web pasa al backend sin la cabecera `Origin`.** El navegador pide
+siempre las letras de `@font-face` en modo CORS, con `Origin`, aunque
+sean del mismo origen. Spring tiene su propia lista de orígenes CORS
+(`SecurityConfig`: `http://localhost:8080` y `https://api.norday.app`) y
+responde **403** a cualquier otro, sin mirar si la petición es del mismo
+sitio. Por eso, en los tres bloques (`norday.app`, `api.norday.app` y
+`staging-api.norday.app`), las rutas de la web van a un `handle @web`
+con `reverse_proxy … { header_up -Origin }`, y el resto (la API) va por
+otro `handle` sin tocar. En `api.norday.app`, además, un `handle @raiz`
+hace la redirección de `/` y `/index.html`.
+
+Si alguien quita el `header_up -Origin`, la web se ve con las letras
+del sistema y la consola del navegador enseña los 403. La CSP no tiene
+nada que ver. Tampoco se arregla añadiendo orígenes al CORS de Spring:
+eso abriría la API, con credenciales, a peticiones desde esas webs.
+Se descubrió el 3-nov-2026 al desplegar la web.
+
 Comprobación después de cualquier cambio:
 
     curl -sI https://norday.app/ | grep -i -E "^HTTP|content-security-policy"
+    curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://norday.app" https://norday.app/img/fuentes/Manrope-Regular.woff2
     curl -sI https://norday.app/api/habitos | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/ | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/privacidad.html | grep -i "^HTTP"
 
-La primera, 200 con la CSP; la segunda, 302 a Google Play (la API no sale
-por `norday.app`); la tercera, 301 a `https://norday.app/`; la cuarta, 200.
+La primera, 200 con la CSP; la de la letra, 200 (un 403 es que falta el
+`header_up -Origin`); la de `/api/habitos`, 302 a Google Play (la API no
+sale por `norday.app`); la de `api.norday.app/`, 301 a
+`https://norday.app/`; y la de `privacidad.html`, 200.
 
 ## Staging en `staging-api.norday.app` (14-sep-2026)
 
