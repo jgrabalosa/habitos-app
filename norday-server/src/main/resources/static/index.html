@@ -503,14 +503,14 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
 
 /* ── Pantallas estrechas ────────────────────────────────────────────────── */
 @media (max-width:900px){
-  .pasos__g{grid-template-columns:1fr;gap:56px}
-  .bloque{grid-template-columns:1fr;gap:28px}
-  .idents__g{grid-template-columns:1fr;max-width:440px}
-  .priv__g{grid-template-columns:1fr;gap:32px}
-  .dudas__g{grid-template-columns:1fr;gap:64px}
+  .pasos__g{grid-template-columns:minmax(0,1fr);gap:56px}
+  .bloque{grid-template-columns:minmax(0,1fr);gap:28px}
+  .idents__g{grid-template-columns:minmax(0,1fr);max-width:440px}
+  .priv__g{grid-template-columns:minmax(0,1fr);gap:32px}
+  .dudas__g{grid-template-columns:minmax(0,1fr);gap:64px}
   .bloque--inv .bloque__t{order:0}
   .paso__v{min-height:0}
-  .hero__g{grid-template-columns:1fr;gap:48px}
+  .hero__g{grid-template-columns:minmax(0,1fr);gap:48px}
   .lead{max-width:44ch}
 }
 @media (prefers-reduced-motion:reduce){
