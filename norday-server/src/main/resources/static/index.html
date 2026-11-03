@@ -143,13 +143,16 @@ h1{font-family:var(--display),sans-serif;font-weight:700;letter-spacing:var(--tr
 .descarga{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-top:40px}
 .nota{margin-top:20px;font-size:calc(14px * var(--lectura));color:var(--muted)}
 
-/* Huecos del Día D. Se ven a propósito: hasta tener la URL de Play no hay
-   insignia ni QR. Buscar `data-pendiente` para rellenarlos. */
-.pendiente{display:grid;place-items:center;text-align:center;border:1.5px dashed var(--muted);
-  color:var(--muted);font-family:'Manrope',sans-serif;font-size:12px;line-height:1.3;font-weight:600}
-.insignia{width:180px;height:56px;border-radius:10px}
+/* Descarga: la insignia lleva a norday.app/web y el QR a norday.app/qr, dos
+   enlaces cortos de Caddy con sus UTM (utm_content=boton y qr) para saber de
+   dónde viene cada instalación. La insignia es la oficial de Google en español
+   (img/insignia-play-es.svg), sin tocar. El QR (img/qr.svg) va oscuro sobre
+   blanco en las tres identidades, que es como mejor se lee. */
+.insignia{display:inline-block;line-height:0;border-radius:10px}
+.insignia img{display:block;width:auto;height:56px}
+.insignia:focus-visible{outline:2px solid var(--trazo);outline-offset:3px}
 .qr{display:flex;align-items:center;gap:14px}
-.qr__c{width:96px;height:96px;border-radius:8px}
+.qr__c{display:block;width:96px;height:96px;border-radius:8px}
 .qr__t{max-width:16ch;font-size:calc(14px * var(--lectura));color:var(--muted);line-height:1.35}
 /* El QR sólo tiene sentido en un ordenador: en el móvil no se escanea la
    propia pantalla. */
@@ -537,12 +540,9 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
         <h1>Constancia, no perfección</h1>
         <p class="lead">Marca lo que has hecho hoy y ya está. Sin rachas que se rompen, sin culpa y sin anuncios.</p>
         <div class="descarga">
-          <!-- PENDIENTE (Día D): insignia oficial «Disponible en Google Play»,
-               en español, de 56 px de alto, enlazada a la ficha con UTM. -->
-          <div class="pendiente insignia" data-pendiente="insignia-play">Insignia de<br>Google Play</div>
-          <!-- PENDIENTE (Día D): QR al mismo enlace, oscuro sobre claro. -->
+          <a class="insignia" href="https://norday.app/web"><img src="img/insignia-play-es.svg" width="189" height="56" alt="Descargar Norday Habits en Google Play"></a>
           <div class="qr">
-            <div class="pendiente qr__c" data-pendiente="qr">QR</div>
+            <img class="qr__c" src="img/qr.svg" width="96" height="96" alt="Código QR para descargar Norday Habits en Google Play">
             <p class="qr__t">¿Estás en el ordenador? Escanéalo con el móvil.</p>
           </div>
         </div>
@@ -671,8 +671,6 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
       <p class="et">IDENTIDADES</p>
       <h2 id="identsTit">Elige cómo se ve tu día</h2>
       <p class="idents__lead">Cada identidad cambia la letra, las formas, los colores y lo que pasa al fondo cuando avanzas. Eliges una gratis al empezar. Las otras cuestan 1.000 puntos en la tienda, y los puntos se ganan marcando hábitos.</p>
-      <!-- PENDIENTE (Día D): cuando haya capturas reales de «Hoy», una por
-           identidad, pueden ir en lugar del dibujo de cada tarjeta. -->
       <div class="idents__g">
         <article class="ident" data-id="profundidad">
           <div class="ident__m"><canvas class="ident__cv" aria-hidden="true"></canvas><div class="ident__f"></div></div>
@@ -769,11 +767,9 @@ html[data-id="neotokyo"] .final,html[data-id="neotokyo"] .pie,html[data-id="neot
       <h2 id="finalTit">Empieza con un hábito pequeño</h2>
       <p class="final__lead">Gratis, sin anuncios y sin rachas que se rompen. Nori te espera en el huevo.</p>
       <div class="descarga final__d">
-        <!-- PENDIENTE (Día D): la misma insignia y el mismo enlace UTM que en el hero. -->
-        <div class="pendiente insignia" data-pendiente="insignia-play-cierre">Insignia de<br>Google Play</div>
-        <!-- PENDIENTE (Día D): el mismo QR que en el hero. -->
+        <a class="insignia" href="https://norday.app/web"><img src="img/insignia-play-es.svg" width="189" height="56" alt="Descargar Norday Habits en Google Play" loading="lazy"></a>
         <div class="qr">
-          <div class="pendiente qr__c" data-pendiente="qr-cierre">QR</div>
+          <img class="qr__c" src="img/qr.svg" width="96" height="96" alt="Código QR para descargar Norday Habits en Google Play" loading="lazy">
           <p class="qr__t">¿Estás en el ordenador? Escanéalo con el móvil.</p>
         </div>
       </div>
