@@ -8,6 +8,7 @@ import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
 import jakarta.persistence.EntityManager;
@@ -47,6 +48,9 @@ class HitoPagadoTest {
 
     @Autowired
     private UsuarioMonedaService usuarioMonedaService;
+
+    @Autowired
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     @MockitoSpyBean
     private RachaService rachaService;
@@ -171,5 +175,27 @@ class HitoPagadoTest {
         assertEquals(0, segundo.get("puntosHito"));
         assertEquals(50, puntosDelLibro("HITO_DIAS_HECHOS"));
         assertEquals(1, libro().size());
+    }
+
+    @Test
+    void apuntarUnUmbralYaApuntado_noEscribeNiRevienta() {
+        // Lo que ve el segundo de dos completados simultáneos: la fila ya
+        // está. El INSERT ... ON CONFLICT DO NOTHING devuelve 0 filas y la
+        // restricción única no salta.
+        unHabitoDiario(1);
+        Habito h = habito();
+        Registro primero = new Registro(h, true, null, LUNES);
+        Registro segundo = new Registro(h, true, null, LUNES.plusDays(1));
+        em.persist(primero);
+        em.persist(segundo);
+        em.flush();
+
+        assertTrue(hitoPagadoDAO.apuntar(h, 3, primero));
+        assertFalse(hitoPagadoDAO.apuntar(h, 3, segundo));
+
+        List<HitoPagado> libro = libro();
+        assertEquals(1, libro.size());
+        assertEquals(primero.getRegistroId(), libro.get(0).getRegistro().getRegistroId());
+        assertNotNull(libro.get(0).getPagadoEn());
     }
 }

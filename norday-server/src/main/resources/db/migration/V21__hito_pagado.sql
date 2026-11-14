@@ -4,8 +4,8 @@
 -- pasados dejan de contar); sin el libro, al volver a cruzar un umbral el
 -- hito HITO_DIAS_HECHOS se pagaba otra vez.
 --
--- registro_ref es el completado que lo pagó: deshacerlo borra la fila. Admite
--- NULL porque las filas del relleno de abajo no tienen registro.
+-- registro_ref es el completado que lo pagó: deshacerlo borra la fila. El
+-- relleno de abajo también lo rellena. La columna admite NULL de todos modos.
 -- pagado_en va en UTC, como los demás sellos de auditoría.
 CREATE TABLE hito_pagado (
     id           SERIAL PRIMARY KEY,
@@ -25,28 +25,37 @@ CREATE TABLE hito_pagado (
 CREATE INDEX idx_hito_pagado_registro_ref ON hito_pagado(registro_ref);
 
 -- Relleno: los umbrales que cada hábito ya ha cruzado según sus días hechos
--- actuales se dan por pagados. Los días hechos se cuentan igual que
--- CalculoPremio.diasHechos, con la meta actual:
+-- actuales se dan por pagados, cada uno ligado al registro que lo cruzó, para
+-- que deshacer ese registro borre su fila igual que en vivo. Los días hechos
+-- se cuentan igual que CalculoPremio.diasHechos, con la meta actual:
 --   DIARIO  = días con al menos GREATEST(meta, 1) registros completados;
 --   SEMANAL = días con algún registro completado.
 -- Los umbrales son los de ParametrosPremio.HITOS: 3, 7, 30, 100 y 365.
-WITH veces_por_dia AS (
-    SELECT r.habito_ref, r.fecha, COUNT(*) AS veces
+--
+-- Cada día hecho tiene un único registro que lo cierra: el meta-ésimo de ese
+-- día en un diario, el primero en un semanal. Los cierres se numeran por
+-- registro_id, no por fecha: el id es el orden real en que se marcaron, y es
+-- el orden en que el contador subió en vivo. Con un completado retroactivo
+-- (el martes marcado después del miércoles) el umbral lo cruzó el del martes,
+-- que es además el último registro del hábito y el único que se puede
+-- deshacer; numerando por fecha, la fila quedaría ligada al del miércoles y
+-- deshacer el martes no la borraría. El conjunto de (hábito, umbral) es el
+-- mismo con cualquier orden: el número de cierres es el de días hechos.
+WITH por_dia AS (
+    SELECT r.habito_ref, r.registro_id,
+           ROW_NUMBER() OVER (PARTITION BY r.habito_ref, r.fecha ORDER BY r.registro_id) AS n
     FROM registro r
     WHERE r.completado = TRUE
-    GROUP BY r.habito_ref, r.fecha
 ),
-dias_hechos AS (
-    SELECT h.habito_id,
-           COUNT(v.fecha) FILTER (
-               WHERE h.frecuencia = 'SEMANAL'
-                  OR v.veces >= GREATEST(COALESCE(h.meta, 1), 1)
-           ) AS dias
-    FROM habito h
-    JOIN veces_por_dia v ON v.habito_ref = h.habito_id
-    GROUP BY h.habito_id
+cierres AS (
+    SELECT p.habito_ref, p.registro_id,
+           ROW_NUMBER() OVER (PARTITION BY p.habito_ref ORDER BY p.registro_id) AS dia_hecho
+    FROM por_dia p
+    JOIN habito h ON h.habito_id = p.habito_ref
+    WHERE p.n = CASE WHEN h.frecuencia = 'SEMANAL' THEN 1
+                     ELSE GREATEST(COALESCE(h.meta, 1), 1) END
 )
 INSERT INTO hito_pagado (habito_ref, umbral, registro_ref, pagado_en)
-SELECT d.habito_id, u.umbral, NULL, (NOW() AT TIME ZONE 'UTC')
-FROM dias_hechos d
-JOIN (VALUES (3), (7), (30), (100), (365)) AS u(umbral) ON u.umbral <= d.dias;
+SELECT c.habito_ref, u.umbral, c.registro_id, (NOW() AT TIME ZONE 'UTC')
+FROM cierres c
+JOIN (VALUES (3), (7), (30), (100), (365)) AS u(umbral) ON u.umbral = c.dia_hecho;

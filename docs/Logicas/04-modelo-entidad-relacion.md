@@ -102,7 +102,7 @@ El libro de hitos (tabla `hito_pagado`): una fila por cada hito de días hechos 
 - `id`: clave primaria.
 - `habito_ref`: obligatorio; clave ajena `FK_hito_pagado_habito` a `habito`.
 - `umbral`: obligatorio. Los días hechos del hito (3, 7, 30, 100 o 365).
-- `registro_ref`: admite nulo; clave ajena `FK_hito_pagado_registro` a `registro`. El completado que lo pagó: deshacerlo borra la fila. Es nulo en las filas del relleno de V21.
+- `registro_ref`: admite nulo; clave ajena `FK_hito_pagado_registro` a `registro`. El completado que lo pagó: deshacerlo borra la fila. El relleno de V21 lo liga al registro que cerró el día hecho del umbral.
 - `pagado_en`: obligatorio, en UTC.
 
 Restricción única `UK_hito_pagado_habito_umbral` sobre (`habito_ref`, `umbral`).

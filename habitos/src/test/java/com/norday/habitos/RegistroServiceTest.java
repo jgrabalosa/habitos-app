@@ -10,7 +10,6 @@ import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
-import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionRegistro;
@@ -108,6 +107,10 @@ class RegistroServiceTest {
         // La instantánea de deshacer lee el estado previo de la mascota antes
         // de crear el Registro: sin este stub, mascotaPrevia sale null.
         lenient().when(mascotaService.obtenerOCrear(anyInt())).thenReturn(new Mascota(usuario));
+        // Por defecto, apuntar un hito en el libro escribe la fila. El caso
+        // de la fila ya escrita por otro completado tiene su propio test.
+        lenient().when(hitoPagadoDAO.apuntar(any(Habito.class), anyInt(), any(Registro.class)))
+                .thenReturn(true);
     }
 
     @Test
@@ -690,7 +693,7 @@ class RegistroServiceTest {
 
         verify(usuarioMonedaService, never()).registrarMovimiento(
                 any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
-        verify(hitoPagadoDAO, never()).save(any(HitoPagado.class));
+        verify(hitoPagadoDAO, never()).apuntar(any(), anyInt(), any());
         assertEquals(0, resultado.get("puntosHito"));
         assertEquals(13, resultado.get("puntosGanados"));
     }
@@ -713,11 +716,9 @@ class RegistroServiceTest {
 
         ArgumentCaptor<Registro> registro = ArgumentCaptor.forClass(Registro.class);
         verify(registroDAO).save(registro.capture());
-        ArgumentCaptor<HitoPagado> hito = ArgumentCaptor.forClass(HitoPagado.class);
-        verify(hitoPagadoDAO).save(hito.capture());
-        assertEquals(3, hito.getValue().getUmbral());
-        assertSame(habito, hito.getValue().getHabito());
-        assertSame(registro.getValue(), hito.getValue().getRegistro());
+        ArgumentCaptor<Registro> registroDelHito = ArgumentCaptor.forClass(Registro.class);
+        verify(hitoPagadoDAO).apuntar(same(habito), eq(3), registroDelHito.capture());
+        assertSame(registro.getValue(), registroDelHito.getValue());
         verify(usuarioMonedaService).registrarMovimiento(
                 eq(usuario), eq(50), eq("HITO_DIAS_HECHOS"), eq(habito.getHabitoId()), anyString());
     }
@@ -744,9 +745,36 @@ class RegistroServiceTest {
 
         verify(usuarioMonedaService, never()).registrarMovimiento(
                 any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
-        verify(hitoPagadoDAO, never()).save(any(HitoPagado.class));
+        verify(hitoPagadoDAO, never()).apuntar(any(), anyInt(), any());
         assertEquals(0, resultado.get("puntosHito"));
         assertEquals(25, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void siOtroCompletadoYaApuntoElUmbral_noSePagaEseHito() {
+        // Dos completados a la vez cruzan el 3: los dos leen el libro vacío,
+        // pero el INSERT ... ON CONFLICT DO NOTHING de este no escribe nada.
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(10)),
+                new Registro(habito, true, "", HOY.minusDays(5))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of());
+        when(hitoPagadoDAO.apuntar(eq(habito), eq(3), any(Registro.class))).thenReturn(false);
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(25, resultado.get("puntosGanados"));
+        // El completado no se pierde: el registro se guarda igual.
+        verify(registroDAO).save(any(Registro.class));
     }
 
     @Test

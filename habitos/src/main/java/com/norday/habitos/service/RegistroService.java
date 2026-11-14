@@ -13,7 +13,6 @@ import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
-import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
@@ -193,15 +192,18 @@ public class RegistroService {
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
         // hechos en total, seguidos o no. Los días hechos se cuentan con la
         // meta actual y pueden bajar al subirla, así que cruzar un umbral no
-        // basta: tampoco puede estar ya en el libro de hitos. Cada umbral
-        // pagado se apunta ligado a este registro; deshacer borra la fila y
-        // devuelve los puntos con el resto de las monedas.
-        List<Integer> hitosPagados = CalculoPremio.hitosAPagar(diasHechosAntes, diasHechosDespues,
+        // basta: tampoco puede estar ya en el libro de hitos. Cada umbral se
+        // apunta ligado a este registro y solo se paga si la fila se ha
+        // escrito: si otro completado simultáneo lo apuntó antes, este no
+        // paga. Deshacer borra la fila y devuelve los puntos con el resto de
+        // las monedas.
+        List<Integer> umbralesCruzados = CalculoPremio.hitosAPagar(diasHechosAntes, diasHechosDespues,
                 hitoPagadoDAO.findUmbralesByHabito(habito));
         int puntosHito = 0;
-        for (int umbral : hitosPagados) {
-            hitoPagadoDAO.save(new HitoPagado(habito, umbral, registro));
-            puntosHito += CalculoPremio.puntosDelHito(umbral);
+        for (int umbral : umbralesCruzados) {
+            if (hitoPagadoDAO.apuntar(habito, umbral, registro)) {
+                puntosHito += CalculoPremio.puntosDelHito(umbral);
+            }
         }
         if (puntosHito > 0) {
             usuarioMonedaService.registrarMovimiento(

@@ -12,7 +12,8 @@ import java.time.ZoneOffset;
  * a subir el contador el hito se pagaría otra vez.
  *
  * {@code registro} es el completado que lo pagó, para que deshacerlo borre
- * la fila. Admite null: las filas del relleno de V21 no tienen registro.
+ * la fila. El relleno de V21 lo liga al registro que cerró el día hecho del
+ * umbral. La columna admite null de todos modos.
  */
 @Entity
 @Table(name = "hito_pagado",
