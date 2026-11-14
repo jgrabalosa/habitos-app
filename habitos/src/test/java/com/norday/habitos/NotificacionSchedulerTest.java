@@ -11,6 +11,7 @@ import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.NotificacionScheduler;
+import com.norday.habitos.service.ObjetivoService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -54,6 +55,9 @@ class NotificacionSchedulerTest {
 
     @Mock
     private TextosService textosService;
+
+    @Mock
+    private ObjetivoService objetivoService;
 
     @InjectMocks
     private NotificacionScheduler notificacionScheduler;

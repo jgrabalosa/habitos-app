@@ -37,8 +37,13 @@ import java.util.OptionalDouble;
  * semana nueva avanza al lunes: lo anterior ya no puede cambiar, así que no
  * tiene sentido repasarlo en cada lectura; se guarda también la que se deja
  * atrás, para calcular el ritmo de hace siete días. Y al cambiar la
- * frecuencia o el objetivo de un hábito pasa a ese día, para que lo ya
- * cerrado no se vuelva a juzgar con las reglas nuevas.
+ * frecuencia o el objetivo de un hábito pasa al día en que el cambio entra
+ * en vigor, para que lo ya cerrado no se vuelva a juzgar con las reglas
+ * nuevas.
+ *
+ * Aquí se lee siempre el objetivo que guarda el hábito. Vale porque desde
+ * el ancla no ha cambiado: un cambio programado se aplica, y ancla el
+ * ritmo, antes de cualquier lectura (ObjetivoService.ponerAlDia).
  */
 @Service
 public class RitmoService {
@@ -217,7 +222,11 @@ public class RitmoService {
                 LocalDate.now(zonaUsuarioService.zonaDe(habitoComoEstaba.getPropietario())));
     }
 
-    /** Igual, con el día dado, para que los tests lo fijen. */
+    /**
+     * Igual, con el día del cambio dado. Lo usan los tests para fijarlo y
+     * ObjetivoService al aplicar un cambio programado, que se ancla en su
+     * fecha de efecto aunque se lea después.
+     */
     @Transactional
     public void anclarAntesDeCambiar(Habito habitoComoEstaba, LocalDate hoy) {
         // En pausa no se toca: el ritmo se quedó donde se pausó, y al
@@ -230,6 +239,14 @@ public class RitmoService {
             ritmo = new Ritmo(habitoComoEstaba, hoy);
             ritmo.setCambio(hoy);
             ritmoDAO.save(ritmo);
+            return;
+        }
+        // Un cambio programado se ancla en su fecha, que puede ser anterior
+        // al día en que se lee. Si el ancla ya la ha pasado, lo de entre
+        // medias ya se cerró y no se vuelve a juzgar: no se toca. No debería
+        // pasar, porque el cambio se aplica antes de cualquier lectura del
+        // ritmo (ObjetivoService.ponerAlDia).
+        if (ritmo.getDesde().isAfter(hoy)) {
             return;
         }
         double vigente = ponerAlDia(ritmo, habitoComoEstaba,

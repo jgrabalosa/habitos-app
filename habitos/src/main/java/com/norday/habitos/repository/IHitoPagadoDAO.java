@@ -1,6 +1,7 @@
 package com.norday.habitos.repository;
 
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Registro;
 
 import java.util.List;
@@ -16,6 +17,9 @@ public interface IHitoPagadoDAO {
 
     /** Los umbrales que el hábito ya ha cobrado. */
     List<Integer> findUmbralesByHabito(Habito habito);
+
+    /** Las filas del libro del hábito, de menor a mayor umbral. */
+    List<HitoPagado> findByHabito(Habito habito);
 
     /** Al deshacer: borra los hitos que pagó ese completado. */
     void deleteByRegistro(int registroId);

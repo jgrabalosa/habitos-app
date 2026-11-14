@@ -19,12 +19,14 @@ import com.norday.habitos.model.dto.HabitoFlexibleDTO;
 import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.ObjetivoService;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RitmoService;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +81,12 @@ class HabitoServiceTest {
     @Mock
     private ICategoriaDAO categoriaDAO;
 
+    @Mock
+    private ObjetivoService objetivoService;
+
+    @Mock
+    private IHabitoObjetivoDAO objetivoDAO;
+
     @InjectMocks
     private HabitoService habitoService;
 
@@ -115,6 +123,7 @@ class HabitoServiceTest {
         habitoEditado.setPropietario(usuario);
 
         when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.hoyDe(existente)).thenReturn(HOY);
 
         // Act
         habitoService.actualizar(habitoEditado, null);
@@ -151,12 +160,13 @@ class HabitoServiceTest {
     void actualizar_alCambiarElObjetivo_anclaElRitmoAntesDeGuardar() {
         Habito habitoEditado = habito(20, Frecuencia.DIARIO, 3);
         when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.hoyDe(existente)).thenReturn(HOY);
 
         habitoService.actualizar(habitoEditado, null);
 
         // Antes de guardar: el ritmo hay que calcularlo con el hábito como estaba.
         InOrder orden = inOrder(ritmoService, habitoDAO);
-        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente, HOY);
         orden.verify(habitoDAO).update(habitoEditado);
     }
 
@@ -164,11 +174,12 @@ class HabitoServiceTest {
     void actualizar_alCambiarLaFrecuencia_anclaElRitmoAntesDeGuardar() {
         Habito habitoEditado = habito(20, Frecuencia.SEMANAL, 1);
         when(habitoDAO.findById(20)).thenReturn(existente);
+        when(rachaService.hoyDe(existente)).thenReturn(HOY);
 
         habitoService.actualizar(habitoEditado, null);
 
         InOrder orden = inOrder(ritmoService, habitoDAO);
-        orden.verify(ritmoService).anclarAntesDeCambiar(existente);
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente, HOY);
         orden.verify(habitoDAO).update(habitoEditado);
     }
 
@@ -246,6 +257,8 @@ class HabitoServiceTest {
         Habito semanal = habito(2, Frecuencia.SEMANAL, 3);
         Habito otroSemanal = habito(3, Frecuencia.SEMANAL, 1);
         when(habitoDAO.findActivos(usuario)).thenReturn(List.of(semanal, otroSemanal));
+        // El dia de hoy hace falta para saber con que objetivo se juzga.
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(ZONA);
         // Sin ninguno completado y sin mirar registros: la lista de diarios
         // queda vacia y eso ya es dia cumplido.
 

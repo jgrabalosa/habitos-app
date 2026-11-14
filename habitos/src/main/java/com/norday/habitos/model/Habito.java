@@ -130,6 +130,34 @@ public class Habito {
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
 
+    /**
+     * El hábito tal como era con otro objetivo: una copia con la frecuencia,
+     * la meta y los días fijos dados y todo lo demás igual. Sirve para juzgar
+     * un día pasado con las reglas que tenía ({@link HistorialObjetivos}).
+     *
+     * Es una vista y no se guarda nunca: no tiene contexto de persistencia y
+     * pasarla a un DAO pisaría el objetivo vigente. Si el objetivo es el
+     * mismo, devuelve este mismo hábito.
+     */
+    public Habito conObjetivo(Objetivo objetivo) {
+        if (objetivo.equals(Objetivo.de(this))) return this;
+        Habito vista = new Habito();
+        vista.habitoId = habitoId;
+        vista.nombre = nombre;
+        vista.descripcion = descripcion;
+        vista.frecuencia = objetivo.frecuencia();
+        vista.meta = objetivo.meta();
+        vista.diasSemana = objetivo.diasSemana();
+        vista.fechaInicio = fechaInicio;
+        vista.fechaCreacion = fechaCreacion;
+        vista.recordatorioActivo = recordatorioActivo;
+        vista.recordatorioHora = recordatorioHora;
+        vista.activo = activo;
+        vista.propietario = propietario;
+        vista.tipo = tipo;
+        return vista;
+    }
+
     @PrePersist
     void alCrear() {
         if (fechaCreacion == null) {

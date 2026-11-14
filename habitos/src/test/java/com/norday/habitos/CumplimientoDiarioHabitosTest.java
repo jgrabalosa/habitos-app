@@ -11,6 +11,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.CumplimientoDiarioHabitos;
 import com.norday.habitos.service.HabitoService;
+import com.norday.habitos.service.ObjetivoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,6 +56,9 @@ class CumplimientoDiarioHabitosTest {
 
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Mock
+    private ObjetivoService objetivoService;
 
     @InjectMocks
     private CumplimientoDiarioHabitos cumplimiento;

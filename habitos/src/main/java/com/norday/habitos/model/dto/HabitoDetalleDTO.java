@@ -26,6 +26,8 @@ public class HabitoDetalleDTO {
     // los lee la app ya instalada; la app nueva lee estos dos.
     private int ritmoNivel;           // de 1 a 5
     private Tendencia ritmoTendencia; // respecto a hace siete días
+    // El cambio de objetivo programado, si lo hay; null si no.
+    private ObjetivoProgramadoDTO objetivoProgramado;
 
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }
@@ -77,4 +79,7 @@ public class HabitoDetalleDTO {
 
     public Tendencia getRitmoTendencia() { return ritmoTendencia; }
     public void setRitmoTendencia(Tendencia ritmoTendencia) { this.ritmoTendencia = ritmoTendencia; }
+
+    public ObjetivoProgramadoDTO getObjetivoProgramado() { return objetivoProgramado; }
+    public void setObjetivoProgramado(ObjetivoProgramadoDTO objetivoProgramado) { this.objetivoProgramado = objetivoProgramado; }
 }

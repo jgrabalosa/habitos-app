@@ -46,6 +46,15 @@ public class HitoPagadoDAO implements IHitoPagadoDAO {
                 .getResultList();
     }
 
+    @Override
+    public List<HitoPagado> findByHabito(Habito habito) {
+        return em.createQuery(
+                        "SELECT h FROM HitoPagado h WHERE h.habito = :habito ORDER BY h.umbral",
+                        HitoPagado.class)
+                .setParameter("habito", habito)
+                .getResultList();
+    }
+
     // Uno a uno con remove, no con un DELETE en bloque: al deshacer, el
     // registro se borra después con em.remove, y un DELETE de JPQL no saca
     // del contexto de persistencia las filas que ya estuvieran cargadas, que

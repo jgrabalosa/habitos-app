@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Pausar y reanudar un hábito.
@@ -36,6 +37,9 @@ public class PausaService {
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
 
+    @Autowired
+    private ObjetivoService objetivoService;
+
     /**
      * Pausa un hábito: gasta una «Pausa» del inventario, ancla su ritmo en
      * hoy con el valor que tiene y lo deja inactivo, con lo que sale de Hoy,
@@ -52,6 +56,10 @@ public class PausaService {
             throw new ConflictoException("El hábito ya está en pausa");
         }
         productoService.gastarUnidad(habito.getPropietario(), ProductosHabitosInitializer.PAUSA);
+        // Si ha llegado un cambio de objetivo programado, se aplica antes de
+        // anclar: el ritmo de hasta hoy se calcula con el objetivo de cada día.
+        objetivoService.ponerAlDia(List.of(habito),
+                LocalDate.now(zonaUsuarioService.zonaDe(habito.getPropietario())));
         // Antes de desactivarlo: con el hábito inactivo el ritmo ya no se pone al día.
         ritmoService.anclarAntesDeCambiar(habito);
         habito.setActivo(false);
@@ -74,6 +82,9 @@ public class PausaService {
         if (habito.isActivo()) {
             return;
         }
+        // Un cambio programado que llegó durante la pausa se aplica antes de
+        // volver; en pausa no ancla el ritmo, que pasa ahora al día de la vuelta.
+        objetivoService.ponerAlDia(List.of(habito), hoy);
         ritmoService.reanudar(habito, hoy);
         habito.setActivo(true);
         habitoDAO.update(habito);

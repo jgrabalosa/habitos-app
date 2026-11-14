@@ -7,9 +7,10 @@ import java.time.ZoneOffset;
 /**
  * El libro de hitos: una fila por cada hito que un hábito ya ha cobrado.
  * Un hito se paga una sola vez por hábito, y esta tabla es quien lo
- * recuerda. Los días hechos se recalculan con la meta actual y pueden bajar
- * (al subir la meta, días pasados dejan de contar); sin el libro, al volver
- * a subir el contador el hito se pagaría otra vez.
+ * recuerda. Los días hechos ya se juzgan con el objetivo de cada día
+ * (HistorialObjetivos) y no bajan al subir la meta; el libro sigue siendo
+ * la garantía de que un umbral se paga una vez, también con dos
+ * completados a la vez.
  *
  * {@code registro} es el completado que lo pagó, para que deshacerlo borre
  * la fila. El relleno de V21 lo liga al registro que cerró el día hecho del

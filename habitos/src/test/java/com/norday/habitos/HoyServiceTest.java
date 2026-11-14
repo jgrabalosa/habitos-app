@@ -14,6 +14,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.HoyService;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.ObjetivoService;
 import com.norday.habitos.service.RitmoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,9 @@ class HoyServiceTest {
 
     @Mock
     private LogrosHabitosService logrosHabitosService;
+
+    @Mock
+    private ObjetivoService objetivoService;
 
     @InjectMocks
     private HoyService hoyService;

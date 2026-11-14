@@ -123,6 +123,9 @@ public class HabitoController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
+        // Lo que se devuelve es su objetivo de hoy: con él se rellena el
+        // formulario de edición.
+        habitoService.ponerObjetivoAlDia(habito);
         return ResponseEntity.ok(HabitoDTO.desde(habito));
     }
 
@@ -161,8 +164,15 @@ public class HabitoController extends ControladorAutorizado {
         // Mismo motivo que en crear(): el propietario no se toca desde
         // el body, se conserva el que ya tenía el hábito en BD.
         habito.setPropietario(existente.getPropietario());
-        habitoService.actualizar(habito, entrada.getCategoriaId());
-        return ResponseEntity.ok("Hábito actualizado correctamente");
+        LocalDate aplicaDesde = habitoService.actualizar(habito, entrada.getCategoriaId());
+        // Antes era texto plano. La app ya instalada solo mira el código de
+        // estado (ApiServiceCore.verificar), así que el cuerpo puede ser JSON.
+        // aplicaDesde es hoy, o una fecha futura si el cambio de objetivo
+        // queda programado.
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("mensaje", "Hábito actualizado correctamente");
+        respuesta.put("aplicaDesde", aplicaDesde.toString());
+        return ResponseEntity.ok(respuesta);
     }
 
     // Reanudar un hábito en pausa (gratis).

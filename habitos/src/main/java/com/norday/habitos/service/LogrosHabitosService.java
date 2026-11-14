@@ -5,6 +5,7 @@ import com.norday.gamificacion.service.LogroService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
@@ -37,6 +38,9 @@ public class LogrosHabitosService {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     // B3: los logros de constancia ya no van por racha (ver DIAS_HECHOS_CON_LOGRO).
     // Se conserva comentado.
@@ -129,7 +133,8 @@ public class LogrosHabitosService {
      * importar los huecos. Se conceden todos los escalones alcanzados o ya
      * superados que el usuario no tenga: el motor nunca repite un logro, así
      * que no hace falta acertar el día exacto ni guardar por dónde se va.
-     * Un día hecho es la misma unidad que en los puntos y los hitos.
+     * Un día hecho es la misma unidad que en los puntos y los hitos, y se
+     * juzga con el objetivo que el hábito tenía ese día.
      */
     private List<String> comprobarLogrosDeDiasHechos(Usuario usuario, Habito habito) {
         List<String> otorgados = new ArrayList<>();
@@ -137,7 +142,9 @@ public class LogrosHabitosService {
         for (Registro registro : registroDAO.findByHabito(habito)) {
             if (registro.isCompletado()) fechas.add(registro.getFecha());
         }
-        int diasHechos = CalculoPremio.diasHechos(habito.getFrecuencia(), habito.getMeta(), fechas);
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.historiales(List.of(habito)), habito);
+        int diasHechos = CalculoPremio.diasHechos(fechas, historial::objetivoEl);
 
         for (int dias : DIAS_HECHOS_CON_LOGRO) {
             if (dias > diasHechos) break;

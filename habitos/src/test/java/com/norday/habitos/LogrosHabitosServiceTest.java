@@ -10,6 +10,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.ObjetivoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class LogrosHabitosServiceTest {
 
     @Mock
     private IRachaDAO rachaDAO;
+
+    @Mock
+    private ObjetivoService objetivoService;
 
     @InjectMocks
     private LogrosHabitosService logrosHabitosService;

@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Lo que cobra cada paso, sin efectos: no lee la base de datos ni el reloj.
@@ -72,16 +73,28 @@ public final class CalculoPremio {
      * al objetivo; en un semanal, cada sesión es un día.
      */
     public static int diasHechos(Frecuencia frecuencia, int objetivo, Collection<LocalDate> fechas) {
+        Objetivo siempre = new Objetivo(frecuencia, objetivo, null);
+        return diasHechos(fechas, fecha -> siempre);
+    }
+
+    /**
+     * Igual, juzgando cada día con el objetivo que tenía
+     * ({@code objetivoEl}, normalmente {@link HistorialObjetivos#objetivoEl}):
+     * subir la meta no hace que dejen de contar los días que llegaron a la
+     * de entonces.
+     */
+    public static int diasHechos(Collection<LocalDate> fechas, Function<LocalDate, Objetivo> objetivoEl) {
         Map<LocalDate, Integer> vecesPorDia = new HashMap<>();
         for (LocalDate fecha : fechas) {
             vecesPorDia.merge(fecha, 1, Integer::sum);
         }
-        if (frecuencia == Frecuencia.SEMANAL) return vecesPorDia.size();
-
-        int meta = Math.max(1, objetivo);
         int dias = 0;
-        for (int veces : vecesPorDia.values()) {
-            if (veces >= meta) dias++;
+        for (Map.Entry<LocalDate, Integer> dia : vecesPorDia.entrySet()) {
+            Objetivo objetivo = objetivoEl.apply(dia.getKey());
+            if (objetivo.frecuencia() == Frecuencia.SEMANAL
+                    || dia.getValue() >= Math.max(1, objetivo.meta())) {
+                dias++;
+            }
         }
         return dias;
     }
@@ -108,8 +121,9 @@ public final class CalculoPremio {
      * {@code diasDespues} días hechos, sin los que el hábito ya cobró
      * ({@code yaPagados}, el libro de hitos). Se paga un umbral si se cruza
      * —{@code diasAntes < umbral <= diasDespues}— y no está en el libro. Los
-     * días hechos se cuentan con la meta actual y pueden bajar al subirla:
-     * sin el libro, volver a cruzar un umbral lo pagaría otra vez.
+     * días hechos ya no bajan al subir la meta (cada día se juzga con la de
+     * entonces), pero el libro sigue siendo quien garantiza que un umbral
+     * no se paga dos veces.
      * De menor a mayor.
      */
     public static List<Integer> hitosAPagar(int diasAntes, int diasDespues,

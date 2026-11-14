@@ -13,6 +13,7 @@ import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
@@ -67,6 +68,9 @@ public class RegistroService {
     @Autowired
     private IHitoPagadoDAO hitoPagadoDAO;
 
+    @Autowired
+    private ObjetivoService objetivoService;
+
     // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
     // números, ParametrosPremio.
     // B2: los hitos ya no cuelgan de la racha; sus números están en
@@ -102,21 +106,29 @@ public class RegistroService {
         }
         Usuario usuario = habito.getPropietario();
 
+        // El objetivo de hoy al día, y el día se juzga con el que tenía esa
+        // fecha: un completado retroactivo de esta semana puede caer antes
+        // de un cambio de objetivo. delDia es una vista: no se guarda.
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.ponerAlDia(List.of(habito), hoy), habito);
+        Habito delDia = historial.vistaEl(fecha);
+        Frecuencia frecuencia = delDia.getFrecuencia();
+
         // SEMANAL: máximo un completado por día (cada completado es un día distinto)
-        if (habito.getFrecuencia() == Frecuencia.SEMANAL
+        if (frecuencia == Frecuencia.SEMANAL
                 && registroDAO.existeRegistroEnFecha(habito, fecha)) {
             throw new ConflictoException("Este hábito ya se ha completado en esa fecha");
         }
 
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(fecha);
+        LocalDate[] periodo = frecuencia.rangoPeriodo(fecha);
         int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
-        int meta = habito.getMeta();
+        int meta = delDia.getMeta();
 
         // DIARIO: no dejar superar la meta del día. Sin esto, un doble toque o
         // un reintento por timeout de red crea un registro de más y, si
         // coincide justo con el punto en que se alcanza la meta, otorga
         // puntos por partida doble.
-        if (habito.getFrecuencia() == Frecuencia.DIARIO && completadosAntes >= meta) {
+        if (frecuencia == Frecuencia.DIARIO && completadosAntes >= meta) {
             throw new ConflictoException("Este hábito ya ha alcanzado la meta de esa fecha");
         }
 
@@ -141,17 +153,18 @@ public class RegistroService {
         Set<Integer> logrosPrevios = idsLogros(usuario);
 
         // Días hechos del hábito antes y después de este completado, para
-        // los hitos. Se leen antes de guardar el registro nuevo.
+        // los hitos. Se leen antes de guardar el registro nuevo. Cada día se
+        // juzga con el objetivo que tenía.
         List<LocalDate> fechasHechas = new ArrayList<>();
         for (Registro anterior : registroDAO.findByHabito(habito)) {
             if (anterior.isCompletado()) fechasHechas.add(anterior.getFecha());
         }
-        int diasHechosAntes = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+        int diasHechosAntes = CalculoPremio.diasHechos(fechasHechas, historial::objetivoEl);
         // ¿Es este paso una vuelta al hábito? Se mira con las fechas que ya
         // tenía, antes de añadir la de ahora.
-        boolean esUnaVuelta = CalculoPremio.esUnaVuelta(habito.getFrecuencia(), fecha, fechasHechas);
+        boolean esUnaVuelta = CalculoPremio.esUnaVuelta(frecuencia, fecha, fechasHechas);
         fechasHechas.add(fecha);
-        int diasHechosDespues = CalculoPremio.diasHechos(habito.getFrecuencia(), meta, fechasHechas);
+        int diasHechosDespues = CalculoPremio.diasHechos(fechasHechas, historial::objetivoEl);
 
         Registro registro = new Registro(habito, true, nota, fecha);
         registroDAO.save(registro);
@@ -164,7 +177,7 @@ public class RegistroService {
         // nada: la regla está en CalculoPremio. El extra por completar la
         // semana va en un movimiento aparte, para poder explicar de dónde sale.
         CalculoPremio.Premio premio =
-                CalculoPremio.delPaso(habito.getFrecuencia(), completadosAntes, meta);
+                CalculoPremio.delPaso(frecuencia, completadosAntes, meta);
         if (premio.puntos() > 0) {
             usuarioMonedaService.registrarMovimiento(
                     usuario, premio.puntos(), "HABITO_COMPLETADO",
@@ -190,9 +203,9 @@ public class RegistroService {
         }
 
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
-        // hechos en total, seguidos o no. Los días hechos se cuentan con la
-        // meta actual y pueden bajar al subirla, así que cruzar un umbral no
-        // basta: tampoco puede estar ya en el libro de hitos. Cada umbral se
+        // hechos en total, seguidos o no. Cruzar un umbral no basta: tampoco
+        // puede estar ya en el libro de hitos, que es quien garantiza que se
+        // paga una sola vez, también con dos completados a la vez. Cada umbral se
         // apunta ligado a este registro y solo se paga si la fila se ha
         // escrito: si otro completado simultáneo lo apuntó antes, este no
         // paga. Deshacer borra la fila y devuelve los puntos con el resto de
@@ -233,7 +246,7 @@ public class RegistroService {
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
         // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
         boolean mostrarValoracion = fecha.equals(hoy)
-                && (habito.getFrecuencia() == Frecuencia.SEMANAL
+                && (frecuencia == Frecuencia.SEMANAL
                 || (completadosAntes + 1) >= meta);
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
@@ -283,8 +296,15 @@ public class RegistroService {
         return ids;
     }
 
+    /**
+     * Los completados del periodo en curso. Pone antes al día el objetivo
+     * del hábito, que es el de hoy: quien llama lee después su meta.
+     */
+    @Transactional
     public int contarCompletadosPeriodoActual(Habito habito) {
-        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(rachaService.hoyDe(habito));
+        LocalDate hoy = rachaService.hoyDe(habito);
+        objetivoService.ponerAlDia(List.of(habito), hoy);
+        LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(hoy);
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 

@@ -7,6 +7,7 @@ import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.service.CumplimientoDiarioPort;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -48,6 +49,9 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     @Override
     public boolean hoyCumplido(int usuarioId) {
@@ -98,6 +102,11 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
                     .withZoneSameInstant(zona).toLocalDate());
         }
 
-        return CalculoHoy.comoVa(activos, fechasDeEstaSemana, actividadReciente, hoy);
+        // Cada hábito con el objetivo vigente hoy, sin escribir nada.
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(activos);
+        List<Habito> deHoy = activos.stream()
+                .map(h -> HistorialObjetivos.de(historiales, h).vistaEl(hoy))
+                .toList();
+        return CalculoHoy.comoVa(deHoy, fechasDeEstaSemana, actividadReciente, hoy);
     }
 }

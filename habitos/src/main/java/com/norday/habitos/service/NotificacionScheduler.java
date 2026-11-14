@@ -7,6 +7,7 @@ import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -46,6 +47,9 @@ public class NotificacionScheduler {
 
     @Autowired
     private TextosService textosService;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     /**
      * Barrido cada 5 minutos: el recordatorio que el usuario ha puesto a cada
@@ -97,9 +101,13 @@ public class NotificacionScheduler {
                         .add(registro.getFecha());
             }
 
+            // Cada hábito con el objetivo vigente en la fecha de su dueño, sin
+            // escribir nada: el barrido solo avisa. Una consulta por fecha.
+            Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(candidatos);
             for (Habito habito : candidatos) {
                 List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
-                if (!CalculoHoy.tocaRecordar(habito, fechas, hoyUsuario)) {
+                Habito deHoy = HistorialObjetivos.de(historiales, habito).vistaEl(hoyUsuario);
+                if (!CalculoHoy.tocaRecordar(deHoy, fechas, hoyUsuario)) {
                     continue; // hecho, cubierto o con la semana ya cumplida
                 }
                 Usuario propietario = habito.getPropietario();

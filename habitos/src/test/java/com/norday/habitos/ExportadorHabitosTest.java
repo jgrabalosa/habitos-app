@@ -3,10 +3,15 @@ package com.norday.habitos;
 import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HitoPagado;
+import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
@@ -42,6 +47,12 @@ class ExportadorHabitosTest {
 
     @Mock
     private ICategoriaDAO categoriaDAO;
+
+    @Mock
+    private IHabitoObjetivoDAO objetivoDAO;
+
+    @Mock
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     @InjectMocks
     private ExportadorHabitos exportador;
@@ -110,5 +121,55 @@ class ExportadorHabitosTest {
         assertEquals(0.6, exportado.get("valorPrevio"));
         assertEquals("2026-09-28", exportado.get("desdePrevio"));
         assertEquals("2026-10-01", exportado.get("cambio"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exportar_incluyeElHistorialDeObjetivosYLosHitosCobrados() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(1);
+
+        Habito habito = new Habito("Leer", null, Frecuencia.SEMANAL, 3,
+                usuario, null, LocalDate.of(2026, 9, 1));
+        habito.setDiasSemana("1,3,5");
+        HabitoObjetivo primera = new HabitoObjetivo(habito, LocalDate.of(2026, 9, 1),
+                new Objetivo(Frecuencia.DIARIO, 1, null));
+        HabitoObjetivo programada = new HabitoObjetivo(habito, LocalDate.of(2026, 10, 12),
+                new Objetivo(Frecuencia.SEMANAL, 3, "1,3,5"));
+        HitoPagado hito = new HitoPagado(habito, 3, null);
+        ReflectionTestUtils.setField(hito, "pagadoEn", LocalDateTime.of(2026, 9, 3, 20, 0, 0));
+
+        when(habitoDAO.findByPropietario(usuario)).thenReturn(List.of(habito));
+        when(objetivoDAO.findByHabito(habito)).thenReturn(List.of(primera, programada));
+        when(hitoPagadoDAO.findByHabito(habito)).thenReturn(List.of(hito));
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of());
+        when(categoriaDAO.findByCreador(usuario)).thenReturn(List.of());
+
+        Map<String, Object> datos = exportador.exportar(usuario);
+
+        Map<String, Object> exportado =
+                ((List<Map<String, Object>>) datos.get("habitos")).get(0);
+        List<Map<String, Object>> objetivos = (List<Map<String, Object>>) exportado.get("objetivos");
+        assertEquals(2, objetivos.size());
+        assertEquals(Map.of("desde", "2026-09-01", "unidad", "VECES", "frecuencia", "DIARIO",
+                "meta", 1), sinNulos(objetivos.get(0)));
+        assertTrue(objetivos.get(0).containsKey("minutosObjetivo"));
+        assertNull(objetivos.get(0).get("minutosObjetivo"));
+        assertNull(objetivos.get(0).get("diasSemana"));
+        assertEquals("2026-10-12", objetivos.get(1).get("desde"));
+        assertEquals("SEMANAL", objetivos.get(1).get("frecuencia"));
+        assertEquals(3, objetivos.get(1).get("meta"));
+        assertEquals("1,3,5", objetivos.get(1).get("diasSemana"));
+
+        List<Map<String, Object>> hitos = (List<Map<String, Object>>) exportado.get("hitosPagados");
+        assertEquals(List.of(Map.of("umbral", 3, "pagadoEn", "2026-09-03T20:00")), hitos);
+    }
+
+    private static Map<String, Object> sinNulos(Map<String, Object> mapa) {
+        Map<String, Object> copia = new java.util.HashMap<>();
+        mapa.forEach((clave, valor) -> {
+            if (valor != null) copia.put(clave, valor);
+        });
+        return copia;
     }
 }

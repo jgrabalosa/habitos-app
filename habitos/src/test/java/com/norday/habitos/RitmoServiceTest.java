@@ -453,6 +453,18 @@ class RitmoServiceTest {
     }
 
     @Test
+    void anclarEnUnaFechaQueElAnclaYaHaPasado_noTocaNada() {
+        // Si el ancla ya está más allá de la fecha del cambio, lo de entre
+        // medias se cerró y no se vuelve a juzgar.
+        anclaEn(0.7, d(10, 12));
+
+        ritmoService.anclarAntesDeCambiar(habito, d(10, 8));
+
+        verify(ritmoDAO, never()).update(any());
+        verify(registroDAO, never()).findByHabitoAndRango(any(), any(), any());
+    }
+
+    @Test
     void anclarAntesDeCambiar_sinFilaDeRitmo_empiezaHoyYaAnclado() {
         when(ritmoDAO.findByHabito(habito)).thenReturn(null);
 

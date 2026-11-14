@@ -5,11 +5,15 @@ import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.ExportadorDatosUsuario;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
@@ -22,7 +26,8 @@ import java.util.stream.Collectors;
 
 /**
  * Aporta los datos del dominio "hábitos" a la exportación RGPD: hábitos,
- * rachas, ritmos, registros y categorías personalizadas del usuario.
+ * rachas, ritmos, historial de objetivos, hitos cobrados, registros y
+ * categorías personalizadas del usuario.
  */
 @Component
 public class ExportadorHabitos implements ExportadorDatosUsuario {
@@ -41,6 +46,12 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
 
     @Autowired
     private ICategoriaDAO categoriaDAO;
+
+    @Autowired
+    private IHabitoObjetivoDAO objetivoDAO;
+
+    @Autowired
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     @Override
     public String seccion() {
@@ -75,6 +86,12 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("categoria", habito.getTipo() == null ? null : habito.getTipo().getNombre());
         mapa.put("racha", datosRacha(rachaDAO.findByHabito(habito)));
         mapa.put("ritmo", datosRitmo(ritmoDAO.findByHabito(habito)));
+        mapa.put("objetivos", objetivoDAO.findByHabito(habito).stream()
+                .map(this::datosObjetivo)
+                .collect(Collectors.toList()));
+        mapa.put("hitosPagados", hitoPagadoDAO.findByHabito(habito).stream()
+                .map(this::datosHitoPagado)
+                .collect(Collectors.toList()));
         mapa.put("registros", registroDAO.findByHabito(habito).stream()
                 .map(this::datosRegistro)
                 .collect(Collectors.toList()));
@@ -103,6 +120,24 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("valorPrevio", ritmo.getValorPrevio());
         mapa.put("desdePrevio", ExportacionDatosService.texto(ritmo.getDesdePrevio()));
         mapa.put("cambio", ExportacionDatosService.texto(ritmo.getCambio()));
+        return mapa;
+    }
+
+    private Map<String, Object> datosObjetivo(HabitoObjetivo objetivo) {
+        Map<String, Object> mapa = new LinkedHashMap<>();
+        mapa.put("desde", ExportacionDatosService.texto(objetivo.getDesde()));
+        mapa.put("unidad", objetivo.getUnidad().name());
+        mapa.put("frecuencia", objetivo.getFrecuencia().name());
+        mapa.put("meta", objetivo.getMeta());
+        mapa.put("minutosObjetivo", objetivo.getMinutosObjetivo());
+        mapa.put("diasSemana", objetivo.getDiasSemana());
+        return mapa;
+    }
+
+    private Map<String, Object> datosHitoPagado(HitoPagado hito) {
+        Map<String, Object> mapa = new LinkedHashMap<>();
+        mapa.put("umbral", hito.getUmbral());
+        mapa.put("pagadoEn", ExportacionDatosService.texto(hito.getPagadoEn()));
         return mapa;
     }
 

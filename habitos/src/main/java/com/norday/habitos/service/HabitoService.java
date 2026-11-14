@@ -2,9 +2,13 @@ package com.norday.habitos.service;
 
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.habitos.model.CalculoObjetivo;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HistorialObjetivos;
+import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
@@ -16,11 +20,13 @@ import com.norday.habitos.model.dto.HabitoDetalleDTO;
 import com.norday.habitos.model.dto.HabitoDiaDTO;
 import com.norday.habitos.model.dto.HabitoFlexibleDTO;
 import com.norday.habitos.model.dto.HabitoResumenDTO;
+import com.norday.habitos.model.dto.ObjetivoProgramadoDTO;
 import com.norday.habitos.model.dto.RegistroDiaDTO;
 import com.norday.habitos.model.dto.RegistroResumenDTO;
 import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
 import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -58,6 +64,12 @@ public class HabitoService {
 
     @Autowired
     private IHitoPagadoDAO hitoPagadoDAO;
+
+    @Autowired
+    private IHabitoObjetivoDAO objetivoDAO;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     @Autowired
     private LogrosHabitosService logrosHabitosService;
@@ -117,6 +129,7 @@ public class HabitoService {
         habito.setFechaInicio(hoy);
         habito.setActivo(true);
         habitoDAO.save(habito);
+        objetivoService.crearInicial(habito);
         Racha racha = new Racha(habito, hoy);
         rachaDAO.save(racha);
         ritmoDAO.save(new Ritmo(habito, hoy));
@@ -128,8 +141,20 @@ public class HabitoService {
         return habitoDAO.findById(id);
     }
 
+    /**
+     * Pone al día el objetivo que guarda el hábito, por si ha llegado la
+     * fecha de un cambio programado (ver {@link ObjetivoService#ponerAlDia}).
+     * Para las lecturas de un hábito suelto que devuelven su objetivo.
+     */
+    @Transactional
+    public void ponerObjetivoAlDia(Habito habito) {
+        objetivoService.ponerAlDia(List.of(habito), rachaService.hoyDe(habito));
+    }
+
+    @Transactional
     public List<HabitoResumenDTO> obtenerResumen(Usuario propietario) {
         List<Habito> todos = habitoDAO.findByPropietario(propietario);
+        objetivoService.ponerAlDia(todos, LocalDate.now(zonaUsuarioService.zonaDe(propietario)));
         Map<Integer, Long> conteos = registroDAO.contarCompletadosPorUsuario(propietario.getUsuarioId());
 
         List<HabitoResumenDTO> resumen = new ArrayList<>();
@@ -140,27 +165,63 @@ public class HabitoService {
         return resumen;
     }
 
+    /**
+     * Guarda la edición de un hábito y devuelve desde qué día se aplica su
+     * objetivo: hoy, o una fecha futura si el cambio de objetivo no puede
+     * aplicarse ya (la regla está en {@link CalculoObjetivo}). Sin cambio de
+     * objetivo, hoy.
+     *
+     * Con fecha futura, el objetivo nuevo queda programado en el historial
+     * y el hábito conserva el de hoy hasta entonces; el nombre, la
+     * descripción, la categoría y el recordatorio se guardan ya. Un
+     * formulario que trae el objetivo de hoy no cambia nada: tampoco anula
+     * un cambio programado.
+     */
     @Transactional
-    public void actualizar(Habito habito, Integer categoriaId) {
+    public LocalDate actualizar(Habito habito, Integer categoriaId) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
 
-        boolean cambioFrecuencia = existente.getFrecuencia() != habito.getFrecuencia();
+        // Primero, el objetivo de hoy: si ha llegado un cambio programado,
+        // es contra ese contra el que se compara.
+        LocalDate hoy = rachaService.hoyDe(existente);
+        objetivoService.ponerAlDia(List.of(existente), hoy);
 
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
-        normalizarPlanificacion(habito);
-        // El ritmo se ancla ANTES de guardar, con el hábito tal como estaba:
-        // hay que calcularlo con las reglas antiguas. Va después de
-        // normalizarPlanificacion porque en un semanal con días fijos el
+        // Va antes de comparar porque en un semanal con días fijos el
         // objetivo sale de los días marcados.
-        if (cambioFrecuencia || existente.getMeta() != habito.getMeta()) {
-            ritmoService.anclarAntesDeCambiar(existente);
+        normalizarPlanificacion(habito);
+
+        Objetivo actual = Objetivo.de(existente);
+        Objetivo nuevo = Objetivo.de(habito);
+        LocalDate aplicaDesde = hoy;
+        if (!nuevo.equals(actual)) {
+            List<LocalDate> fechasDeLaSemana = registroDAO
+                    .findByHabitoAndRango(existente, hoy.with(DayOfWeek.MONDAY), hoy).stream()
+                    .map(Registro::getFecha)
+                    .toList();
+            aplicaDesde = CalculoObjetivo.fechaDeEfecto(actual, nuevo, hoy,
+                    existente.getFechaInicio(), fechasDeLaSemana);
+            objetivoService.programar(existente, nuevo, aplicaDesde, hoy);
+
+            if (aplicaDesde.isAfter(hoy)) {
+                // Programado: hasta su fecha, el hábito sigue con el de hoy.
+                // El ritmo se anclará al aplicarlo (ObjetivoService.ponerAlDia).
+                habito.setFrecuencia(existente.getFrecuencia());
+                habito.setMeta(existente.getMeta());
+                habito.setDiasSemana(existente.getDiasSemana());
+            } else if (actual.frecuencia() != nuevo.frecuencia() || actual.meta() != nuevo.meta()) {
+                // El ritmo se ancla ANTES de guardar, con el hábito tal como
+                // estaba: hay que calcularlo con las reglas antiguas.
+                ritmoService.anclarAntesDeCambiar(existente, hoy);
+            }
         }
         habitoDAO.update(habito);
+        return aplicaDesde;
     }
 
     @Transactional
@@ -172,20 +233,26 @@ public class HabitoService {
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);
         ritmoDAO.deleteByHabito(id);
+        objetivoDAO.deleteByHabito(id);
         habitoDAO.delete(id);
     }
 
+    @Transactional
     public HabitoDetalleDTO obtenerDetalle(int habitoId, YearMonth mes) {
         Habito habito = habitoDAO.findById(habitoId);
         if (habito == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
-
         if (mes == null) {
             mes = YearMonth.now(rachaService.zonaDe(habito));
         }
 
         ZoneId zona = rachaService.zonaDe(habito);
+        // Antes de leer el ritmo y el objetivo: si ha llegado un cambio
+        // programado, se aplica ahora.
+        LocalDate hoy = LocalDate.now(zona);
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.ponerAlDia(List.of(habito), hoy), habito);
         Racha racha = rachaDAO.findByHabito(habito);
         List<Registro> todosRegistros = registroDAO.findByHabito(habito);
 
@@ -232,7 +299,7 @@ public class HabitoService {
                 .average();
         Double valoracionMedia = valoracionStats.isPresent() ? valoracionStats.getAsDouble() : null;
 
-        RitmoLeido ritmo = ritmoService.ritmoLeido(habito, LocalDate.now(zona));
+        RitmoLeido ritmo = ritmoService.ritmoLeido(habito, hoy);
 
         HabitoDetalleDTO dto = new HabitoDetalleDTO();
         dto.setHabitoId(habito.getHabitoId());
@@ -252,6 +319,8 @@ public class HabitoService {
         dto.setHeatmap(heatmap);
         dto.setUltimosRegistros(ultimosRegistros);
         dto.setValoracionMedia(valoracionMedia);
+        HabitoObjetivo programado = historial.programadaTras(hoy);
+        dto.setObjetivoProgramado(programado == null ? null : ObjetivoProgramadoDTO.desde(programado));
 
         return dto;
     }
@@ -272,12 +341,18 @@ public class HabitoService {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         if (activos.isEmpty()) return false;
 
+        // Cada hábito con el objetivo vigente hoy, sin escribir nada: esto se
+        // pregunta también desde la mascota, fuera de las lecturas que ponen
+        // al día el objetivo.
+        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
+        LocalDate hoy = LocalDate.now(zona);
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(activos);
         List<Habito> diarios = activos.stream()
+                .map(h -> HistorialObjetivos.de(historiales, h).vistaEl(hoy))
                 .filter(h -> h.getFrecuencia() == Frecuencia.DIARIO)
                 .toList();
         if (diarios.isEmpty()) return true;
 
-        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
         for (Habito habito : diarios) {
             LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
             int completadosPeriodo =
@@ -312,10 +387,13 @@ public class HabitoService {
         return false;
     }
 
+    @Transactional
     public List<DashboardHabitoDTO> obtenerDashboard(Usuario usuario) {
         List<Habito> activos = habitoDAO.findActivos(usuario);
         ZoneId zona = zonaUsuarioService.zonaDe(usuario);
         LocalDate hoy = LocalDate.now(zona);
+        // Todo aquí es de hoy: con el objetivo al día, basta con el hábito.
+        objetivoService.ponerAlDia(activos, hoy);
 
         // Ventana: los 10 días de la mini-heatmap, extendida hacia atrás hasta
         // el lunes de la semana del día más antiguo (para calcular "semana
@@ -385,12 +463,21 @@ public class HabitoService {
      * {@link #estaProgramadoPara} para decidir en qué días de los siete
      * aparece, igual que decide qué aparece hoy en el dashboard normal.
      */
+    @Transactional
     public SemanaDashboardDTO obtenerSemana(Usuario usuario, LocalDate desde) {
         ZoneId zona = zonaUsuarioService.zonaDe(usuario);
         LocalDate base = desde != null ? desde : LocalDate.now(zona);
         LocalDate lunes = base.with(DayOfWeek.MONDAY);
 
         List<Habito> activos = habitoDAO.findActivos(usuario);
+        // La semana pedida puede ser otra: cada día se juzga con su objetivo.
+        LocalDate hoy = LocalDate.now(zona);
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.ponerAlDia(activos, hoy);
+        // Lo que es de toda la semana (si es flexible y su meta), con el
+        // objetivo de su último día ya llegado: en la semana en curso, el de
+        // hoy, como antes del historial.
+        LocalDate domingo = lunes.plusDays(6);
+        LocalDate ultimoDia = domingo.isAfter(hoy) ? hoy : domingo;
 
         // Una sola consulta para todos los hábitos activos, en vez de una
         // por hábito dentro del bucle.
@@ -408,23 +495,26 @@ public class HabitoService {
         for (Habito habito : activos) {
             List<Registro> registrosSemana =
                     registrosPorHabito.getOrDefault(habito.getHabitoId(), List.of());
+            HistorialObjetivos historial = HistorialObjetivos.de(historiales, habito);
 
-            if (esSemanalFlexible(habito)) {
+            Habito deLaSemana = historial.vistaEl(ultimoDia);
+            if (esSemanalFlexible(deLaSemana)) {
                 int completadosSemana = (int) registrosSemana.stream()
                         .filter(Registro::isCompletado)
                         .count();
-                flexibles.add(new HabitoFlexibleDTO(habito, completadosSemana, habito.getMeta()));
+                flexibles.add(new HabitoFlexibleDTO(deLaSemana, completadosSemana, deLaSemana.getMeta()));
                 continue;
             }
 
             for (int i = 0; i < 7; i++) {
                 LocalDate fecha = lunes.plusDays(i);
-                if (!estaProgramadoPara(habito, fecha)) continue;
+                Habito delDia = historial.vistaEl(fecha);
+                if (esSemanalFlexible(delDia) || !estaProgramadoPara(delDia, fecha)) continue;
 
                 boolean completado = registrosSemana.stream()
                         .anyMatch(r -> r.getFecha().equals(fecha) && r.isCompletado());
 
-                habitosPorDia.get(i).add(new HabitoDiaDTO(habito, completado));
+                habitosPorDia.get(i).add(new HabitoDiaDTO(delDia, completado));
             }
         }
 
@@ -434,6 +524,6 @@ public class HabitoService {
         }
 
         // Hoy del usuario: ni el de la semana pedida ni el del servidor.
-        return new SemanaDashboardDTO(dias, flexibles, LocalDate.now(zona).toString());
+        return new SemanaDashboardDTO(dias, flexibles, hoy.toString());
     }
 }

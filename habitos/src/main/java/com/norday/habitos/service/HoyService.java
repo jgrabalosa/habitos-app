@@ -7,6 +7,7 @@ import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Tendencia;
 import com.norday.habitos.model.dto.DiaTiraDTO;
@@ -35,9 +36,12 @@ import java.util.OptionalDouble;
  * {@link CalculoHoy} y {@link CalculoRitmo}; aquí solo se leen los datos y
  * se reparten.
  *
- * Tres consultas sea cual sea el número de hábitos: los hábitos activos,
- * los registros de la semana y —dentro de RitmoService— las anclas y los
- * registros que haga falta repasar.
+ * Cuatro consultas sea cual sea el número de hábitos: los hábitos activos,
+ * sus historiales de objetivos, los registros de la semana y —dentro de
+ * RitmoService— las anclas y los registros que haga falta repasar.
+ *
+ * Cada día se juzga con el objetivo que el hábito tenía ese día: la fecha
+ * mirada y cada día de la tira pueden caer antes de un cambio de objetivo.
  *
  * No sustituye a HabitoService.obtenerDashboard ni a obtenerSemana: esos dos
  * los sigue usando la app ya instalada, con sus reglas de siempre.
@@ -60,6 +64,9 @@ public class HoyService {
     @Autowired
     private LogrosHabitosService logrosHabitosService;
 
+    @Autowired
+    private ObjetivoService objetivoService;
+
     /** Hoy tal como lo ve el usuario; con {@code fechaPedida}, otro día de la tira. */
     @Transactional
     public HoyDTO obtenerHoy(Usuario usuario, LocalDate fechaPedida) {
@@ -72,6 +79,9 @@ public class HoyService {
     public HoyDTO obtenerHoy(Usuario usuario, LocalDate fecha, LocalDate hoy) {
         LocalDate lunes = fecha.with(DayOfWeek.MONDAY);
         List<Habito> activos = habitoDAO.findActivos(usuario);
+        // Antes que el ritmo: si ha llegado un cambio programado, se aplica
+        // y ancla el ritmo en su fecha.
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.ponerAlDia(activos, hoy);
 
         Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
         for (Registro registro : registroDAO.findByHabitosAndRango(activos, lunes, lunes.plusDays(6))) {
@@ -86,7 +96,8 @@ public class HoyService {
 
         List<FilaHoyDTO> delDia = new ArrayList<>();
         List<FilaHoyDTO> deLaSemana = new ArrayList<>();
-        for (Habito habito : activos) {
+        for (Habito activo : activos) {
+            Habito habito = HistorialObjetivos.de(historiales, activo).vistaEl(fecha);
             List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
             int nivel = CalculoRitmo.nivel(ritmos.get(habito.getHabitoId()).valor());
 
@@ -107,7 +118,7 @@ public class HoyService {
             LocalDate dia = lunes.plusDays(i);
             Double avance = dia.isAfter(hoy)
                     ? null
-                    : oNull(CalculoHoy.avanceDelDia(activos, fechasPorHabito, dia));
+                    : oNull(CalculoHoy.avanceDelDia(vistas(activos, historiales, dia), fechasPorHabito, dia));
             dias.add(new DiaTiraDTO(dia.toString(), avance));
         }
 
@@ -126,7 +137,7 @@ public class HoyService {
                 : logrosHabitosService.evaluarLogrosDeRitmo(usuario, logrosCumplidos);
 
         return new HoyDTO(fecha.toString(), hoy.toString(), dias,
-                oNull(CalculoHoy.avanceDelDia(activos, fechasPorHabito, fecha)),
+                oNull(CalculoHoy.avanceDelDia(vistas(activos, historiales, fecha), fechasPorHabito, fecha)),
                 nivelGeneral, tendenciaGeneral, seccion(delDia), seccion(deLaSemana),
                 logrosOtorgados);
     }
@@ -136,6 +147,12 @@ public class HoyService {
         return new FilaHoyDTO(HabitoDTO.desde(habito), completados, habito.getMeta(), hecho,
                 fechas.contains(fecha), nivel,
                 fechas.stream().map(LocalDate::toString).toList());
+    }
+
+    /** Los hábitos tal como eran ese día (ver {@link HistorialObjetivos#vistaEl}). */
+    private List<Habito> vistas(List<Habito> habitos, Map<Integer, HistorialObjetivos> historiales,
+                                LocalDate dia) {
+        return habitos.stream().map(h -> HistorialObjetivos.de(historiales, h).vistaEl(dia)).toList();
     }
 
     private SeccionHoyDTO seccion(List<FilaHoyDTO> filas) {
