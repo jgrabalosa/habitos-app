@@ -24,6 +24,45 @@ public class RegistroDAO implements IRegistroDAO {
         em.persist(registro);
     }
 
+    // Consulta nativa con ON CONFLICT DO NOTHING, como HitoPagadoDAO: si dos
+    // completados con la misma clave llegan a la vez, el segundo espera a que
+    // el primero termine y no escribe nada, en vez de chocar con la
+    // restricción única, que dejaría la transacción marcada para deshacer y
+    // respondería un 500. creado_en va en UTC, como en Registro.alCrear.
+    @Override
+    public Registro guardarSiClaveLibre(Registro registro) {
+        List<?> ids = em.createNativeQuery(
+                        "INSERT INTO registro (fecha, creado_en, completado, nota, habito_ref,"
+                                + " cantidad, origen, clave_cliente)"
+                                + " VALUES (:fecha, :creadoEn, :completado, CAST(:nota AS VARCHAR(500)),"
+                                + " :habito, :cantidad, :origen, CAST(:clave AS UUID))"
+                                + " ON CONFLICT (clave_cliente) DO NOTHING"
+                                + " RETURNING registro_id")
+                .setParameter("fecha", registro.getFecha())
+                .setParameter("creadoEn", java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
+                .setParameter("completado", registro.isCompletado())
+                .setParameter("nota", registro.getNota())
+                .setParameter("habito", registro.getHabito().getHabitoId())
+                .setParameter("cantidad", registro.getCantidad())
+                .setParameter("origen", registro.getOrigen().name())
+                .setParameter("clave", registro.getClaveCliente().toString())
+                .getResultList();
+        if (ids.isEmpty()) {
+            return null;
+        }
+        return em.find(Registro.class, ((Number) ids.get(0)).intValue());
+    }
+
+    @Override
+    public Registro findByClave(java.util.UUID clave) {
+        return em.createQuery(
+                        "SELECT r FROM Registro r WHERE r.claveCliente = :clave", Registro.class)
+                .setParameter("clave", clave)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
+    }
+
     @Override
     public Registro findById(int id) {
         return em.find(Registro.class, id);

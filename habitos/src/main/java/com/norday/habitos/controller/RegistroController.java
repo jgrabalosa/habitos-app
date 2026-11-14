@@ -1,8 +1,11 @@
 package com.norday.habitos.controller;
 
+import com.norday.core.model.Usuario;
 import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
+import com.norday.core.service.TextosService;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.OrigenRegistro;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.RegistroService;
@@ -11,8 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
@@ -25,6 +30,9 @@ public class RegistroController extends ControladorAutorizado {
 
     @Autowired
     private HabitoService habitoService;
+
+    @Autowired
+    private TextosService textosService;
 
     @PostMapping("/completar/{habitoId}")
     public ResponseEntity<?> completar(@PathVariable int habitoId,
@@ -47,22 +55,53 @@ public class RegistroController extends ControladorAutorizado {
                 return ResponseEntity.badRequest().body("Formato de fecha inválido, se espera YYYY-MM-DD");
             }
         }
-        Map<String, Object> resultado = registroService.completarHabito(habito, nota, fecha);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                // Map.of admite diez pares como mucho y aquí van once.
-                .body(Map.ofEntries(
-                        Map.entry("mensaje", "Hábito completado correctamente"),
-                        Map.entry("logrosOtorgados", resultado.get("logros")),
-                        Map.entry("puntosGanados", resultado.get("puntosGanados")),
-                        Map.entry("registroId", resultado.get("registroId")),
-                        Map.entry("mostrarValoracion", resultado.get("mostrarValoracion")),
-                        Map.entry("subioNivel", resultado.get("subioNivel")),
-                        Map.entry("nivelNuevo", resultado.get("nivelNuevo")),
-                        Map.entry("puntosPaso", resultado.get("puntosPaso")),
-                        Map.entry("puntosExtraSemana", resultado.get("puntosExtraSemana")),
-                        Map.entry("puntosHito", resultado.get("puntosHito")),
-                        Map.entry("xpGanada", resultado.get("xpGanada"))
-                ));
+        // Hábitos en minutos. La clave (UUID) evita que un reintento cree otro
+        // registro; el origen es MANUAL si no llega. Los minutos se validan en
+        // el servicio, que sabe si el día es de minutos: en veces se ignoran.
+        Usuario propietario = habito.getPropietario();
+        UUID clave = null;
+        String textoClave = body != null ? body.get("clave") : null;
+        if (textoClave != null && !textoClave.isBlank()) {
+            try {
+                clave = UUID.fromString(textoClave.trim());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("mensaje", textosService.texto("registro.clave.invalida", propietario)));
+            }
+        }
+        OrigenRegistro origen = OrigenRegistro.MANUAL;
+        String textoOrigen = body != null ? body.get("origen") : null;
+        if (textoOrigen != null && !textoOrigen.isBlank()) {
+            try {
+                origen = OrigenRegistro.valueOf(textoOrigen.trim());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("mensaje", textosService.texto("registro.origen.invalido", propietario)));
+            }
+        }
+        String minutos = body != null ? body.get("minutos") : null;
+        Map<String, Object> resultado = registroService.completar(habito,
+                new RegistroService.Solicitud(nota, fecha, minutos, clave, origen));
+        // Un reintento con una clave ya usada no crea nada: 200 con los datos
+        // del registro original y premios a cero, en el mismo formato.
+        boolean repetido = Boolean.TRUE.equals(resultado.get("repetido"));
+        // LinkedHashMap y no Map.of: minutosDia y minutosObjetivo son null en VECES.
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("mensaje", "Hábito completado correctamente");
+        respuesta.put("logrosOtorgados", resultado.get("logros"));
+        respuesta.put("puntosGanados", resultado.get("puntosGanados"));
+        respuesta.put("registroId", resultado.get("registroId"));
+        respuesta.put("mostrarValoracion", resultado.get("mostrarValoracion"));
+        respuesta.put("subioNivel", resultado.get("subioNivel"));
+        respuesta.put("nivelNuevo", resultado.get("nivelNuevo"));
+        respuesta.put("puntosPaso", resultado.get("puntosPaso"));
+        respuesta.put("puntosExtraSemana", resultado.get("puntosExtraSemana"));
+        respuesta.put("puntosHito", resultado.get("puntosHito"));
+        respuesta.put("xpGanada", resultado.get("xpGanada"));
+        respuesta.put("minutosDia", resultado.get("minutosDia"));
+        respuesta.put("minutosObjetivo", resultado.get("minutosObjetivo"));
+        respuesta.put("diaHecho", resultado.get("diaHecho"));
+        return ResponseEntity.status(repetido ? HttpStatus.OK : HttpStatus.CREATED).body(respuesta);
     }
 
     @GetMapping("/habito/{habitoId}")
@@ -89,13 +128,7 @@ public class RegistroController extends ControladorAutorizado {
         if (!esElPropietario(habito, authentication)) {
             return prohibido();
         }
-        boolean completado = registroService.estaCompletadoHoy(habito);
-        int completadosPeriodo = registroService.contarCompletadosPeriodoActual(habito);
-        return ResponseEntity.ok(Map.of(
-                "completadoHoy", completado,
-                "completadosPeriodo", completadosPeriodo,
-                "meta", habito.getMeta()
-        ));
+        return ResponseEntity.ok(registroService.estadoDeHoy(habito));
     }
 
     @PutMapping("/{registroId}/nota")

@@ -10,11 +10,17 @@ import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
+import com.norday.core.service.TextosService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
+import com.norday.habitos.model.LimitesMinutos;
+import com.norday.habitos.model.Objetivo;
+import com.norday.habitos.model.OrigenRegistro;
 import com.norday.habitos.model.Racha;
+import com.norday.habitos.model.Unidad;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
@@ -27,10 +33,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class RegistroService {
@@ -71,6 +80,9 @@ public class RegistroService {
     @Autowired
     private ObjetivoService objetivoService;
 
+    @Autowired
+    private TextosService textosService;
+
     // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
     // números, ParametrosPremio.
     // B2: los hitos ya no cuelgan de la racha; sus números están en
@@ -80,19 +92,52 @@ public class RegistroService {
     //         {3, 50}, {7, 100}, {30, 300}, {100, 750}, {365, 2000}
     // };
 
+    /**
+     * Lo que pide un completado: la nota, la fecha (null = hoy), los minutos
+     * tal como llegan (solo cuentan si el día es de minutos), la clave del
+     * cliente para no repetirlo (null = sin clave) y el origen.
+     */
+    public record Solicitud(String nota, LocalDate fecha, String minutos, UUID clave, OrigenRegistro origen) {}
+
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota) {
         return completarHabito(habito, nota, null);
     }
 
+    /** La puerta de la app ya instalada: sin minutos, sin clave y a mano. */
     @Transactional
     public Map<String, Object> completarHabito(Habito habito, String nota, LocalDate fechaSolicitada) {
+        return completar(habito, new Solicitud(nota, fechaSolicitada, null, null, OrigenRegistro.MANUAL));
+    }
+
+    /**
+     * Completa un paso del hábito. Devuelve lo que ganó y, con
+     * {@code repetido = true}, si la clave del cliente ya estaba usada en
+     * este hábito: entonces no se ha creado ni pagado nada y los datos son
+     * los del registro original (ver {@link #repetido}).
+     *
+     * En un hábito de minutos el paso lleva sus minutos (obligatorios, de 1
+     * a 600) y se pueden dar varios el mismo día, también en un semanal; los
+     * rechazos de un completado por día (semanal) y de meta alcanzada
+     * (diario) son solo de VECES. Los minutos de más se guardan.
+     */
+    @Transactional
+    public Map<String, Object> completar(Habito habito, Solicitud solicitud) {
+        Usuario usuario = habito.getPropietario();
+        // Primero la clave: un reintento de algo que ya se guardó responde lo
+        // mismo aunque desde entonces haya cambiado algo (una pausa, el día).
+        UUID clave = solicitud.clave();
+        if (clave != null) {
+            Registro previo = registroDAO.findByClave(clave);
+            if (previo != null) return repetido(habito, previo, usuario);
+        }
+
         // Un hábito en pausa no se marca: la pausa lo para todo.
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito está en pausa");
         }
         LocalDate hoy = rachaService.hoyDe(habito);
-        LocalDate fecha = fechaSolicitada != null ? fechaSolicitada : hoy;
+        LocalDate fecha = solicitud.fecha() != null ? solicitud.fecha() : hoy;
         if (fecha.isAfter(hoy)) {
             throw new ConflictoException("No se puede completar un hábito en una fecha futura");
         }
@@ -104,7 +149,6 @@ public class RegistroService {
         if (fecha.isBefore(lunesDeEstaSemana)) {
             throw new ConflictoException("Solo se puede completar una fecha de la semana en curso");
         }
-        Usuario usuario = habito.getPropietario();
 
         // El objetivo de hoy al día, y el día se juzga con el que tenía esa
         // fecha: un completado retroactivo de esta semana puede caer antes
@@ -113,24 +157,38 @@ public class RegistroService {
                 objetivoService.ponerAlDia(List.of(habito), hoy), habito);
         Habito delDia = historial.vistaEl(fecha);
         Frecuencia frecuencia = delDia.getFrecuencia();
+        Objetivo objetivoDelDia = historial.objetivoEl(fecha);
+        boolean enMinutos = objetivoDelDia.enMinutos();
+        // En minutos, los minutos del paso; nunca 1 por defecto. En veces
+        // cada paso vale 1 y los minutos, si llegan, se ignoran.
+        int cantidad = enMinutos ? minutosDelPaso(solicitud.minutos(), usuario) : 1;
 
-        // SEMANAL: máximo un completado por día (cada completado es un día distinto)
-        if (frecuencia == Frecuencia.SEMANAL
+        // SEMANAL de veces: máximo un completado por día (cada completado es un día distinto)
+        if (!enMinutos && frecuencia == Frecuencia.SEMANAL
                 && registroDAO.existeRegistroEnFecha(habito, fecha)) {
             throw new ConflictoException("Este hábito ya se ha completado en esa fecha");
         }
 
+        // Lo hecho en el periodo antes de este paso, cada día con su
+        // objetivo. completadosAntes va en la unidad de la meta: en veces, los
+        // registros del periodo, como siempre.
         LocalDate[] periodo = frecuencia.rangoPeriodo(fecha);
-        int completadosAntes = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+        Hechos delPeriodo = Hechos.de(
+                registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]), historial::objetivoEl);
+        int completadosAntes = delPeriodo.unidades();
         int meta = delDia.getMeta();
 
-        // DIARIO: no dejar superar la meta del día. Sin esto, un doble toque o
-        // un reintento por timeout de red crea un registro de más y, si
+        // DIARIO de veces: no dejar superar la meta del día. Sin esto, un doble
+        // toque o un reintento por timeout de red crea un registro de más y, si
         // coincide justo con el punto en que se alcanza la meta, otorga
-        // puntos por partida doble.
-        if (frecuencia == Frecuencia.DIARIO && completadosAntes >= meta) {
+        // puntos por partida doble. En minutos, lo de más se guarda (y la
+        // clave del cliente evita el doble toque).
+        if (!enMinutos && frecuencia == Frecuencia.DIARIO && completadosAntes >= meta) {
             throw new ConflictoException("Este hábito ya ha alcanzado la meta de esa fecha");
         }
+        boolean diaHechoAntes = delPeriodo.diaHecho(fecha);
+        Hechos delPeriodoDespues = delPeriodo.con(fecha, cantidad);
+        boolean diaHechoDespues = delPeriodoDespues.diaHecho(fecha);
 
         // Instantánea del estado previo, para poder deshacer este completado con
         // exactitud (ver ReversionRegistro). Valores primitivos copiados a
@@ -154,20 +212,33 @@ public class RegistroService {
 
         // Días hechos del hábito antes y después de este completado, para
         // los hitos. Se leen antes de guardar el registro nuevo. Cada día se
-        // juzga con el objetivo que tenía.
-        List<LocalDate> fechasHechas = new ArrayList<>();
-        for (Registro anterior : registroDAO.findByHabito(habito)) {
-            if (anterior.isCompletado()) fechasHechas.add(anterior.getFecha());
-        }
-        int diasHechosAntes = CalculoPremio.diasHechos(fechasHechas, historial::objetivoEl);
-        // ¿Es este paso una vuelta al hábito? Se mira con las fechas que ya
-        // tenía, antes de añadir la de ahora.
-        boolean esUnaVuelta = CalculoPremio.esUnaVuelta(frecuencia, fecha, fechasHechas);
-        fechasHechas.add(fecha);
-        int diasHechosDespues = CalculoPremio.diasHechos(fechasHechas, historial::objetivoEl);
+        // juzga con el objetivo que tenía; uno de minutos, con sus minutos.
+        Hechos todos = Hechos.de(registroDAO.findByHabito(habito), historial::objetivoEl);
+        int diasHechosAntes = todos.diasHechos();
+        // ¿Es este paso una vuelta al hábito? Se mira con las fechas en que ya
+        // contaba como hecho, antes de añadir la de ahora: en veces, las de
+        // cualquier registro; en minutos, los días que llegaron a sus
+        // minutos, y la vuelta llega con el paso que completa el día.
+        boolean esUnaVuelta = (!enMinutos || (!diaHechoAntes && diaHechoDespues))
+                && CalculoPremio.esUnaVuelta(frecuencia, fecha, todos.fechasHechas());
+        int diasHechosDespues = todos.con(fecha, cantidad).diasHechos();
 
-        Registro registro = new Registro(habito, true, nota, fecha);
-        registroDAO.save(registro);
+        Registro registro = new Registro(habito, true, solicitud.nota(), fecha);
+        registro.setCantidad(cantidad);
+        registro.setOrigen(solicitud.origen() != null ? solicitud.origen() : OrigenRegistro.MANUAL);
+        registro.setClaveCliente(clave);
+        if (clave == null) {
+            registroDAO.save(registro);
+        } else {
+            // Con clave, sin chocar: si otro completado con la misma clave se
+            // ha guardado entretanto, no se escribe nada y se responde como
+            // a un reintento. Todavía no se ha pagado nada.
+            Registro guardado = registroDAO.guardarSiClaveLibre(registro);
+            if (guardado == null) {
+                return repetido(habito, registroDAO.findByClave(clave), usuario);
+            }
+            registro = guardado;
+        }
 
         int puntosGanados = 0;
         boolean subioNivel = false;
@@ -176,8 +247,10 @@ public class RegistroService {
         // Cada paso cobra su parte en el momento, y pasarse del objetivo no da
         // nada: la regla está en CalculoPremio. El extra por completar la
         // semana va en un movimiento aparte, para poder explicar de dónde sale.
-        CalculoPremio.Premio premio =
-                CalculoPremio.delPaso(frecuencia, completadosAntes, meta);
+        CalculoPremio.Premio premio = enMinutos
+                ? CalculoPremio.delPasoEnMinutos(frecuencia, meta, diasDelPeriodo(delPeriodo), fecha,
+                        objetivoDelDia.minutosDelDia(), cantidad)
+                : CalculoPremio.delPaso(frecuencia, completadosAntes, meta);
         if (premio.puntos() > 0) {
             usuarioMonedaService.registrarMovimiento(
                     usuario, premio.puntos(), "HABITO_COMPLETADO",
@@ -244,10 +317,12 @@ public class RegistroService {
         }
 
         // Cuándo mostrar el sheet de valoración: SEMANAL siempre (cada completado es
-        // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta)
+        // un día distinto), DIARIO solo en el último completado del día (al llegar a la meta).
+        // En minutos, con el paso que hace que el día llegue a sus minutos.
         boolean mostrarValoracion = fecha.equals(hoy)
-                && (frecuencia == Frecuencia.SEMANAL
-                || (completadosAntes + 1) >= meta);
+                && (enMinutos
+                        ? !diaHechoAntes && diaHechoDespues
+                        : frecuencia == Frecuencia.SEMANAL || (completadosAntes + 1) >= meta);
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
         // saldo recoge de una vez el completado, el hito de racha y los logros.
@@ -274,18 +349,92 @@ public class RegistroService {
 
         // puntosGanados sigue siendo la suma, que es lo que lee la app ya
         // instalada. Los cuatro campos siguientes la desglosan.
-        return Map.of(
-                "logros", logros,
-                "puntosGanados", puntosGanados,
-                "registroId", registro.getRegistroId(),
-                "mostrarValoracion", mostrarValoracion,
-                "subioNivel", subioNivel,
-                "nivelNuevo", nivelNuevo,
-                "puntosPaso", premio.puntos(),
-                "puntosExtraSemana", premio.puntosExtra(),
-                "puntosHito", puntosHito,
-                "xpGanada", xpOtorgada
-        );
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("logros", logros);
+        resultado.put("puntosGanados", puntosGanados);
+        resultado.put("registroId", registro.getRegistroId());
+        resultado.put("mostrarValoracion", mostrarValoracion);
+        resultado.put("subioNivel", subioNivel);
+        resultado.put("nivelNuevo", nivelNuevo);
+        resultado.put("puntosPaso", premio.puntos());
+        resultado.put("puntosExtraSemana", premio.puntosExtra());
+        resultado.put("puntosHito", puntosHito);
+        resultado.put("xpGanada", xpOtorgada);
+        resultado.put("minutosDia", enMinutos ? delPeriodoDespues.cantidadEl(fecha) : null);
+        resultado.put("minutosObjetivo", enMinutos ? objetivoDelDia.minutosObjetivo() : null);
+        resultado.put("diaHecho", diaHechoDespues);
+        resultado.put("repetido", false);
+        return resultado;
+    }
+
+    /**
+     * La respuesta a un completado cuya clave ya estaba usada: los datos del
+     * registro original, con premios a cero, sin crear ni pagar nada. Una
+     * clave usada en otro hábito es un conflicto: no se dice nada de él.
+     */
+    private Map<String, Object> repetido(Habito habito, Registro original, Usuario usuario) {
+        if (original == null || original.getHabito() == null
+                || original.getHabito().getHabitoId() != habito.getHabitoId()) {
+            throw new ConflictoException(textosService.texto("registro.clave.ajena", usuario));
+        }
+        LocalDate fecha = original.getFecha();
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.historiales(List.of(habito)), habito);
+        Objetivo objetivo = historial.objetivoEl(fecha);
+        Hechos delDia = Hechos.de(registroDAO.findByHabitoAndRango(habito, fecha, fecha), historial::objetivoEl);
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("logros", List.of());
+        resultado.put("puntosGanados", 0);
+        resultado.put("registroId", original.getRegistroId());
+        resultado.put("mostrarValoracion", false);
+        resultado.put("subioNivel", false);
+        resultado.put("nivelNuevo", 0);
+        resultado.put("puntosPaso", 0);
+        resultado.put("puntosExtraSemana", 0);
+        resultado.put("puntosHito", 0);
+        resultado.put("xpGanada", 0);
+        resultado.put("minutosDia", objetivo.enMinutos() ? delDia.cantidadEl(fecha) : null);
+        resultado.put("minutosObjetivo", objetivo.enMinutos() ? objetivo.minutosObjetivo() : null);
+        resultado.put("diaHecho", delDia.diaHecho(fecha));
+        resultado.put("repetido", true);
+        return resultado;
+    }
+
+    /**
+     * Los minutos de un paso de minutos, validados. Si no llegan, la app es
+     * anterior a los minutos: 409 pidiendo actualizarla, nunca 1 minuto por
+     * defecto. Si no son un número de 1 a 600, 400.
+     */
+    private int minutosDelPaso(String texto, Usuario usuario) {
+        if (texto == null || texto.isBlank()) {
+            throw new ConflictoException(textosService.texto("registro.minutos.actualizar.app", usuario));
+        }
+        Integer minutos;
+        try {
+            minutos = Integer.valueOf(texto.trim());
+        } catch (NumberFormatException e) {
+            minutos = null;
+        }
+        if (!LimitesMinutos.valido(minutos)) {
+            throw new IllegalArgumentException(textosService.texto("registro.minutos.rango", usuario,
+                    LimitesMinutos.MINIMO, LimitesMinutos.MAXIMO));
+        }
+        return minutos;
+    }
+
+    /**
+     * Los días del periodo de un paso de minutos, con lo hecho y su objetivo
+     * en minutos. Un día de veces de un semanal (antes de pasar a minutos esa
+     * semana) cuenta como un día entero si tiene alguna sesión.
+     */
+    private static Map<LocalDate, CalculoPremio.DiaDelPeriodo> diasDelPeriodo(Hechos hechos) {
+        Map<LocalDate, CalculoPremio.DiaDelPeriodo> dias = new HashMap<>();
+        hechos.porDia().forEach((dia, cantidad) -> {
+            Objetivo objetivo = hechos.objetivoEl(dia);
+            dias.put(dia, new CalculoPremio.DiaDelPeriodo(cantidad,
+                    objetivo.enMinutos() ? objetivo.minutosDelDia() : 1));
+        });
+        return dias;
     }
 
     private Set<Integer> idsLogros(Usuario usuario) {
@@ -297,15 +446,31 @@ public class RegistroService {
     }
 
     /**
-     * Los completados del periodo en curso. Pone antes al día el objetivo
-     * del hábito, que es el de hoy: quien llama lee después su meta.
+     * Cómo va hoy un hábito, para GET /api/registros/habito/{id}/hoy. Pone
+     * antes al día el objetivo del hábito, que es el de hoy.
+     *
+     * {@code completadoHoy}, {@code completadosPeriodo} y {@code meta}
+     * conservan su significado para la app ya instalada: en un hábito de
+     * veces, si hay algún registro hoy y los registros del periodo; en uno de
+     * minutos, si hoy llegó a sus minutos y los días hechos del periodo.
+     * {@code minutosHoy} y {@code minutosObjetivo} son null en VECES.
      */
     @Transactional
-    public int contarCompletadosPeriodoActual(Habito habito) {
+    public Map<String, Object> estadoDeHoy(Habito habito) {
         LocalDate hoy = rachaService.hoyDe(habito);
-        objetivoService.ponerAlDia(List.of(habito), hoy);
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.ponerAlDia(List.of(habito), hoy), habito);
         LocalDate[] periodo = habito.getFrecuencia().rangoPeriodo(hoy);
-        return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
+        Hechos hechos = Hechos.de(registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]),
+                historial::objetivoEl);
+        boolean enMinutos = habito.getUnidad() == Unidad.MINUTOS;
+        Map<String, Object> estado = new LinkedHashMap<>();
+        estado.put("completadoHoy", hechos.unidadesEl(hoy) > 0);
+        estado.put("completadosPeriodo", hechos.unidades());
+        estado.put("meta", habito.getMeta());
+        estado.put("minutosHoy", enMinutos ? hechos.cantidadEl(hoy) : null);
+        estado.put("minutosObjetivo", enMinutos ? habito.getMinutosObjetivo() : null);
+        return estado;
     }
 
     // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.hitosAPagar).
@@ -347,10 +512,6 @@ public class RegistroService {
     //        }
     //        return puntos;
     //    }
-
-    public boolean estaCompletadoHoy(Habito habito) {
-        return registroDAO.existeRegistroEnFecha(habito, rachaService.hoyDe(habito));
-    }
 
     public List<Registro> obtenerRegistros(Habito habito) {
         return registroDAO.findByHabito(habito);
