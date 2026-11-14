@@ -5,15 +5,14 @@ import com.norday.gamificacion.service.LogroService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Racha;
-import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -138,13 +137,11 @@ public class LogrosHabitosService {
      */
     private List<String> comprobarLogrosDeDiasHechos(Usuario usuario, Habito habito) {
         List<String> otorgados = new ArrayList<>();
-        List<LocalDate> fechas = new ArrayList<>();
-        for (Registro registro : registroDAO.findByHabito(habito)) {
-            if (registro.isCompletado()) fechas.add(registro.getFecha());
-        }
         HistorialObjetivos historial = HistorialObjetivos.de(
                 objetivoService.historiales(List.of(habito)), habito);
-        int diasHechos = CalculoPremio.diasHechos(fechas, historial::objetivoEl);
+        // En un hábito de minutos, un día cuenta cuando llega a sus minutos.
+        int diasHechos = CalculoPremio.diasHechos(
+                Hechos.de(registroDAO.findByHabito(habito), historial::objetivoEl));
 
         for (int dias : DIAS_HECHOS_CON_LOGRO) {
             if (dias > diasHechos) break;
@@ -154,6 +151,8 @@ public class LogrosHabitosService {
         return otorgados;
     }
 
+    // El número de registros lo da RegistroDAO.contarPorUsuario: cada fila en
+    // los días de veces y como mucho una por hábito y día en los de minutos.
     private List<String> comprobarLogrosDeVolumen(Usuario usuario) {
         List<String> otorgados = new ArrayList<>();
         int totalRegistros = registroDAO.contarPorUsuario(usuario.getUsuarioId());

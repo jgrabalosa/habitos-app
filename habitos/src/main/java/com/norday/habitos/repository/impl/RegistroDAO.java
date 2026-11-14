@@ -100,11 +100,28 @@ public class RegistroDAO implements IRegistroDAO {
         em.merge(registro);
     }
 
+    // Para los logros de volumen. Nativa porque cada registro se juzga con la
+    // unidad de la versión del objetivo vigente en su fecha (la de mayor
+    // desde <= fecha; antes de la primera, la primera; sin versiones, la del
+    // hábito). Un registro de veces cuenta por sí mismo (su id lo distingue);
+    // los de minutos de un mismo hábito y día se funden en uno (0 en lugar
+    // del id) y DISTINCT los cuenta una vez.
     @Override
     public int contarPorUsuario(int usuarioId) {
-        Long count = em.createQuery(
-                        "SELECT COUNT(r) FROM Registro r WHERE r.habito.propietario.usuarioId = :usuarioId",
-                        Long.class)
+        Number count = (Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM ("
+                                + " SELECT DISTINCT r.habito_ref, r.fecha,"
+                                + "  CASE WHEN COALESCE("
+                                + "   (SELECT o.unidad FROM habito_objetivo o"
+                                + "     WHERE o.habito_ref = r.habito_ref AND o.desde <= r.fecha"
+                                + "     ORDER BY o.desde DESC LIMIT 1),"
+                                + "   (SELECT o.unidad FROM habito_objetivo o"
+                                + "     WHERE o.habito_ref = r.habito_ref ORDER BY o.desde ASC LIMIT 1),"
+                                + "   h.unidad) = 'MINUTOS'"
+                                + "  THEN 0 ELSE r.registro_id END AS fila"
+                                + " FROM registro r JOIN habito h ON h.habito_id = r.habito_ref"
+                                + " WHERE h.propietario_id = :usuarioId"
+                                + ") t")
                 .setParameter("usuarioId", usuarioId)
                 .getSingleResult();
         return count.intValue();

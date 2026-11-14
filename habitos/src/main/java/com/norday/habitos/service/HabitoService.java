@@ -7,6 +7,7 @@ import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.CalculoRitmo;
@@ -14,6 +15,7 @@ import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.model.Unidad;
 import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.DiaSemanaDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
@@ -154,15 +156,27 @@ public class HabitoService {
     @Transactional
     public List<HabitoResumenDTO> obtenerResumen(Usuario propietario) {
         List<Habito> todos = habitoDAO.findByPropietario(propietario);
-        objetivoService.ponerAlDia(todos, LocalDate.now(zonaUsuarioService.zonaDe(propietario)));
+        Map<Integer, HistorialObjetivos> historiales =
+                objetivoService.ponerAlDia(todos, LocalDate.now(zonaUsuarioService.zonaDe(propietario)));
         Map<Integer, Long> conteos = registroDAO.contarCompletadosPorUsuario(propietario.getUsuarioId());
 
         List<HabitoResumenDTO> resumen = new ArrayList<>();
         for (Habito habito : todos) {
-            long total = conteos.getOrDefault(habito.getHabitoId(), 0L);
+            HistorialObjetivos historial = HistorialObjetivos.de(historiales, habito);
+            // En veces, los registros. Un hábito con algo de minutos cuenta en
+            // la unidad de su meta: sus días de minutos, por días hechos.
+            long total = tieneMinutos(habito, historial)
+                    ? Hechos.de(registroDAO.findByHabito(habito), historial::objetivoEl).unidades()
+                    : conteos.getOrDefault(habito.getHabitoId(), 0L);
             resumen.add(new HabitoResumenDTO(habito, (int) total));
         }
         return resumen;
+    }
+
+    /** ¿Tiene el hábito algo de minutos: hoy o en alguna versión de su objetivo? */
+    private static boolean tieneMinutos(Habito habito, HistorialObjetivos historial) {
+        return habito.getUnidad() == Unidad.MINUTOS
+                || historial.versiones().stream().anyMatch(v -> v.getUnidad() == Unidad.MINUTOS);
     }
 
     /**
@@ -268,22 +282,30 @@ public class HabitoService {
         LocalDate hasta = mes.atEndOfMonth();
         List<Registro> registrosMes = registroDAO.findByHabitoAndRango(habito, desde, hasta);
 
+        // Lo hecho de cada día con el objetivo de ese día. En un día de
+        // minutos, la celda está completada si el día llegó a sus minutos y
+        // lleva los minutos; en uno de veces, como siempre.
+        Hechos hechos = Hechos.de(todosRegistros, historial::objetivoEl);
         List<RegistroDiaDTO> heatmap = new ArrayList<>();
         for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
             LocalDate fechaActual = dia;
             int veces = (int) registrosMes.stream()
                     .filter(r -> r.getFecha().equals(fechaActual) && r.isCompletado())
                     .count();
-            heatmap.add(new RegistroDiaDTO(fechaActual, veces > 0, veces));
+            boolean enMinutos = historial.objetivoEl(fechaActual).enMinutos();
+            heatmap.add(enMinutos
+                    ? new RegistroDiaDTO(fechaActual, hechos.diaHecho(fechaActual), veces,
+                            hechos.cantidadEl(fechaActual))
+                    : new RegistroDiaDTO(fechaActual, veces > 0, veces));
         }
 
         // Días distintos con al menos un completado (no registros: un diario
-        // con meta 3/día que se hace 3 veces el lunes cuenta como 1 día)
-        int completadosMesActual = (int) registrosMes.stream()
-                .filter(Registro::isCompletado)
-                .map(Registro::getFecha)
-                .distinct()
-                .count();
+        // con meta 3/día que se hace 3 veces el lunes cuenta como 1 día). En
+        // un día de minutos, solo si llegó a sus minutos.
+        int completadosMesActual = 0;
+        for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
+            if (hechos.unidadesEl(dia) > 0) completadosMesActual++;
+        }
 
         YearMonth mesActual = YearMonth.now(zona);
         Double porcentaje = null;
@@ -298,7 +320,8 @@ public class HabitoService {
 
         List<RegistroResumenDTO> ultimosRegistros = todosRegistros.stream()
                 .limit(10)
-                .map(r -> new RegistroResumenDTO(r.getRegistroId(), r.getFecha(), r.isCompletado(), r.getNota(), r.getValoracion()))
+                .map(r -> new RegistroResumenDTO(r.getRegistroId(), r.getFecha(), r.isCompletado(), r.getNota(),
+                        r.getValoracion(), r.getCantidad(), r.getOrigen()))
                 .collect(Collectors.toList());
 
         var valoracionStats = todosRegistros.stream()
@@ -317,7 +340,9 @@ public class HabitoService {
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
         dto.setRitmoNivel(CalculoRitmo.nivel(ritmo.valor()));
         dto.setRitmoTendencia(ritmo.tendencia());
-        dto.setTotalCompletados((int) todosRegistros.stream().filter(Registro::isCompletado).count());
+        // En la unidad de la meta: veces en un hábito de veces, días hechos en
+        // los días de minutos.
+        dto.setTotalCompletados(hechos.unidades());
         dto.setMeta(habito.getMeta());
         dto.setFrecuencia(habito.getFrecuencia().name());
         dto.setDiasSemana(habito.getDiasSemana());
@@ -329,6 +354,17 @@ public class HabitoService {
         dto.setValoracionMedia(valoracionMedia);
         HabitoObjetivo programado = historial.programadaTras(hoy);
         dto.setObjetivoProgramado(programado == null ? null : ObjetivoProgramadoDTO.desde(programado));
+        dto.setUnidad(habito.getUnidad());
+        boolean enMinutos = habito.getUnidad() == Unidad.MINUTOS;
+        dto.setMinutosObjetivo(enMinutos ? habito.getMinutosObjetivo() : null);
+        // Todos los minutos de sus días de minutos, también los de más. Null
+        // en un hábito de veces: no hay minutos que sumar.
+        dto.setTotalMinutos(enMinutos
+                ? todosRegistros.stream()
+                        .filter(r -> r.isCompletado() && historial.objetivoEl(r.getFecha()).enMinutos())
+                        .mapToInt(Registro::getCantidad)
+                        .sum()
+                : null);
 
         return dto;
     }
@@ -363,9 +399,14 @@ public class HabitoService {
 
         for (Habito habito : diarios) {
             LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
-            int completadosPeriodo =
-                    registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
-            if (completadosPeriodo < habito.getMeta()) return false;
+            List<Registro> deHoy = registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]);
+            if (habito.getUnidad() == Unidad.MINUTOS) {
+                // Un diario de minutos, al llegar a sus minutos.
+                Objetivo objetivo = Objetivo.de(habito);
+                if (!Hechos.de(deHoy, fecha -> objetivo).diaHecho(hoy)) return false;
+            } else if (deHoy.size() < habito.getMeta()) {
+                return false;
+            }
         }
         return true;
     }
@@ -401,7 +442,8 @@ public class HabitoService {
         ZoneId zona = zonaUsuarioService.zonaDe(usuario);
         LocalDate hoy = LocalDate.now(zona);
         // Todo aquí es de hoy: con el objetivo al día, basta con el hábito.
-        objetivoService.ponerAlDia(activos, hoy);
+        // Los días de la ventana se juzgan con el suyo.
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.ponerAlDia(activos, hoy);
 
         // Ventana: los 10 días de la mini-heatmap, extendida hacia atrás hasta
         // el lunes de la semana del día más antiguo (para calcular "semana
@@ -429,16 +471,19 @@ public class HabitoService {
 
             LocalDate[] periodo = habito.getFrecuencia().rangoPeriodoActual(zona);
 
-            int completadosPeriodo = (int) registrosVentana.stream()
-                    .filter(r -> !r.getFecha().isBefore(periodo[0]) && !r.getFecha().isAfter(periodo[1]))
-                    .count();
+            // En la unidad de la meta: veces en un hábito de veces; días que
+            // llegan a sus minutos en uno de minutos.
+            Hechos hechos = Hechos.de(registrosVentana,
+                    HistorialObjetivos.de(historiales, habito)::objetivoEl);
+            int completadosPeriodo = 0;
+            for (LocalDate dia = periodo[0]; !dia.isAfter(periodo[1]); dia = dia.plusDays(1)) {
+                completadosPeriodo += hechos.unidadesEl(dia);
+            }
 
-            boolean completadoHoy = registrosVentana.stream()
-                    .anyMatch(r -> r.getFecha().equals(hoy));
+            boolean completadoHoy = hechos.unidadesEl(hoy) > 0;
 
-            List<String> fechasCompletadas = registrosVentana.stream()
-                    .filter(Registro::isCompletado)
-                    .map(r -> r.getFecha().toString())
+            List<String> fechasCompletadas = hechos.fechasEnUnidades().stream()
+                    .map(LocalDate::toString)
                     .collect(Collectors.toList());
 
             dashboard.add(new DashboardHabitoDTO(habito, completadoHoy, completadosPeriodo, fechasCompletadas));
@@ -505,11 +550,12 @@ public class HabitoService {
                     registrosPorHabito.getOrDefault(habito.getHabitoId(), List.of());
             HistorialObjetivos historial = HistorialObjetivos.de(historiales, habito);
 
+            // Lo hecho cada día con su objetivo: en un hábito de minutos, un
+            // día cuenta cuando llega a sus minutos.
+            Hechos hechos = Hechos.de(registrosSemana, historial::objetivoEl);
             Habito deLaSemana = historial.vistaEl(ultimoDia);
             if (esSemanalFlexible(deLaSemana)) {
-                int completadosSemana = (int) registrosSemana.stream()
-                        .filter(Registro::isCompletado)
-                        .count();
+                int completadosSemana = hechos.unidades();
                 flexibles.add(new HabitoFlexibleDTO(deLaSemana, completadosSemana, deLaSemana.getMeta()));
                 continue;
             }
@@ -519,8 +565,7 @@ public class HabitoService {
                 Habito delDia = historial.vistaEl(fecha);
                 if (esSemanalFlexible(delDia) || !estaProgramadoPara(delDia, fecha)) continue;
 
-                boolean completado = registrosSemana.stream()
-                        .anyMatch(r -> r.getFecha().equals(fecha) && r.isCompletado());
+                boolean completado = hechos.unidadesEl(fecha) > 0;
 
                 habitosPorDia.get(i).add(new HabitoDiaDTO(delDia, completado));
             }

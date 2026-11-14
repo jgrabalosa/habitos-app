@@ -1,6 +1,7 @@
 package com.norday.habitos.model.dto;
 
 import com.norday.habitos.model.Tendencia;
+import com.norday.habitos.model.Unidad;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +29,12 @@ public class HabitoDetalleDTO {
     private Tendencia ritmoTendencia; // respecto a hace siete días
     // El cambio de objetivo programado, si lo hay; null si no.
     private ObjetivoProgramadoDTO objetivoProgramado;
+    // Hábitos en minutos. minutosObjetivo y totalMinutos son null en un
+    // hábito de VECES. totalMinutos es la suma de los minutos de todos sus
+    // registros de minutos, también los de más.
+    private Unidad unidad;
+    private Integer minutosObjetivo;
+    private Integer totalMinutos;
 
     public int getHabitoId() { return habitoId; }
     public void setHabitoId(int habitoId) { this.habitoId = habitoId; }
@@ -82,4 +89,13 @@ public class HabitoDetalleDTO {
 
     public ObjetivoProgramadoDTO getObjetivoProgramado() { return objetivoProgramado; }
     public void setObjetivoProgramado(ObjetivoProgramadoDTO objetivoProgramado) { this.objetivoProgramado = objetivoProgramado; }
+
+    public Unidad getUnidad() { return unidad; }
+    public void setUnidad(Unidad unidad) { this.unidad = unidad; }
+
+    public Integer getMinutosObjetivo() { return minutosObjetivo; }
+    public void setMinutosObjetivo(Integer minutosObjetivo) { this.minutosObjetivo = minutosObjetivo; }
+
+    public Integer getTotalMinutos() { return totalMinutos; }
+    public void setTotalMinutos(Integer totalMinutos) { this.totalMinutos = totalMinutos; }
 }

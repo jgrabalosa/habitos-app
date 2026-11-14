@@ -187,4 +187,30 @@ class NotificacionSchedulerTest {
 
         verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
     }
+
+    @Test
+    void unDiarioDeMinutosAMedias_sigueAvisando_yAlLlegarASusMinutosSeCalla() {
+        Habito leer = habitoCon(MADRID, ventanaDeMadrid());
+        leer.setUnidad(com.norday.habitos.model.Unidad.MINUTOS);
+        leer.setMinutosObjetivo(30);
+        LocalDate hoy = LocalDate.now(MADRID);
+        Registro veinte = new Registro(leer, true, "", hoy);
+        veinte.setCantidad(20);
+
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(leer));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(registroDAO.findByHabitosAndRango(anyList(), any(), any())).thenReturn(List.of(veinte));
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
+        when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
+
+        notificacionScheduler.enviarRecordatorios();
+        verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
+
+        Registro diez = new Registro(leer, true, "", hoy);
+        diez.setCantidad(10);
+        when(registroDAO.findByHabitosAndRango(anyList(), any(), any())).thenReturn(List.of(veinte, diez));
+        clearInvocations(notificacionService);
+        notificacionScheduler.enviarRecordatorios();
+        verifyNoInteractions(notificacionService);
+    }
 }

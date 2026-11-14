@@ -45,6 +45,27 @@ public final class Hechos {
         return new Hechos(porDia, objetivoEl);
     }
 
+    /**
+     * Lo hecho de cada hábito, por id de hábito, a partir de los registros
+     * de todos ellos (de una sola consulta) y de sus historiales: cada día
+     * se juzga con el objetivo que el hábito tenía ese día. Todo hábito de
+     * la lista está en el mapa, aunque no tenga registros.
+     */
+    public static Map<Integer, Hechos> porHabito(Collection<Registro> registros, Collection<Habito> habitos,
+                                                 Map<Integer, HistorialObjetivos> historiales) {
+        Map<Integer, List<Registro>> porId = new java.util.HashMap<>();
+        for (Registro registro : registros) {
+            porId.computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>()).add(registro);
+        }
+        Map<Integer, Hechos> hechos = new java.util.HashMap<>();
+        for (Habito habito : habitos) {
+            HistorialObjetivos historial = HistorialObjetivos.de(historiales, habito);
+            hechos.put(habito.getHabitoId(),
+                    de(porId.getOrDefault(habito.getHabitoId(), List.of()), historial::objetivoEl));
+        }
+        return hechos;
+    }
+
     /** Lo hecho a partir de los hechos de cada día ya sumados. */
     public static Hechos dePorDia(Map<LocalDate, Integer> porDia, Function<LocalDate, Objetivo> objetivoEl) {
         return new Hechos(porDia, objetivoEl);

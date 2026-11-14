@@ -7,8 +7,8 @@ import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
-import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -92,22 +92,17 @@ public class NotificacionScheduler {
             LocalDate hoyUsuario = entrada.getKey();
             List<Habito> candidatos = entrada.getValue();
 
-            Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
-            for (Registro registro : registroDAO.findByHabitosAndRango(
-                    candidatos, hoyUsuario.with(DayOfWeek.MONDAY), hoyUsuario)) {
-                if (!registro.isCompletado()) continue;
-                fechasPorHabito
-                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
-                        .add(registro.getFecha());
-            }
-
             // Cada hábito con el objetivo vigente en la fecha de su dueño, sin
             // escribir nada: el barrido solo avisa. Una consulta por fecha.
+            // Lo hecho se juzga día a día: un hábito de minutos no está hecho
+            // hasta que llega a sus minutos.
             Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(candidatos);
+            Map<Integer, Hechos> hechosPorHabito = Hechos.porHabito(registroDAO.findByHabitosAndRango(
+                    candidatos, hoyUsuario.with(DayOfWeek.MONDAY), hoyUsuario), candidatos, historiales);
             for (Habito habito : candidatos) {
-                List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
+                Hechos hechos = hechosPorHabito.get(habito.getHabitoId());
                 Habito deHoy = HistorialObjetivos.de(historiales, habito).vistaEl(hoyUsuario);
-                if (!CalculoHoy.tocaRecordar(deHoy, fechas, hoyUsuario)) {
+                if (!CalculoHoy.tocaRecordar(deHoy, hechos, hoyUsuario)) {
                     continue; // hecho, cubierto o con la semana ya cumplida
                 }
                 Usuario propietario = habito.getPropietario();

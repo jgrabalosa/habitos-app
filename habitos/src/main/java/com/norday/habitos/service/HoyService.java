@@ -7,9 +7,10 @@ import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
-import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Tendencia;
+import com.norday.habitos.model.Unidad;
 import com.norday.habitos.model.dto.DiaTiraDTO;
 import com.norday.habitos.model.dto.FilaHoyDTO;
 import com.norday.habitos.model.dto.HabitoDTO;
@@ -24,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,13 +83,10 @@ public class HoyService {
         // y ancla el ritmo en su fecha.
         Map<Integer, HistorialObjetivos> historiales = objetivoService.ponerAlDia(activos, hoy);
 
-        Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
-        for (Registro registro : registroDAO.findByHabitosAndRango(activos, lunes, lunes.plusDays(6))) {
-            if (!registro.isCompletado()) continue;
-            fechasPorHabito
-                    .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
-                    .add(registro.getFecha());
-        }
+        // Lo hecho de cada hábito en la semana, cada día con su objetivo: en
+        // uno de minutos, un día cuenta cuando llega a sus minutos.
+        Map<Integer, Hechos> hechosPorHabito = Hechos.porHabito(
+                registroDAO.findByHabitosAndRango(activos, lunes, lunes.plusDays(6)), activos, historiales);
 
         // El ritmo es siempre el de hoy, aunque se mire otro día de la tira.
         Map<Integer, RitmoLeido> ritmos = ritmoService.ritmosLeidos(activos, hoy);
@@ -98,18 +95,20 @@ public class HoyService {
         List<FilaHoyDTO> deLaSemana = new ArrayList<>();
         for (Habito activo : activos) {
             Habito habito = HistorialObjetivos.de(historiales, activo).vistaEl(fecha);
-            List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
+            Hechos hechos = hechosPorHabito.get(habito.getHabitoId());
             int nivel = CalculoRitmo.nivel(ritmos.get(habito.getHabitoId()).valor());
 
+            // completados va en la unidad de la meta: veces en un hábito de
+            // veces, días hechos en uno de minutos (0 o 1 en un diario).
             if (CalculoHoy.tocaEl(habito, fecha)) {
                 int completados = habito.getFrecuencia() == Frecuencia.DIARIO
-                        ? CalculoHoy.hechosEl(fechas, fecha)
-                        : fechas.size();
+                        ? hechos.unidadesEl(fecha)
+                        : hechos.unidades();
                 delDia.add(fila(habito, completados,
-                        CalculoHoy.hechoEnElDia(habito, fechas, fecha), fechas, fecha, nivel));
+                        CalculoHoy.hechoEnElDia(habito, hechos, fecha), hechos, fecha, nivel));
             } else if (CalculoHoy.vaEnLaSemanaDe(habito, fecha)) {
-                deLaSemana.add(fila(habito, fechas.size(),
-                        CalculoHoy.hechoEnLaSemana(habito, fechas), fechas, fecha, nivel));
+                deLaSemana.add(fila(habito, hechos.unidades(),
+                        CalculoHoy.hechoEnLaSemana(habito, hechos), hechos, fecha, nivel));
             }
         }
 
@@ -118,7 +117,7 @@ public class HoyService {
             LocalDate dia = lunes.plusDays(i);
             Double avance = dia.isAfter(hoy)
                     ? null
-                    : oNull(CalculoHoy.avanceDelDia(vistas(activos, historiales, dia), fechasPorHabito, dia));
+                    : oNull(CalculoHoy.avanceDelDiaConHechos(vistas(activos, historiales, dia), hechosPorHabito, dia));
             dias.add(new DiaTiraDTO(dia.toString(), avance));
         }
 
@@ -137,16 +136,20 @@ public class HoyService {
                 : logrosHabitosService.evaluarLogrosDeRitmo(usuario, logrosCumplidos);
 
         return new HoyDTO(fecha.toString(), hoy.toString(), dias,
-                oNull(CalculoHoy.avanceDelDia(vistas(activos, historiales, fecha), fechasPorHabito, fecha)),
+                oNull(CalculoHoy.avanceDelDiaConHechos(vistas(activos, historiales, fecha), hechosPorHabito, fecha)),
                 nivelGeneral, tendenciaGeneral, seccion(delDia), seccion(deLaSemana),
                 logrosOtorgados);
     }
 
     private FilaHoyDTO fila(Habito habito, int completados, boolean hecho,
-                            List<LocalDate> fechas, LocalDate fecha, int nivel) {
+                            Hechos hechos, LocalDate fecha, int nivel) {
+        boolean enMinutos = habito.getUnidad() == Unidad.MINUTOS;
         return new FilaHoyDTO(HabitoDTO.desde(habito), completados, habito.getMeta(), hecho,
-                fechas.contains(fecha), nivel,
-                fechas.stream().map(LocalDate::toString).toList());
+                hechos.unidadesEl(fecha) > 0, nivel,
+                hechos.fechasEnUnidades().stream().map(LocalDate::toString).toList(),
+                habito.getUnidad(),
+                enMinutos ? hechos.cantidadEl(fecha) : null,
+                enMinutos ? habito.getMinutosObjetivo() : null);
     }
 
     /** Los hábitos tal como eran ese día (ver {@link HistorialObjetivos#vistaEl}). */
