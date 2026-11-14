@@ -3,6 +3,7 @@ package com.norday;
 import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
@@ -155,5 +156,51 @@ class BorradoHabitoTest {
 
         assertNull(em.find(Habito.class, habitoId));
         assertEquals(0L, ritmosDe(habitoId));
+    }
+
+    private long hitosPagadosDe(int habitoId) {
+        return em.createQuery(
+                        "SELECT count(h) FROM HitoPagado h WHERE h.habito.habitoId = :habitoId", Long.class)
+                .setParameter("habitoId", habitoId)
+                .getSingleResult();
+    }
+
+    /** Un hábito con un registro que pagó el hito de 3 y otro hito del relleno, sin registro. */
+    private int habitoConHitosPagados(Usuario usuario) {
+        Habito habito = new Habito("Hábito con hitos", "Descripción", Frecuencia.DIARIO, 1,
+                usuario, null, LocalDate.now());
+        em.persist(habito);
+        Registro registro = new Registro(habito, true, null, LocalDate.now());
+        em.persist(registro);
+        em.persist(new HitoPagado(habito, 3, registro));
+        em.persist(new HitoPagado(habito, 7, null));
+        em.flush();
+        int habitoId = habito.getHabitoId();
+        assertEquals(2L, hitosPagadosDe(habitoId));
+        em.clear();
+        return habitoId;
+    }
+
+    @Test
+    void eliminarHabitoConHitosPagadosNoRevientaPorFk() {
+        int habitoId = habitoConHitosPagados(usuarioDePrueba("test-hito-borrado"));
+
+        habitoService.eliminar(habitoId);
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, hitosPagadosDe(habitoId));
+    }
+
+    @Test
+    void limpiarCuentaConHitosPagadosNoRevientaPorFk() {
+        Usuario usuario = usuarioDePrueba("test-hito-cuenta");
+        int habitoId = habitoConHitosPagados(usuario);
+
+        limpiadorHabitos.limpiar(em.find(Usuario.class, usuario.getUsuarioId()));
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, hitosPagadosDe(habitoId));
     }
 }

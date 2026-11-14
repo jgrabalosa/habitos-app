@@ -21,6 +21,7 @@ import com.norday.habitos.model.dto.RegistroResumenDTO;
 import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
@@ -54,6 +55,9 @@ public class HabitoService {
 
     @Autowired
     private IReversionRegistroDAO reversionRegistroDAO;
+
+    @Autowired
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     @Autowired
     private LogrosHabitosService logrosHabitosService;
@@ -161,6 +165,9 @@ public class HabitoService {
 
     @Transactional
     public void eliminar(int id) {
+        // El libro de hitos cuelga del hábito y de sus registros: va antes
+        // que los dos.
+        hitoPagadoDAO.deleteByHabito(id);
         reversionRegistroDAO.deleteByHabito(id);
         registroDAO.deleteByHabito(id);
         rachaDAO.deleteByHabito(id);

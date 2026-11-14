@@ -13,10 +13,12 @@ import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
@@ -62,6 +64,9 @@ public class RegistroService {
 
     @Autowired
     private IReversionRegistroDAO reversionRegistroDAO;
+
+    @Autowired
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     // Lo que vale cada paso ya no está aquí: la regla es CalculoPremio y los
     // números, ParametrosPremio.
@@ -186,10 +191,18 @@ public class RegistroService {
         }
 
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días
-        // hechos en total, seguidos o no. Rellenar un hueco no vuelve a
-        // pagar: el contador solo sube. Deshacer lo devuelve con el resto de
-        // las monedas.
-        int puntosHito = CalculoPremio.puntosDeHitos(diasHechosAntes, diasHechosDespues);
+        // hechos en total, seguidos o no. Los días hechos se cuentan con la
+        // meta actual y pueden bajar al subirla, así que cruzar un umbral no
+        // basta: tampoco puede estar ya en el libro de hitos. Cada umbral
+        // pagado se apunta ligado a este registro; deshacer borra la fila y
+        // devuelve los puntos con el resto de las monedas.
+        List<Integer> hitosPagados = CalculoPremio.hitosAPagar(diasHechosAntes, diasHechosDespues,
+                hitoPagadoDAO.findUmbralesByHabito(habito));
+        int puntosHito = 0;
+        for (int umbral : hitosPagados) {
+            hitoPagadoDAO.save(new HitoPagado(habito, umbral, registro));
+            puntosHito += CalculoPremio.puntosDelHito(umbral);
+        }
         if (puntosHito > 0) {
             usuarioMonedaService.registrarMovimiento(
                     usuario, puntosHito, "HITO_DIAS_HECHOS", habito.getHabitoId(),
@@ -273,7 +286,7 @@ public class RegistroService {
         return registroDAO.findByHabitoAndRango(habito, periodo[0], periodo[1]).size();
     }
 
-    // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.puntosDeHitos).
+    // B2: los hitos ya no cuelgan de la racha (ver CalculoPremio.hitosAPagar).
     // Se conserva comentado.
     //    /**
     //     * Paga todos los hitos que la racha ha cruzado en este completado, no solo
@@ -434,7 +447,11 @@ public class RegistroService {
                     reversion.getMascotaExperienciaOtorgada());
         }
 
-        // La reversión primero y el registro después: importa por la FK.
+        // Los hitos que pagó este completado salen del libro, para que se
+        // puedan volver a cobrar; sus puntos ya van en el delta de monedas.
+        // La reversión y los hitos primero y el registro después: importa
+        // por la FK.
+        hitoPagadoDAO.deleteByRegistro(registro.getRegistroId());
         reversionRegistroDAO.delete(reversion.getReversionId());
         registroDAO.delete(registro.getRegistroId());
 

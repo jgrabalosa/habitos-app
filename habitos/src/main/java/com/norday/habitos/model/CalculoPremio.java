@@ -3,8 +3,10 @@ package com.norday.habitos.model;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -88,7 +90,8 @@ public final class CalculoPremio {
      * Los puntos de los hitos que se alcanzan al pasar de {@code diasAntes}
      * a {@code diasDespues} días hechos. Se compara por intervalo y no por
      * valor exacto: si el contador salta, se pagan todos los cruzados. Si no
-     * avanza, no se paga nada.
+     * avanza, no se paga nada. No mira el libro de hitos: el completado usa
+     * {@link #hitosAPagar}, que descuenta los ya cobrados.
      */
     public static int puntosDeHitos(int diasAntes, int diasDespues) {
         int puntos = 0;
@@ -98,6 +101,35 @@ public final class CalculoPremio {
             }
         }
         return puntos;
+    }
+
+    /**
+     * Los umbrales que hay que pagar al pasar de {@code diasAntes} a
+     * {@code diasDespues} días hechos, sin los que el hábito ya cobró
+     * ({@code yaPagados}, el libro de hitos). Se paga un umbral si se cruza
+     * —{@code diasAntes < umbral <= diasDespues}— y no está en el libro. Los
+     * días hechos se cuentan con la meta actual y pueden bajar al subirla:
+     * sin el libro, volver a cruzar un umbral lo pagaría otra vez.
+     * De menor a mayor.
+     */
+    public static List<Integer> hitosAPagar(int diasAntes, int diasDespues,
+                                            Collection<Integer> yaPagados) {
+        List<Integer> umbrales = new ArrayList<>();
+        for (int[] hito : ParametrosPremio.HITOS) {
+            int umbral = hito[0];
+            if (umbral > diasAntes && umbral <= diasDespues && !yaPagados.contains(umbral)) {
+                umbrales.add(umbral);
+            }
+        }
+        return umbrales;
+    }
+
+    /** Los puntos que paga un umbral de ParametrosPremio.HITOS; 0 si no es un hito. */
+    public static int puntosDelHito(int umbral) {
+        for (int[] hito : ParametrosPremio.HITOS) {
+            if (hito[0] == umbral) return hito[1];
+        }
+        return 0;
     }
 
     /**

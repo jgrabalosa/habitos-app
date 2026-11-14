@@ -10,10 +10,12 @@ import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionRegistro;
 import com.norday.gamificacion.repository.ILogroDAO;
+import com.norday.habitos.repository.IHitoPagadoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
@@ -75,6 +77,9 @@ class RegistroServiceTest {
 
     @Mock
     private IReversionRegistroDAO reversionRegistroDAO;
+
+    @Mock
+    private IHitoPagadoDAO hitoPagadoDAO;
 
     @InjectMocks
     private RegistroService registroService;
@@ -654,6 +659,117 @@ class RegistroServiceTest {
         assertEquals(0, resultado.get("puntosExtraSemana"));
         assertEquals(50, resultado.get("puntosHito"));
         assertEquals(75, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void unHitoYaCobrado_noSeVuelveAPagarSiElContadorBajaPorSubirLaMetaYVuelveACruzarlo() {
+        // Tres días hechos con meta 1: el hito de 3 ya se cobró. Después la
+        // meta sube a 2 y esos días dejan de contar. Con dos días de 2 y hoy
+        // 1 de 2, el segundo de hoy vuelve a cruzar el umbral de 3.
+        habito.setMeta(2);
+        Registro elDeHoy = new Registro(habito, true, "", HOY);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(20)),
+                new Registro(habito, true, "", HOY.minusDays(19)),
+                new Registro(habito, true, "", HOY.minusDays(18)),
+                new Registro(habito, true, "", HOY.minusDays(3)),
+                new Registro(habito, true, "", HOY.minusDays(3)),
+                new Registro(habito, true, "", HOY.minusDays(2)),
+                new Registro(habito, true, "", HOY.minusDays(2)),
+                elDeHoy));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(List.of(elDeHoy));
+        when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of(3));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
+        verify(hitoPagadoDAO, never()).save(any(HitoPagado.class));
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(13, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void alCruzarUnUmbralSinCobrar_seApuntaEnElLibroLigadoAlRegistroNuevo() {
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(
+                new Registro(habito, true, "", HOY.minusDays(10)),
+                new Registro(habito, true, "", HOY.minusDays(5))));
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of());
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        registroService.completarHabito(habito, "");
+
+        ArgumentCaptor<Registro> registro = ArgumentCaptor.forClass(Registro.class);
+        verify(registroDAO).save(registro.capture());
+        ArgumentCaptor<HitoPagado> hito = ArgumentCaptor.forClass(HitoPagado.class);
+        verify(hitoPagadoDAO).save(hito.capture());
+        assertEquals(3, hito.getValue().getUmbral());
+        assertSame(habito, hito.getValue().getHabito());
+        assertSame(registro.getValue(), hito.getValue().getRegistro());
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(50), eq("HITO_DIAS_HECHOS"), eq(habito.getHabitoId()), anyString());
+    }
+
+    @Test
+    void unUmbralYaPagado_noSeVuelveAPagarAunqueSeCruce() {
+        // Seis días hechos y hoy el séptimo, pero el libro ya tiene el 7
+        // (y el 3). Cruzar el umbral no basta.
+        List<Registro> seisDias = new ArrayList<>();
+        for (int dia = 1; dia <= 6; dia++) {
+            seisDias.add(new Registro(habito, true, "", HOY.minusDays(dia)));
+        }
+        when(registroDAO.findByHabito(habito)).thenReturn(seisDias);
+        when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
+                .thenReturn(new ArrayList<>());
+        when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of(3, 7));
+        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
+        when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
+                .thenReturn(new ArrayList<>());
+        when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
+                .thenReturn(new ResultadoExperienciaDTO(false, 1, null));
+
+        Map<String, Object> resultado = registroService.completarHabito(habito, "");
+
+        verify(usuarioMonedaService, never()).registrarMovimiento(
+                any(), anyInt(), eq("HITO_DIAS_HECHOS"), any(), any());
+        verify(hitoPagadoDAO, never()).save(any(HitoPagado.class));
+        assertEquals(0, resultado.get("puntosHito"));
+        assertEquals(25, resultado.get("puntosGanados"));
+    }
+
+    @Test
+    void alDeshacer_seBorranLosHitosQuePagoEseRegistroAntesQueElRegistro() {
+        Registro registro = new Registro(habito, true, "", HOY);
+        registro.setRegistroId(99);
+        ReversionRegistro reversion =
+                new ReversionRegistro(registro, null, null, null, null, 5, HOY.minusDays(1), 75);
+
+        when(registroDAO.findById(99)).thenReturn(registro);
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(reversionRegistroDAO.findByRegistro(99)).thenReturn(reversion);
+
+        Map<String, Object> resultado = registroService.deshacerRegistro(99);
+
+        // La fila del libro sale antes que el registro, por la FK.
+        var orden = inOrder(hitoPagadoDAO, registroDAO);
+        orden.verify(hitoPagadoDAO).deleteByRegistro(99);
+        orden.verify(registroDAO).delete(99);
+        // Los puntos del hito vuelven dentro del delta de la reversión.
+        verify(usuarioMonedaService).registrarMovimiento(
+                eq(usuario), eq(-75), eq("DESHACER_HABITO"), eq(habito.getHabitoId()), anyString());
+        assertEquals(75, resultado.get("monedasDevueltas"));
     }
 
     @Test

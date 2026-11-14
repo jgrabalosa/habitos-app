@@ -140,8 +140,10 @@ Los hitos premian la constancia acumulada de un hábito, no la racha. Se miden e
 
 Los puntos se pagan con el movimiento `HITO_DIAS_HECHOS` en el completado que hace cruzar el umbral.
 
-- **Una vez por hábito**: el contador de días hechos solo sube al completar. Un hito se paga al cruzarlo, y no se vuelve a pagar mientras el contador no baje. Solo baja al deshacer un completado, y entonces la reversión devuelve esos puntos. Si después se vuelve a completar, el hito se paga de nuevo.
-- **Varios hitos a la vez**: el código paga todos los umbrales que cruza un salto, comparando intervalos y no valores exactos. En la práctica nunca salta más de uno: cada completado añade como mucho un día hecho.
+- **Una vez por hábito, con libro**: un hito se paga si el completado cruza el umbral (antes < umbral ≤ después) **y** el hábito no lo tiene ya en la tabla `hito_pagado`. En el mismo completado se escribe una fila por umbral pagado, ligada a su registro. El libro hace falta porque los días hechos se cuentan con la meta actual: al subirla, días pasados dejan de contar, el contador baja y, sin libro, volver a cruzar el umbral lo pagaba otra vez. La regla está en `CalculoPremio.hitosAPagar`.
+- **Deshacer** el completado que pagó un hito borra su fila del libro, y los puntos vuelven con el resto de las monedas de la reversión. Si después se vuelve a cruzar, el hito se paga de nuevo.
+- **Varios hitos a la vez**: se pagan todos los umbrales cruzados que falten en el libro, comparando intervalos y no valores exactos. En la práctica nunca salta más de uno: cada completado añade como mucho un día hecho.
+- **Relleno inicial (V21)**: los umbrales que cada hábito ya había cruzado según sus días hechos con la meta de entonces se dieron por pagados, sin registro (`registro_ref` nulo).
 - **Romper una racha** no quita ni repite ningún hito, porque los hitos no dependen de la racha.
 
 `HITO_RACHA` ya no se genera: el bloque que lo creaba está comentado en `RegistroService`.

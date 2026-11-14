@@ -95,6 +95,18 @@ Las monedas y la experiencia se guardan como lo que dio el completado, no como u
 
 Cada logro desbloqueado por ese completado, incluidos los que dispara indirectamente la mascota, queda en una `ReversionLogro` que cuelga de la reversión, para poder retirarlo si el completado se deshace.
 
+### HitoPagado
+
+El libro de hitos (tabla `hito_pagado`): una fila por cada hito de días hechos que un hábito ya ha cobrado, para no pagarlo dos veces (ver «Hitos por días hechos» en `03-calculos-y-logica.md`).
+
+- `id`: clave primaria.
+- `habito_ref`: obligatorio; clave ajena `FK_hito_pagado_habito` a `habito`.
+- `umbral`: obligatorio. Los días hechos del hito (3, 7, 30, 100 o 365).
+- `registro_ref`: admite nulo; clave ajena `FK_hito_pagado_registro` a `registro`. El completado que lo pagó: deshacerlo borra la fila. Es nulo en las filas del relleno de V21.
+- `pagado_en`: obligatorio, en UTC.
+
+Restricción única `UK_hito_pagado_habito_umbral` sobre (`habito_ref`, `umbral`).
+
 ### Racha (heredada)
 
 La tabla `racha` sigue existiendo, pero ya no se escribe: desde el 21-oct-2026 `RegistroService` no la actualiza al completar un hábito y `HabitoService.actualizar` no la reinicia al cambiar la frecuencia. Los valores guardados quedan congelados.
@@ -244,6 +256,7 @@ Usuario
  ├── 1:N ── Hábito
  │           ├── N:1 ── Categoría
  │           ├── 1:N ── Registro ── 1:N ── ReversionRegistro ── 1:N ── ReversionLogro
+ │           ├── 1:N ── HitoPagado (N:1 opcional con el Registro que lo pagó)
  │           ├── ────── Racha (heredada)
  │           └── 1:1 ── Ritmo
  │
@@ -293,7 +306,7 @@ Los logros de hábitos se identifican mediante su origen de aplicación.
 
 La eliminación de una cuenta sigue el patrón de limpieza por responsabilidades utilizado en el backend. Cada módulo aporta su propio limpiador.
 
-El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, las reversiones, los registros, la racha y el ritmo de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo se borra antes que su hábito porque la clave ajena `FK_ritmo_habito` no tiene borrado en cascada. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
+El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, el libro de hitos, las reversiones, los registros, la racha y el ritmo de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo se borra antes que su hábito porque la clave ajena `FK_ritmo_habito` no tiene borrado en cascada; el libro de hitos, antes que los registros, porque también apunta a ellos. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
 
 La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`) y sus registros, además de las categorías personalizadas.
 
@@ -320,6 +333,7 @@ Esto es especialmente relevante para:
 - Un registro pertenece a un hábito.
 - La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
+- Un hito se paga una sola vez por hábito: (`habito_ref`, `umbral`) es único en `hito_pagado`. Deshacer el completado que lo pagó borra la fila.
 - Un hábito en pausa no se puede completar, no se pone al día y no entra en Hoy ni en el ritmo general.
 - Los efectos de gamificación se registran mediante movimientos y concesiones de logros.
 - Los productos y su equipamiento son persistentes y tienen como fuente de verdad el backend.

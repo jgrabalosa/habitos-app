@@ -152,6 +152,43 @@ class CalculoPremioTest {
         assertEquals(3200, CalculoPremio.puntosDeHitos(0, 365));
     }
 
+    // El libro de hitos: se paga lo que se cruza y no está ya cobrado.
+
+    @Test
+    void hitosAPagar_conElLibroVacio_sePagaCadaUmbralQueSeCruza() {
+        assertEquals(List.of(3), CalculoPremio.hitosAPagar(2, 3, List.of()));
+        assertEquals(List.of(365), CalculoPremio.hitosAPagar(364, 365, List.of()));
+        assertEquals(List.of(), CalculoPremio.hitosAPagar(3, 4, List.of()));
+        assertEquals(List.of(), CalculoPremio.hitosAPagar(3, 3, List.of()));
+        assertEquals(List.of(), CalculoPremio.hitosAPagar(7, 6, List.of()));
+    }
+
+    @Test
+    void hitosAPagar_unUmbralYaCobrado_noSeVuelveAPagarAunqueSeCruce() {
+        // El contador bajó (se subió la meta) y vuelve a cruzar el 3.
+        assertEquals(List.of(), CalculoPremio.hitosAPagar(2, 3, List.of(3)));
+        assertEquals(List.of(), CalculoPremio.hitosAPagar(6, 7, List.of(3, 7)));
+    }
+
+    @Test
+    void hitosAPagar_dosUmbralesALaVez_pagaCadaUnoUnaVez_ySoloLosQueFaltan() {
+        // Desde el completado el contador sube de uno en uno, así que este
+        // caso no llega por ahí; la regla lo cubre igual.
+        assertEquals(List.of(3, 7), CalculoPremio.hitosAPagar(2, 7, List.of()));
+        assertEquals(List.of(7), CalculoPremio.hitosAPagar(2, 7, List.of(3)));
+        assertEquals(List.of(3, 7, 30, 100, 365), CalculoPremio.hitosAPagar(0, 365, List.of()));
+    }
+
+    @Test
+    void puntosDelHito_salenDeLosParametros_yUnNoHitoNoPaga() {
+        assertEquals(50, CalculoPremio.puntosDelHito(3));
+        assertEquals(100, CalculoPremio.puntosDelHito(7));
+        assertEquals(300, CalculoPremio.puntosDelHito(30));
+        assertEquals(750, CalculoPremio.puntosDelHito(100));
+        assertEquals(2000, CalculoPremio.puntosDelHito(365));
+        assertEquals(0, CalculoPremio.puntosDelHito(4));
+    }
+
     @Test
     void diasHechos_enUnDiarioCuentanLosDiasQueLlegaronAlObjetivo() {
         // Lunes 4 veces, martes 3 y miércoles 4.
