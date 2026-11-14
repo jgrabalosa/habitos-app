@@ -17,8 +17,7 @@ import java.time.ZoneOffset;
  * Puede haber como mucho una versión con {@code desde} futura: el cambio
  * programado. Si llega otro cambio antes de su fecha, la reemplaza.
  *
- * {@code minutosObjetivo} es null en los hábitos de veces. La columna y
- * {@code unidad} existen ya para que la Fase 3 no necesite otra migración.
+ * {@code minutosObjetivo} es null en los hábitos de veces.
  */
 @Entity
 @Table(name = "habito_objetivo",
@@ -72,8 +71,10 @@ public class HabitoObjetivo {
         aplicar(objetivo);
     }
 
-    /** Pone en esta versión el objetivo dado. La unidad y los minutos no se tocan. */
+    /** Pone en esta versión el objetivo dado. */
     public void aplicar(Objetivo objetivo) {
+        this.unidad = objetivo.unidad();
+        this.minutosObjetivo = objetivo.minutosObjetivo();
         this.frecuencia = objetivo.frecuencia();
         this.meta = objetivo.meta();
         this.diasSemana = objetivo.diasSemana();
@@ -114,8 +115,9 @@ public class HabitoObjetivo {
 
     @Override
     public String toString() {
-        return "HabitoObjetivo{id=" + id + ", desde=" + desde + ", frecuencia=" + frecuencia
-                + ", meta=" + meta + "}";
+        return "HabitoObjetivo{id=" + id + ", desde=" + desde + ", unidad=" + unidad
+                + ", frecuencia=" + frecuencia + ", meta=" + meta
+                + ", minutosObjetivo=" + minutosObjetivo + "}";
     }
 
     @Override

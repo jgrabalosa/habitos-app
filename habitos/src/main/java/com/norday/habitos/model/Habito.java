@@ -3,6 +3,7 @@ package com.norday.habitos.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.norday.core.model.Usuario;
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -35,6 +36,17 @@ public class Habito {
     // null o vacío = semanal flexible (sin días concretos).
     @Column(name = "dias_semana", length = 20)
     private String diasSemana;
+
+    // En qué se mide el objetivo (ver Unidad). Con su minutos_objetivo, es
+    // parte de la copia del objetivo vigente hoy, como frecuencia y meta.
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'VECES'")
+    @Column(name = "unidad", nullable = false, length = 10)
+    private Unidad unidad = Unidad.VECES;
+
+    // Minutos por día de un hábito de minutos; null en uno de veces.
+    @Column(name = "minutos_objetivo")
+    private Integer minutosObjetivo;
 
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
@@ -110,6 +122,12 @@ public class Habito {
     public String getDiasSemana() { return diasSemana; }
     public void setDiasSemana(String diasSemana) { this.diasSemana = diasSemana; }
 
+    public Unidad getUnidad() { return unidad; }
+    public void setUnidad(Unidad unidad) { this.unidad = unidad; }
+
+    public Integer getMinutosObjetivo() { return minutosObjetivo; }
+    public void setMinutosObjetivo(Integer minutosObjetivo) { this.minutosObjetivo = minutosObjetivo; }
+
     public LocalDate getFechaInicio() { return fechaInicio; }
     public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
 
@@ -131,8 +149,9 @@ public class Habito {
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
 
     /**
-     * El hábito tal como era con otro objetivo: una copia con la frecuencia,
-     * la meta y los días fijos dados y todo lo demás igual. Sirve para juzgar
+     * El hábito tal como era con otro objetivo: una copia con la unidad, la
+     * frecuencia, la meta, los minutos y los días fijos dados y todo lo demás
+     * igual. Sirve para juzgar
      * un día pasado con las reglas que tenía ({@link HistorialObjetivos}).
      *
      * Es una vista y no se guarda nunca: no tiene contexto de persistencia y
@@ -145,6 +164,8 @@ public class Habito {
         vista.habitoId = habitoId;
         vista.nombre = nombre;
         vista.descripcion = descripcion;
+        vista.unidad = objetivo.unidad();
+        vista.minutosObjetivo = objetivo.minutosObjetivo();
         vista.frecuencia = objetivo.frecuencia();
         vista.meta = objetivo.meta();
         vista.diasSemana = objetivo.diasSemana();
