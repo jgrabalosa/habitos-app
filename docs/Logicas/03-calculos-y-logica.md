@@ -70,7 +70,11 @@ Los valores están en un solo sitio y son provisionales: se ajustan con uso real
 
 ### Cambio de frecuencia u objetivo
 
-Antes de guardar el cambio, el ritmo se ancla con el hábito tal como estaba, calculado con las reglas antiguas. Así lo ya cerrado no se vuelve a juzgar con las reglas nuevas. El ancla pasa a hoy y el periodo en curso solo puede subir: un cambio nunca perjudica.
+El ritmo se ancla el día en que el cambio entra en vigor (ver «Historial de objetivos y cambios»), con el hábito tal como estaba, calculado con las reglas antiguas. Así lo ya cerrado no se vuelve a juzgar con las reglas nuevas. El ancla pasa a ese día y el periodo que lo contiene solo puede subir: un cambio nunca perjudica.
+
+- **Cambio que se aplica hoy**: se ancla antes de guardar, en hoy.
+- **Cambio programado** (mañana o el lunes siguiente): se ancla al aplicarlo, en su fecha de efecto aunque se lea días después. Se aplica antes de cualquier lectura del ritmo, así que el ancla nunca ha pasado de esa fecha; si la hubiera pasado, no se toca.
+- Solo cuentan la frecuencia y la meta: cambiar los días fijos sin cambiar cuántos son no ancla el ritmo.
 
 La racha no se toca en ninguno de los dos cambios.
 
@@ -126,6 +130,35 @@ La experiencia va a la mascota en el mismo paso. Si un paso no da XP (el primero
 
 ---
 
+## Historial de objetivos y cambios
+
+Cada hábito guarda las versiones de su objetivo en la tabla `habito_objetivo`: frecuencia, meta, días fijos y desde qué día vale cada una. Hoy todas son de unidad `VECES`.
+
+- **Versión vigente** en una fecha: la de mayor `desde` que no la pasa. Una fecha anterior a la primera versión se juzga con la primera; un hábito sin versiones, con el objetivo que guarda `habito`.
+- **Qué se juzga con ella**: los días hechos (hitos y logros de constancia), el completado (la meta del periodo, el límite de un registro por día del semanal, el tope del diario, los puntos del paso, si es una vuelta y cuándo sale la valoración), Hoy (cada fila en la fecha que se mira y cada día de la tira), el día completo, el ánimo de la mascota, los recordatorios y la semana de la app ya instalada (`/semana`). En un completado retroactivo de esta semana, la meta es la de su fecha.
+- **La copia en `habito`**: `frecuencia`, `meta` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
+- **Al crear** un hábito se guarda su primera versión, desde la fecha de inicio. V22 dio una a cada hábito existente, con su objetivo de entonces.
+
+### Regla de cambios
+
+Un cambio nunca reinterpreta un periodo en el que ya hay registros. «Con registros» es que el hábito tenga algún registro en ese periodo.
+
+| Qué cambia | Periodo | Sin registros en el periodo | Con registros en el periodo |
+|---|---|---|---|
+| Meta de un diario que sigue diario (veces al día) | el día | se aplica hoy | se aplica mañana |
+| Días por semana o días fijos de un semanal | la semana (lunes a domingo) | se aplica hoy | se aplica el lunes siguiente |
+| Frecuencia (diario ↔ semanal) | la semana | se aplica hoy | se aplica el lunes siguiente |
+
+- Un cambio que mezcla las dos cosas va entero a una sola fecha, la de la semana.
+- Un hábito sin ningún registro aplica cualquier cambio al momento. Uno que aún no ha empezado no cambia antes de su fecha de inicio.
+- Con fecha futura, el objetivo nuevo queda programado y `habito` conserva el de hoy hasta entonces. El nombre, la descripción, la categoría y el recordatorio se guardan al momento.
+- **Nunca hay más de una versión futura**: si llega otro cambio antes de su fecha, la reemplaza. Un formulario que trae el objetivo vigente hoy no es un cambio: no crea versión ni anula la programada.
+- La regla está en `CalculoObjetivo`.
+
+El `PUT /api/habitos/{id}` responde `{mensaje, aplicaDesde}`: hoy, o la fecha futura del cambio programado. El detalle (`GET /api/habitos/{id}/detalle`) trae `objetivoProgramado` (`desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo`, `diasSemana`), o null si no hay ninguno.
+
+---
+
 ## Hitos por días hechos
 
 Los hitos premian la constancia acumulada de un hábito, no la racha. Se miden en **días hechos**: en un diario, los días en que se alcanzó la meta; en un semanal, los días distintos con alguna sesión.
@@ -140,7 +173,8 @@ Los hitos premian la constancia acumulada de un hábito, no la racha. Se miden e
 
 Los puntos se pagan con el movimiento `HITO_DIAS_HECHOS` en el completado que hace cruzar el umbral.
 
-- **Una vez por hábito, con libro**: un hito se paga si el completado cruza el umbral (antes < umbral ≤ después) **y** el hábito no lo tiene ya en la tabla `hito_pagado`. En el mismo completado se escribe una fila por umbral pagado, ligada a su registro. El libro hace falta porque los días hechos se cuentan con la meta actual: al subirla, días pasados dejan de contar, el contador baja y, sin libro, volver a cruzar el umbral lo pagaba otra vez. La regla está en `CalculoPremio.hitosAPagar`.
+- **Cada día con su objetivo**: un día hecho se juzga con el objetivo vigente ese día (ver «Historial de objetivos y cambios»), así que subir la meta no hace que dejen de contar los días que llegaron a la de entonces. Vale igual para los logros de constancia.
+- **Una vez por hábito, con libro**: un hito se paga si el completado cruza el umbral (antes < umbral ≤ después) **y** el hábito no lo tiene ya en la tabla `hito_pagado`. En el mismo completado se escribe una fila por umbral pagado, ligada a su registro. El libro es quien garantiza que un umbral no se paga dos veces. La regla está en `CalculoPremio.hitosAPagar`.
 - **Deshacer** el completado que pagó un hito borra su fila del libro, y los puntos vuelven con el resto de las monedas de la reversión. Si después se vuelve a cruzar, el hito se paga de nuevo.
 - **Varios hitos a la vez**: se pagan todos los umbrales cruzados que falten en el libro, comparando intervalos y no valores exactos. En la práctica nunca salta más de uno: cada completado añade como mucho un día hecho.
 - **Relleno inicial (V21)**: los umbrales que cada hábito ya había cruzado según sus días hechos con la meta de entonces se dieron por pagados, cada uno ligado al registro que lo cruzó (el que cerró ese día hecho, en el orden en que se marcaron), así que deshacerlo también borra su fila.

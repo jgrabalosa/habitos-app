@@ -54,11 +54,12 @@ Está relacionado con:
 - usuario propietario;
 - categoría;
 - registros de cumplimiento;
+- historial de objetivos (ver HabitoObjetivo);
 - ritmo (una fila por hábito; ver Ritmo);
 - racha heredada;
 - logros relacionados con hábitos.
 
-El hábito contiene la `meta` que determina cuándo se considera cumplido el periodo correspondiente.
+El hábito contiene la `meta` que determina cuándo se considera cumplido el periodo correspondiente. `frecuencia`, `meta` y `dias_semana` son una copia del objetivo vigente hoy; cada día se juzga con la versión de su fecha en `habito_objetivo`.
 
 Su campo `activo` dice si el hábito está en pausa: un hábito con `activo = false` está en pausa (ver Pausa).
 
@@ -106,6 +107,22 @@ El libro de hitos (tabla `hito_pagado`): una fila por cada hito de días hechos 
 - `pagado_en`: obligatorio, en UTC.
 
 Restricción única `UK_hito_pagado_habito_umbral` sobre (`habito_ref`, `umbral`).
+
+### HabitoObjetivo
+
+El historial de objetivos (tabla `habito_objetivo`): una fila por cada versión del objetivo de un hábito, vigente desde `desde` hasta la víspera de la siguiente (ver «Historial de objetivos y cambios» en `03-calculos-y-logica.md`). Como mucho una tiene `desde` futura: el cambio programado.
+
+- `id`: clave primaria.
+- `habito_ref`: obligatorio; clave ajena `FK_habito_objetivo_habito` a `habito`.
+- `desde`: obligatorio.
+- `unidad`: obligatorio, por defecto `VECES`, el único valor que existe hoy.
+- `frecuencia`: obligatorio (`DIARIO` o `SEMANAL`).
+- `meta`: obligatorio.
+- `minutos_objetivo`: admite nulo; nulo en los hábitos de veces.
+- `dias_semana`: admite nulo; mismo formato que en `habito`.
+- `creado_en`: obligatorio, en UTC.
+
+Restricción única `UK_habito_objetivo_habito_desde` sobre (`habito_ref`, `desde`). El relleno de V22 dio a cada hábito existente una versión desde su `fecha_inicio`, con su objetivo de entonces.
 
 ### Racha (heredada)
 
@@ -257,6 +274,7 @@ Usuario
  │           ├── N:1 ── Categoría
  │           ├── 1:N ── Registro ── 1:N ── ReversionRegistro ── 1:N ── ReversionLogro
  │           ├── 1:N ── HitoPagado (N:1 opcional con el Registro que lo pagó)
+ │           ├── 1:N ── HabitoObjetivo
  │           ├── ────── Racha (heredada)
  │           └── 1:1 ── Ritmo
  │
@@ -306,9 +324,9 @@ Los logros de hábitos se identifican mediante su origen de aplicación.
 
 La eliminación de una cuenta sigue el patrón de limpieza por responsabilidades utilizado en el backend. Cada módulo aporta su propio limpiador.
 
-El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, el libro de hitos, las reversiones, los registros, la racha y el ritmo de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo se borra antes que su hábito porque la clave ajena `FK_ritmo_habito` no tiene borrado en cascada; el libro de hitos, antes que los registros, porque también apunta a ellos. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
+El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, el libro de hitos, las reversiones, los registros, la racha, el ritmo y el historial de objetivos de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo y el historial se borran antes que su hábito porque sus claves ajenas (`FK_ritmo_habito`, `FK_habito_objetivo_habito`) no tienen borrado en cascada; el libro de hitos, antes que los registros, porque también apunta a ellos. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
 
-La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`) y sus registros, además de las categorías personalizadas.
+La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`), su historial de objetivos (`objetivos`: `desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo` y `diasSemana`), los hitos cobrados (`hitosPagados`: `umbral` y `pagadoEn`) y sus registros, además de las categorías personalizadas.
 
 ---
 
@@ -334,6 +352,7 @@ Esto es especialmente relevante para:
 - La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
 - Un hito se paga una sola vez por hábito: (`habito_ref`, `umbral`) es único en `hito_pagado`. Deshacer el completado que lo pagó borra la fila.
+- Un hábito tiene como mucho una versión de objetivo por día (`habito_ref`, `desde` es único en `habito_objetivo`) y como mucho una con `desde` futura.
 - Un hábito en pausa no se puede completar, no se pone al día y no entra en Hoy ni en el ritmo general.
 - Los efectos de gamificación se registran mediante movimientos y concesiones de logros.
 - Los productos y su equipamiento son persistentes y tienen como fuente de verdad el backend.
