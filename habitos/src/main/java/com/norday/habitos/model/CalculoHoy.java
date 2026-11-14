@@ -5,6 +5,7 @@ import com.norday.gamificacion.model.AvanceDeHoy;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -20,9 +21,13 @@ import java.util.TreeSet;
  * flexibles y los de día fijo cuando no es su día. Para terminar el día solo
  * cuenta la sección del día.
  *
- * En todos los métodos, {@code fechasDeLaSemana} son las fechas en que se
- * hizo el hábito dentro de la semana (lunes a domingo) de la fecha que se
- * mira, una por vez hecha: se repite si un día se hizo varias veces.
+ * {@code fechasDeLaSemana} son las fechas en que se hizo un hábito de veces
+ * dentro de la semana (lunes a domingo) de la fecha que se mira, una por vez
+ * hecha: se repite si un día se hizo varias veces. Los métodos que reciben
+ * {@link Hechos} sirven también para los hábitos de minutos: cada día se
+ * juzga con su objetivo, y uno de minutos cuenta días hechos (los que llegan
+ * a sus minutos), no minutos. Las versiones con fechas son las de siempre y
+ * dan lo mismo que las de {@link Hechos} con un hábito de veces.
  */
 public final class CalculoHoy {
 
@@ -94,30 +99,48 @@ public final class CalculoHoy {
      * rellena un día pasado: se apunta el día en que se hizo.
      */
     public static boolean cubierto(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate fecha) {
-        if (fechasDeLaSemana.contains(fecha)) return true;
+        return cubierto(habito, deFechas(habito, fechasDeLaSemana), fecha);
+    }
+
+    /**
+     * Igual, con lo hecho de la semana juzgado día a día ({@link Hechos}). En
+     * un hábito de minutos, "se hizo ese día" es que el día llegó a sus
+     * minutos, y las sesiones hasta ese día son los días hechos.
+     */
+    public static boolean cubierto(Habito habito, Hechos hechos, LocalDate fecha) {
+        if (hechos.unidadesEl(fecha) > 0) return true;
 
         int tocaban = 0;
         for (LocalDate dia = fecha.with(DayOfWeek.MONDAY); !dia.isAfter(fecha); dia = dia.plusDays(1)) {
             if (tocaEl(habito, dia)) tocaban++;
         }
-        int hechas = 0;
-        for (LocalDate hecha : fechasDeLaSemana) {
-            if (!hecha.isAfter(fecha)) hechas++;
-        }
-        return tocaban > 0 && hechas >= tocaban;
+        return tocaban > 0 && hechos.unidadesHasta(fecha) >= tocaban;
     }
 
     /** ¿Cuenta como hecho en la sección del día? Un diario, al llegar a su objetivo. */
     public static boolean hechoEnElDia(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate fecha) {
+        return hechoEnElDia(habito, deFechas(habito, fechasDeLaSemana), fecha);
+    }
+
+    /** Igual, con lo hecho juzgado día a día: un diario de minutos, al llegar a sus minutos. */
+    public static boolean hechoEnElDia(Habito habito, Hechos hechos, LocalDate fecha) {
         if (habito.getFrecuencia() == Frecuencia.DIARIO) {
-            return hechosEl(fechasDeLaSemana, fecha) >= Math.max(1, habito.getMeta());
+            return hechos.diaHecho(fecha);
         }
-        return cubierto(habito, fechasDeLaSemana, fecha);
+        return cubierto(habito, hechos, fecha);
     }
 
     /** ¿Cuenta como hecho en la sección de la semana? Al llegar a su objetivo semanal. */
     public static boolean hechoEnLaSemana(Habito habito, Collection<LocalDate> fechasDeLaSemana) {
-        return fechasDeLaSemana.size() >= Math.max(1, habito.getMeta());
+        return hechoEnLaSemana(habito, deFechas(habito, fechasDeLaSemana));
+    }
+
+    /**
+     * Igual, con lo hecho juzgado día a día: un semanal de minutos, al llegar
+     * a tantos días hechos como su meta (no a sus minutos acumulados).
+     */
+    public static boolean hechoEnLaSemana(Habito habito, Hechos hechos) {
+        return hechos.unidades() >= Math.max(1, habito.getMeta());
     }
 
     /**
@@ -126,10 +149,15 @@ public final class CalculoHoy {
      * semanal en su día fijo, todo o nada.
      */
     public static double creditoDelDia(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate fecha) {
+        return creditoDelDia(habito, deFechas(habito, fechasDeLaSemana), fecha);
+    }
+
+    /** Igual, con lo hecho juzgado día a día: un diario de minutos, sus minutos entre el objetivo. */
+    public static double creditoDelDia(Habito habito, Hechos hechos, LocalDate fecha) {
         if (habito.getFrecuencia() == Frecuencia.DIARIO) {
-            return CalculoRitmo.credito(hechosEl(fechasDeLaSemana, fecha), habito.getMeta());
+            return hechos.creditoEl(fecha);
         }
-        return cubierto(habito, fechasDeLaSemana, fecha) ? 1.0 : 0.0;
+        return cubierto(habito, hechos, fecha) ? 1.0 : 0.0;
     }
 
     /**
@@ -142,12 +170,17 @@ public final class CalculoHoy {
     public static OptionalDouble avanceDelDia(List<Habito> habitos,
                                               Map<Integer, List<LocalDate>> fechasPorHabito,
                                               LocalDate fecha) {
+        return avanceDelDiaConHechos(habitos, deFechas(habitos, fechasPorHabito), fecha);
+    }
+
+    /** Igual, con lo hecho de cada hábito juzgado día a día, por id de hábito. */
+    public static OptionalDouble avanceDelDiaConHechos(List<Habito> habitos, Map<Integer, Hechos> hechosPorHabito,
+                                                       LocalDate fecha) {
         double suma = 0.0;
         int cuantos = 0;
         for (Habito habito : habitos) {
             if (!tocaEl(habito, fecha)) continue;
-            suma += creditoDelDia(habito,
-                    fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of()), fecha);
+            suma += creditoDelDia(habito, hechosDe(hechosPorHabito, habito), fecha);
             cuantos++;
         }
         return cuantos == 0 ? OptionalDouble.empty() : OptionalDouble.of(suma / cuantos);
@@ -177,19 +210,29 @@ public final class CalculoHoy {
                                      Map<Integer, List<LocalDate>> fechasPorHabito,
                                      Collection<LocalDate> actividadReciente,
                                      LocalDate hoy) {
+        return comoVaConHechos(habitos, deFechas(habitos, fechasPorHabito), actividadReciente, hoy);
+    }
+
+    /**
+     * Igual, con lo hecho de cada hábito juzgado día a día, por id de hábito.
+     * Un paso de minutos que no llega al objetivo es un paso: cuenta como
+     * empezado, pero el día no está completo hasta que llega.
+     */
+    public static AvanceDeHoy comoVaConHechos(List<Habito> habitos, Map<Integer, Hechos> hechosPorHabito,
+                                              Collection<LocalDate> actividadReciente, LocalDate hoy) {
         boolean algoToca = false;
         boolean todoHecho = true;
         boolean algoHechoHoy = false;
         boolean algoHechoEstaSemana = false;
         boolean hayDiarios = false;
         for (Habito habito : habitos) {
-            List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
+            Hechos hechos = hechosDe(hechosPorHabito, habito);
             if (habito.getFrecuencia() == Frecuencia.DIARIO) hayDiarios = true;
-            if (!fechas.isEmpty()) algoHechoEstaSemana = true;
-            if (fechas.contains(hoy)) algoHechoHoy = true;
+            if (hechos.algo()) algoHechoEstaSemana = true;
+            if (hechos.algoEl(hoy)) algoHechoHoy = true;
             if (tocaEl(habito, hoy)) {
                 algoToca = true;
-                if (!hechoEnElDia(habito, fechas, hoy)) todoHecho = false;
+                if (!hechoEnElDia(habito, hechos, hoy)) todoHecho = false;
             }
         }
         if (algoToca && todoHecho) return AvanceDeHoy.COMPLETO;
@@ -213,12 +256,40 @@ public final class CalculoHoy {
      * hoy no se haya hecho ya; al llegar al objetivo se calla hasta el lunes.
      */
     public static boolean tocaRecordar(Habito habito, Collection<LocalDate> fechasDeLaSemana, LocalDate hoy) {
+        return tocaRecordar(habito, deFechas(habito, fechasDeLaSemana), hoy);
+    }
+
+    /**
+     * Igual, con lo hecho juzgado día a día: un hábito de minutos no está
+     * hecho hoy hasta que llega a sus minutos, así que un parcial no calla el
+     * recordatorio.
+     */
+    public static boolean tocaRecordar(Habito habito, Hechos hechos, LocalDate hoy) {
         if (tocaEl(habito, hoy)) {
-            return !hechoEnElDia(habito, fechasDeLaSemana, hoy);
+            return !hechoEnElDia(habito, hechos, hoy);
         }
         if (!vaEnLaSemanaDe(habito, hoy) || !diasFijos(habito).isEmpty()) {
             return false;
         }
-        return !hechoEnLaSemana(habito, fechasDeLaSemana) && !fechasDeLaSemana.contains(hoy);
+        return !hechoEnLaSemana(habito, hechos) && hechos.unidadesEl(hoy) == 0;
+    }
+
+    /** Lo hecho de un hábito de veces a partir de una fecha por registro, con su objetivo. */
+    private static Hechos deFechas(Habito habito, Collection<LocalDate> fechas) {
+        return Hechos.deFechas(fechas, Objetivo.de(habito));
+    }
+
+    private static Map<Integer, Hechos> deFechas(List<Habito> habitos, Map<Integer, List<LocalDate>> fechasPorHabito) {
+        Map<Integer, Hechos> hechos = new HashMap<>();
+        for (Habito habito : habitos) {
+            hechos.put(habito.getHabitoId(),
+                    deFechas(habito, fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of())));
+        }
+        return hechos;
+    }
+
+    private static Hechos hechosDe(Map<Integer, Hechos> hechosPorHabito, Habito habito) {
+        Hechos hechos = hechosPorHabito.get(habito.getHabitoId());
+        return hechos != null ? hechos : Hechos.deFechas(List.of(), Objetivo.de(habito));
     }
 }

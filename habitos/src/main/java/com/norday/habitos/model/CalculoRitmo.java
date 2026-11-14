@@ -47,8 +47,13 @@ public final class CalculoRitmo {
      * Un objetivo menor que 1 se trata como 1.
      */
     public static double credito(int hechos, int objetivo) {
+        return credito((double) hechos, objetivo);
+    }
+
+    /** Igual, con lo hecho en unidades que pueden ser parciales (días a medias de un hábito de minutos). */
+    public static double credito(double hechos, int objetivo) {
         if (hechos <= 0) return 0.0;
-        return Math.min(1.0, (double) hechos / Math.max(1, objetivo));
+        return Math.min(1.0, hechos / Math.max(1, objetivo));
     }
 
     /**
@@ -94,9 +99,28 @@ public final class CalculoRitmo {
     public static RitmoAlDia alDia(double valor, LocalDate desde, Frecuencia frecuencia, int objetivo,
                                    LocalDate fechaInicio, Collection<LocalDate> fechasHechas,
                                    LocalDate hoy) {
-        Map<LocalDate, Integer> hechosPorPeriodo = new HashMap<>();
+        Map<LocalDate, Double> vecesPorDia = new HashMap<>();
         for (LocalDate fecha : fechasHechas) {
-            hechosPorPeriodo.merge(frecuencia.rangoPeriodo(fecha)[0], 1, Integer::sum);
+            vecesPorDia.merge(fecha, 1.0, Double::sum);
+        }
+        return alDiaPorUnidades(valor, desde, frecuencia, objetivo, fechaInicio, vecesPorDia, hoy);
+    }
+
+    /**
+     * Igual que {@link #alDia}, con lo hecho cada día ya en unidades de la
+     * meta (ver {@link Objetivo#unidadesParcialesDelDia}): en un hábito de
+     * veces, las veces; en uno de minutos, min(1, minutos / objetivo), así
+     * que un día a medias cuenta en proporción. El crédito del periodo es la
+     * suma de sus días entre {@code objetivo}, limitado a 1: en un diario de
+     * minutos (meta 1), el del día; en un semanal de minutos, la suma de los
+     * créditos diarios entre los días por semana.
+     */
+    public static RitmoAlDia alDiaPorUnidades(double valor, LocalDate desde, Frecuencia frecuencia, int objetivo,
+                                              LocalDate fechaInicio, Map<LocalDate, Double> unidadesPorDia,
+                                              LocalDate hoy) {
+        Map<LocalDate, Double> hechosPorPeriodo = new HashMap<>();
+        for (Map.Entry<LocalDate, Double> dia : unidadesPorDia.entrySet()) {
+            hechosPorPeriodo.merge(frecuencia.rangoPeriodo(dia.getKey())[0], dia.getValue(), Double::sum);
         }
         LocalDate lunesDeEstaSemana = hoy.with(DayOfWeek.MONDAY);
 
@@ -108,7 +132,7 @@ public final class CalculoRitmo {
             LocalDate[] periodo = frecuencia.rangoPeriodo(cursor);
             if (!periodo[1].isBefore(hoy)) break; // sigue abierto: no mueve el ritmo
 
-            double credito = credito(hechosPorPeriodo.getOrDefault(periodo[0], 0), objetivo);
+            double credito = credito(hechosPorPeriodo.getOrDefault(periodo[0], 0.0), objetivo);
             double siguiente = cerrarPeriodo(actual, credito, frecuencia);
             boolean esElPrimero = fechaInicio != null
                     && !fechaInicio.isBefore(periodo[0]) && !fechaInicio.isAfter(periodo[1]);

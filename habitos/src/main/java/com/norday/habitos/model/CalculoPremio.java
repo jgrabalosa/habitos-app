@@ -67,6 +67,75 @@ public final class CalculoPremio {
     }
 
     /**
+     * Un día del periodo de un paso de minutos: lo hecho ese día (la suma de
+     * {@code cantidad}, es decir, los minutos) y los minutos de su objetivo.
+     */
+    public record DiaDelPeriodo(int hechos, int objetivo) {}
+
+    /**
+     * El premio de un paso de un hábito de minutos de {@code cantidad}
+     * minutos el día {@code fecha}, cuyo objetivo es
+     * {@code objetivoDelDia} minutos. {@code periodoAntes} son los días del
+     * periodo (el día en un diario, la semana en un semanal) con algo hecho,
+     * tal como estaban antes del paso.
+     *
+     * Cada día vale 25 puntos y 5 XP repartidos en proporción a sus minutos
+     * hasta el objetivo: el día lleva cobrado acumulado(total, min(hechos,
+     * objetivo), objetivo) = total·k/n en enteros, y el paso cobra lo que
+     * sube eso. Con pasos de un minuto da las mismas cifras que un diario de
+     * veces con meta igual al objetivo, y la suma del día es siempre 25 / 5.
+     * Pasarse no da nada.
+     *
+     * En un semanal, la semana no cobra más que {@code meta} días enteros:
+     * unos días a medias no pueden sumar más que la semana cumplida (en uno
+     * de veces, las sesiones por encima de la meta tampoco dan nada). El
+     * paso que hace que los días hechos de la semana lleguen a la meta añade
+     * el extra del 20 % de {@code meta} días, como en uno de veces.
+     */
+    public static Premio delPasoEnMinutos(Frecuencia frecuencia, int meta,
+                                          Map<LocalDate, DiaDelPeriodo> periodoAntes,
+                                          LocalDate fecha, int objetivoDelDia, int cantidad) {
+        int metaDias = frecuencia == Frecuencia.DIARIO ? 1 : Math.max(1, meta);
+        int hechosAntes = periodoAntes.containsKey(fecha) ? periodoAntes.get(fecha).hechos() : 0;
+        Map<LocalDate, DiaDelPeriodo> despues = new HashMap<>(periodoAntes);
+        despues.put(fecha, new DiaDelPeriodo(hechosAntes + Math.max(0, cantidad), objetivoDelDia));
+
+        int puntos = cobrado(ParametrosPremio.PUNTOS_POR_DIA, metaDias, despues)
+                - cobrado(ParametrosPremio.PUNTOS_POR_DIA, metaDias, periodoAntes);
+        int xp = cobrado(ParametrosPremio.XP_POR_DIA, metaDias, despues)
+                - cobrado(ParametrosPremio.XP_POR_DIA, metaDias, periodoAntes);
+
+        boolean completaLaSemana = frecuencia == Frecuencia.SEMANAL
+                && diasHechos(periodoAntes) < metaDias && diasHechos(despues) >= metaDias;
+        return new Premio(puntos, xp,
+                completaLaSemana ? extra(ParametrosPremio.PUNTOS_POR_DIA * metaDias) : 0,
+                completaLaSemana ? extra(ParametrosPremio.XP_POR_DIA * metaDias) : 0);
+    }
+
+    /** Lo cobrado en un periodo de minutos con esos días: cada día en proporción, y como mucho {@code metaDias} días. */
+    private static int cobrado(int porDia, int metaDias, Map<LocalDate, DiaDelPeriodo> dias) {
+        int suma = 0;
+        for (DiaDelPeriodo dia : dias.values()) {
+            int objetivo = Math.max(1, dia.objetivo());
+            suma += acumulado(porDia, Math.min(Math.max(0, dia.hechos()), objetivo), objetivo);
+        }
+        return Math.min(suma, porDia * metaDias);
+    }
+
+    private static int diasHechos(Map<LocalDate, DiaDelPeriodo> dias) {
+        int hechos = 0;
+        for (DiaDelPeriodo dia : dias.values()) {
+            if (dia.hechos() >= Math.max(1, dia.objetivo())) hechos++;
+        }
+        return hechos;
+    }
+
+    /** Los días que llegan a su objetivo, cada uno juzgado con el suyo (ver {@link Hechos}). */
+    public static int diasHechos(Hechos hechos) {
+        return hechos.diasHechos();
+    }
+
+    /**
      * Los días hechos de un hábito, a partir de las fechas de sus registros
      * (una fecha por registro, repetida si ese día se hizo varias veces). Es
      * la misma unidad que en los puntos: en un diario, los días que llegaron
@@ -88,15 +157,7 @@ public final class CalculoPremio {
         for (LocalDate fecha : fechas) {
             vecesPorDia.merge(fecha, 1, Integer::sum);
         }
-        int dias = 0;
-        for (Map.Entry<LocalDate, Integer> dia : vecesPorDia.entrySet()) {
-            Objetivo objetivo = objetivoEl.apply(dia.getKey());
-            if (objetivo.frecuencia() == Frecuencia.SEMANAL
-                    || dia.getValue() >= Math.max(1, objetivo.meta())) {
-                dias++;
-            }
-        }
-        return dias;
+        return Hechos.dePorDia(vecesPorDia, objetivoEl).diasHechos();
     }
 
     /**
@@ -183,7 +244,17 @@ public final class CalculoPremio {
      * pasos es siempre {@code total}.
      */
     static int parte(int total, int paso, int pasos) {
-        return total * paso / pasos - total * (paso - 1) / pasos;
+        return acumulado(total, paso, pasos) - acumulado(total, paso - 1, pasos);
+    }
+
+    /**
+     * Lo que llevan cobrado de {@code total} los primeros {@code hechos} de
+     * {@code objetivo}, en enteros: total·hechos/objetivo. {@link #parte} es
+     * lo que sube al dar un paso de uno; un paso de minutos sube lo que
+     * suban sus minutos.
+     */
+    static int acumulado(int total, int hechos, int objetivo) {
+        return total * hechos / objetivo;
     }
 
     private static int extra(int ganadoEnLaSemana) {
