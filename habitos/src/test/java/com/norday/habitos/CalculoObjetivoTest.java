@@ -58,30 +58,42 @@ class CalculoObjetivoTest {
     }
 
     @Test
-    void diasPorSemana_conRegistrosEstaSemana_lunesSiguiente_sinEllos_hoy() {
+    void diasPorSemana_conRegistrosEstaSemana_lunesSiguiente_sinEllos_elLunesDeEstaSemana() {
+        // Sin registros esta semana, la semana entera pasa a la regla nueva.
         assertEquals(LUNES_SIGUIENTE, efecto(SEMANAL_3, SEMANAL_4, LUNES));
-        assertEquals(VIERNES, efecto(SEMANAL_3, SEMANAL_4, LUNES.minusDays(1), LUNES.minusDays(4)));
-        assertEquals(VIERNES, efecto(SEMANAL_4, SEMANAL_3));
+        assertEquals(LUNES, efecto(SEMANAL_3, SEMANAL_4, LUNES.minusDays(1), LUNES.minusDays(4)));
+        assertEquals(LUNES, efecto(SEMANAL_4, SEMANAL_3));
     }
 
     @Test
     void diasFijos_conRegistrosEstaSemana_lunesSiguiente() {
         assertEquals(LUNES_SIGUIENTE, efecto(SEMANAL_L_X_V, SEMANAL_M_J_S, VIERNES));
-        assertEquals(VIERNES, efecto(SEMANAL_L_X_V, SEMANAL_M_J_S));
+        assertEquals(LUNES, efecto(SEMANAL_L_X_V, SEMANAL_M_J_S));
     }
 
     @Test
     void frecuencia_vaPorSemanas_aunqueHoyNoHayaRegistros() {
         assertEquals(LUNES_SIGUIENTE, efecto(DIARIO_1, SEMANAL_3, LUNES));
         assertEquals(LUNES_SIGUIENTE, efecto(SEMANAL_3, DIARIO_1, LUNES.plusDays(2)));
-        assertEquals(VIERNES, efecto(DIARIO_1, SEMANAL_3, LUNES.minusDays(1)));
+        assertEquals(LUNES, efecto(DIARIO_1, SEMANAL_3, LUNES.minusDays(1)));
+        assertEquals(LUNES, efecto(SEMANAL_3, DIARIO_1, LUNES.minusDays(1)));
     }
 
     @Test
-    void unHabitoSinNingunRegistro_aplicaCualquierCambioHoy() {
+    void unHabitoSinNingunRegistro_aplicaCualquierCambioAlMomento() {
+        // Al momento: la meta de un diario desde hoy; lo semanal, desde el
+        // lunes de esta semana.
         assertEquals(VIERNES, efecto(DIARIO_1, DIARIO_2));
-        assertEquals(VIERNES, efecto(DIARIO_1, SEMANAL_3));
-        assertEquals(VIERNES, efecto(SEMANAL_L_X_V, SEMANAL_M_J_S));
+        assertEquals(LUNES, efecto(DIARIO_1, SEMANAL_3));
+        assertEquals(LUNES, efecto(SEMANAL_L_X_V, SEMANAL_M_J_S));
+    }
+
+    @Test
+    void unCambioSemanalSinRegistros_noEmpiezaAntesDeLaFechaDeInicio() {
+        // Creado el miércoles: la semana empieza para él el miércoles.
+        LocalDate miercoles = LUNES.plusDays(2);
+        assertEquals(miercoles,
+                CalculoObjetivo.fechaDeEfecto(DIARIO_1, SEMANAL_3, VIERNES, miercoles, List.of()));
     }
 
     @Test

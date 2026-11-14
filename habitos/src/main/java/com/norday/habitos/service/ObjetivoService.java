@@ -99,9 +99,12 @@ public class ObjetivoService {
     }
 
     /**
-     * Guarda un cambio de objetivo que se aplica desde {@code desde}: hoy o
-     * una fecha futura. Si ya había un cambio programado, este lo
-     * reemplaza: nunca hay más de una versión futura.
+     * Guarda un cambio de objetivo que se aplica desde {@code desde}: hoy,
+     * una fecha futura, o el lunes de esta semana en un cambio semanal sin
+     * registros. Si ya había un cambio programado, este lo reemplaza: nunca
+     * hay más de una versión futura. Con {@code desde} anterior a hoy, las
+     * versiones de entre medias también desaparecen: solo cubrían días de
+     * esta semana sin registros, y la semana pasa entera a la nueva.
      *
      * Un hábito sin versiones —anterior al historial, o creado sin pasar por
      * HabitoService— gana primero la suya, desde la fecha de inicio y con el
@@ -119,11 +122,12 @@ public class ObjetivoService {
         // La versión que ya cae en esa fecha se reescribe, en vez de borrarla
         // y crear otra: Hibernate inserta antes de borrar al hacer flush, y
         // la restricción única (habito_ref, desde) saltaría.
+        LocalDate seBorraTras = desde.isBefore(hoy) ? desde : hoy;
         HabitoObjetivo enLaFecha = null;
         for (HabitoObjetivo version : versiones) {
             if (version.getDesde().equals(desde)) {
                 enLaFecha = version;
-            } else if (version.getDesde().isAfter(hoy)) {
+            } else if (version.getDesde().isAfter(seBorraTras)) {
                 objetivoDAO.delete(version.getId());
             }
         }

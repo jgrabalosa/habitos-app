@@ -179,7 +179,10 @@ class HabitoServiceTest {
         habitoService.actualizar(habitoEditado, null);
 
         InOrder orden = inOrder(ritmoService, habitoDAO);
-        orden.verify(ritmoService).anclarAntesDeCambiar(existente, HOY);
+        // Diario a semanal, sin registros esta semana: el semanal empieza el
+        // lunes, y el ritmo se ancla ahí para juzgar la semana entera con la
+        // regla nueva.
+        orden.verify(ritmoService).anclarAntesDeCambiar(existente, HOY.with(DayOfWeek.MONDAY));
         orden.verify(habitoDAO).update(habitoEditado);
     }
 

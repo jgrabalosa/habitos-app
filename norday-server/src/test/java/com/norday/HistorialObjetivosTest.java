@@ -9,6 +9,7 @@ import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
+import com.norday.habitos.service.RitmoService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,10 @@ import static org.mockito.Mockito.doReturn;
  *
  * Las versiones se leen con SQL nativo sobre habito_objetivo, sin pasar por
  * la entidad.
+ *
+ * Un cambio semanal (días por semana, días fijos o frecuencia) en una semana
+ * sin registros empieza el lunes de esa semana: la semana entera se juzga
+ * con una sola regla.
  */
 @SpringBootTest
 @Transactional
@@ -54,6 +59,9 @@ class HistorialObjetivosTest {
     @Autowired
     private RegistroService registroService;
 
+    @Autowired
+    private RitmoService ritmoService;
+
     @MockitoSpyBean
     private RachaService rachaService;
 
@@ -64,6 +72,10 @@ class HistorialObjetivosTest {
     private int habitoId;
 
     private void unHabito(Frecuencia frecuencia, int meta, String diasSemana) {
+        unHabito(frecuencia, meta, diasSemana, INICIO);
+    }
+
+    private void unHabito(Frecuencia frecuencia, int meta, String diasSemana, LocalDate fechaInicio) {
         Usuario usuario = new Usuario();
         usuario.setNombre("Test Objetivo");
         usuario.setUsername("test-objetivo-" + System.nanoTime());
@@ -75,7 +87,7 @@ class HistorialObjetivosTest {
         usuario.setZonaHoraria("Europe/Madrid");
         em.persist(usuario);
 
-        Habito habito = new Habito("Leer", "Descripción", frecuencia, meta, usuario, null, INICIO);
+        Habito habito = new Habito("Leer", "Descripción", frecuencia, meta, usuario, null, fechaInicio);
         habito.setDiasSemana(diasSemana);
         em.persist(habito);
         em.persist(new Racha(habito, LUNES));
@@ -204,14 +216,14 @@ class HistorialObjetivosTest {
     }
 
     @Test
-    void semanal_cambioDeDiasPorSemana_sinRegistrosEstaSemana_seAplicaHoy() {
+    void semanal_cambioDeDiasPorSemana_sinRegistrosEstaSemana_seAplicaDesdeElLunesDeEstaSemana() {
         unHabito(Frecuencia.SEMANAL, 3, null);
         registros(LUNES.minusDays(6), LUNES.minusDays(4));
 
         habitoService.actualizar(editado(Frecuencia.SEMANAL, 4, null), null);
 
         assertEquals(4, habito().getMeta());
-        assertEquals(List.of("2026-01-01 SEMANAL 3 null", "2026-10-09 SEMANAL 4 null"), versiones());
+        assertEquals(List.of("2026-01-01 SEMANAL 3 null", "2026-10-05 SEMANAL 4 null"), versiones());
     }
 
     @Test
@@ -242,14 +254,14 @@ class HistorialObjetivosTest {
     }
 
     @Test
-    void cambioDeFrecuencia_sinRegistrosEstaSemana_seAplicaHoy() {
+    void cambioDeFrecuencia_sinRegistrosEstaSemana_seAplicaDesdeElLunesDeEstaSemana() {
         unHabito(Frecuencia.SEMANAL, 3, null);
         registros(LUNES.minusDays(3));
 
         habitoService.actualizar(editado(Frecuencia.DIARIO, 1, null), null);
 
         assertEquals(Frecuencia.DIARIO, habito().getFrecuencia());
-        assertEquals(List.of("2026-01-01 SEMANAL 3 null", "2026-10-09 DIARIO 1 null"), versiones());
+        assertEquals(List.of("2026-01-01 SEMANAL 3 null", "2026-10-05 DIARIO 1 null"), versiones());
     }
 
     // ── c. Un cambio programado se reemplaza, no se apila ────────────
@@ -295,11 +307,98 @@ class HistorialObjetivosTest {
         assertEquals(2, habito().getMeta());
         assertEquals(List.of("2026-01-01 DIARIO 1 null", "2026-10-09 DIARIO 2 null"), versiones());
 
-        // Y un segundo cambio el mismo día reemplaza la versión de hoy.
+        // Un segundo cambio, ahora semanal, empieza el lunes: la versión de
+        // hoy queda dentro de su semana y desaparece.
         habitoService.actualizar(editado(Frecuencia.SEMANAL, 3, "1,3,5"), null);
         Habito ahora = habito();
         assertEquals(Frecuencia.SEMANAL, ahora.getFrecuencia());
         assertEquals("1,3,5", ahora.getDiasSemana());
-        assertEquals(List.of("2026-01-01 DIARIO 1 null", "2026-10-09 SEMANAL 3 1,3,5"), versiones());
+        assertEquals(List.of("2026-01-01 DIARIO 1 null", "2026-10-05 SEMANAL 3 1,3,5"), versiones());
+    }
+
+    // ── Cambios semanales en una semana sin registros: desde el lunes ──
+
+    @Test
+    void dosCambiosSemanalesSinRegistros_reemplazanLaVersionDelLunes() {
+        unHabito(Frecuencia.SEMANAL, 3, null);
+
+        habitoService.actualizar(editado(Frecuencia.SEMANAL, 4, null), null);
+        habitoService.actualizar(editado(Frecuencia.SEMANAL, 5, null), null);
+
+        assertEquals(5, habito().getMeta());
+        assertEquals(List.of("2026-01-01 SEMANAL 3 null", "2026-10-05 SEMANAL 5 null"), versiones());
+    }
+
+    @Test
+    void unHabitoCreadoEstaSemana_cambiaDesdeSuFechaDeInicio_noDesdeElLunes() {
+        LocalDate miercoles = LUNES.plusDays(2);
+        unHabito(Frecuencia.DIARIO, 1, null, miercoles);
+
+        habitoService.actualizar(editado(Frecuencia.SEMANAL, 2, null), null);
+
+        assertEquals(List.of("2026-10-07 SEMANAL 2 null"), versiones());
+    }
+
+    @Test
+    void unRetroactivoDeLaSemana_seJuzgaConElObjetivoNuevo() {
+        // Diario a semanal de 2 el viernes, sin registros esta semana: el
+        // martes y el miércoles, marcados después, ya son días del semanal.
+        // El miércoles completa la semana y cobra el extra del 20 % de los
+        // 50 puntos de la semana.
+        unHabito(Frecuencia.DIARIO, 1, null);
+        habitoService.actualizar(editado(Frecuencia.SEMANAL, 2, null), null);
+
+        Map<String, Object> martes = registroService.completarHabito(habito(), "", LUNES.plusDays(1));
+        Map<String, Object> miercoles = registroService.completarHabito(habito(), "", LUNES.plusDays(2));
+
+        assertEquals(25, martes.get("puntosPaso"));
+        assertEquals(0, martes.get("puntosExtraSemana"));
+        assertEquals(25, miercoles.get("puntosPaso"));
+        assertEquals(10, miercoles.get("puntosExtraSemana"));
+    }
+
+    // ── El ritmo con una versión que empieza el lunes ─────────────────
+
+    private Ritmo ritmo() {
+        em.flush();
+        em.clear();
+        return em.createQuery("SELECT r FROM Ritmo r WHERE r.habito.habitoId = :id", Ritmo.class)
+                .setParameter("id", habitoId)
+                .getSingleResult();
+    }
+
+    @Test
+    void diarioASemanalSinRegistrosEstaSemana_elRitmoSeAnclaElLunes_ylaSemanaSoloPuedeSubir() {
+        // Ritmo en 0,5 desde el lunes. Anclado el viernes con las reglas
+        // antiguas, cerraría de lunes a jueves como cuatro días diarios sin
+        // hacer. Anclado el lunes, no cierra nada de esta semana: la semana
+        // entera es el primer periodo del semanal, y solo puede subir.
+        unHabito(Frecuencia.DIARIO, 1, null);
+        registros(LUNES.minusDays(6), LUNES.minusDays(5));
+
+        habitoService.actualizar(editado(Frecuencia.SEMANAL, 2, null), null);
+
+        Ritmo ritmo = ritmo();
+        assertEquals(0.5, ritmo.getValor(), 1e-9);
+        assertEquals(LUNES, ritmo.getDesde());
+        assertEquals(LUNES, ritmo.getCambio());
+        // Cerrada la semana sin hacer nada, el ritmo no baja.
+        assertEquals(0.5, ritmoService.ritmoVigente(habito(), LUNES_SIGUIENTE), 1e-9);
+    }
+
+    @Test
+    void semanalADiarioSinRegistrosEstaSemana_elRitmoSeAnclaHoy_sinJuzgarLosDiasAnteriores() {
+        // Al revés, el diario nuevo no puede anclarse el lunes: cerraría de
+        // lunes a jueves como días sin hacer. Se ancla hoy: la semana del
+        // semanal sigue abierta y no se cierra, y hoy solo puede subir.
+        unHabito(Frecuencia.SEMANAL, 3, null);
+
+        habitoService.actualizar(editado(Frecuencia.DIARIO, 1, null), null);
+
+        Ritmo ritmo = ritmo();
+        assertEquals(0.5, ritmo.getValor(), 1e-9);
+        assertEquals(VIERNES, ritmo.getDesde());
+        assertEquals(VIERNES, ritmo.getCambio());
+        assertEquals(0.5, ritmoService.ritmoVigente(habito(), SABADO), 1e-9);
     }
 }

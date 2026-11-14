@@ -167,9 +167,10 @@ public class HabitoService {
 
     /**
      * Guarda la edición de un hábito y devuelve desde qué día se aplica su
-     * objetivo: hoy, o una fecha futura si el cambio de objetivo no puede
-     * aplicarse ya (la regla está en {@link CalculoObjetivo}). Sin cambio de
-     * objetivo, hoy.
+     * objetivo: hoy, el lunes de esta semana (un cambio semanal sin
+     * registros esta semana), o una fecha futura si el cambio de objetivo no
+     * puede aplicarse ya (la regla está en {@link CalculoObjetivo}). Sin
+     * cambio de objetivo, hoy.
      *
      * Con fecha futura, el objetivo nuevo queda programado en el historial
      * y el hábito conserva el de hoy hasta entonces; el nombre, la
@@ -216,8 +217,15 @@ public class HabitoService {
                 habito.setDiasSemana(existente.getDiasSemana());
             } else if (actual.frecuencia() != nuevo.frecuencia() || actual.meta() != nuevo.meta()) {
                 // El ritmo se ancla ANTES de guardar, con el hábito tal como
-                // estaba: hay que calcularlo con las reglas antiguas.
-                ritmoService.anclarAntesDeCambiar(existente, hoy);
+                // estaba: hay que calcularlo con las reglas antiguas. Se
+                // ancla al empezar el periodo de hoy con las reglas nuevas,
+                // sin pasar de aplicaDesde: un semanal que empieza el lunes,
+                // el lunes, y la semana entera es su primer periodo, que
+                // solo puede subir; un diario, hoy, para no cerrar como días
+                // sin hacer los de esta semana anteriores al cambio.
+                LocalDate inicioDelPeriodo = nuevo.frecuencia().rangoPeriodo(hoy)[0];
+                LocalDate ancla = inicioDelPeriodo.isAfter(aplicaDesde) ? inicioDelPeriodo : aplicaDesde;
+                ritmoService.anclarAntesDeCambiar(existente, ancla);
             }
         }
         habitoDAO.update(habito);

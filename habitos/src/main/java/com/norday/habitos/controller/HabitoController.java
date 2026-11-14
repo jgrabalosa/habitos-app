@@ -167,8 +167,9 @@ public class HabitoController extends ControladorAutorizado {
         LocalDate aplicaDesde = habitoService.actualizar(habito, entrada.getCategoriaId());
         // Antes era texto plano. La app ya instalada solo mira el código de
         // estado (ApiServiceCore.verificar), así que el cuerpo puede ser JSON.
-        // aplicaDesde es hoy, o una fecha futura si el cambio de objetivo
-        // queda programado.
+        // aplicaDesde es hoy, el lunes de esta semana (un cambio semanal sin
+        // registros esta semana: ya está en vigor), o una fecha futura si el
+        // cambio de objetivo queda programado.
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Hábito actualizado correctamente");
         respuesta.put("aplicaDesde", aplicaDesde.toString());

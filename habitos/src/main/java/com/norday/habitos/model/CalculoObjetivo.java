@@ -9,15 +9,20 @@ import java.util.Collection;
  * de datos ni el reloj.
  *
  * Regla general: un cambio nunca reinterpreta un periodo en el que ya hay
- * registros. Si el periodo del cambio no tiene registros, se aplica hoy; si
- * los tiene, al empezar el periodo siguiente.
+ * registros. Si el periodo del cambio no tiene registros, se aplica ya, a
+ * todo ese periodo; si los tiene, al empezar el periodo siguiente.
  *
  * El periodo depende de qué cambia. En un diario que sigue diario, la meta
- * son las veces al día: el periodo es el día y, con registros hoy, el
- * cambio va a mañana. Todo lo demás —la frecuencia, los días por semana o
- * los días fijos de un semanal— se juzga por semanas: con registros esta
- * semana, el cambio va al lunes siguiente. Si un cambio mezcla las dos
- * cosas, manda la semana: va entero a una sola fecha.
+ * son las veces al día: el periodo es el día; sin registros hoy, el cambio
+ * va desde hoy y, con ellos, desde mañana. Todo lo demás —la frecuencia,
+ * los días por semana o los días fijos de un semanal— se juzga por
+ * semanas: sin registros esta semana, el cambio va desde el lunes de esta
+ * semana, para que la semana entera se juzgue con una sola regla (también
+ * un completado retroactivo); con ellos, desde el lunes siguiente. Si un
+ * cambio mezcla las dos cosas, manda la semana: va entero a una sola fecha.
+ *
+ * Nada empieza antes de la fecha de inicio del hábito: uno creado a mitad
+ * de semana cambia desde ese día.
  */
 public final class CalculoObjetivo {
 
@@ -36,7 +41,9 @@ public final class CalculoObjetivo {
     }
 
     /**
-     * Desde qué día se aplica el cambio; null si no cambia nada.
+     * Desde qué día se aplica el cambio; null si no cambia nada. Puede ser
+     * anterior a hoy: el lunes de esta semana en un cambio semanal sin
+     * registros.
      *
      * @param fechasConRegistro las fechas de los registros del hábito en la
      *        semana en curso, del lunes a hoy (basta con esas: son las únicas
@@ -53,7 +60,7 @@ public final class CalculoObjetivo {
                 LocalDate lunes = hoy.with(DayOfWeek.MONDAY);
                 boolean hayRegistros = fechasConRegistro.stream()
                         .anyMatch(fecha -> !fecha.isBefore(lunes) && !fecha.isAfter(hoy));
-                yield hayRegistros ? lunes.plusWeeks(1) : hoy;
+                yield hayRegistros ? lunes.plusWeeks(1) : lunes;
             }
         };
         if (efecto != null && fechaInicio != null && fechaInicio.isAfter(efecto)) {

@@ -453,14 +453,21 @@ class RitmoServiceTest {
     }
 
     @Test
-    void anclarEnUnaFechaQueElAnclaYaHaPasado_noTocaNada() {
-        // Si el ancla ya está más allá de la fecha del cambio, lo de entre
-        // medias se cerró y no se vuelve a juzgar.
-        anclaEn(0.7, d(10, 12));
+    void anclarEnUnaFechaQueElAnclaYaHaPasado_noRejuzgaNada_yElDiaDelAnclaSoloPuedeSubir() {
+        // Un semanal sin registros esta semana empieza el lunes 5, pero el
+        // ancla ya está en el miércoles 7 (un cambio anterior de esta misma
+        // semana). Lo de antes del ancla no se vuelve a juzgar: el valor y el
+        // ancla se quedan, y el cambio pasa al día del ancla, cuyo periodo
+        // solo puede subir.
+        anclaEn(0.7, d(10, 7));
 
-        ritmoService.anclarAntesDeCambiar(habito, d(10, 8));
+        ritmoService.anclarAntesDeCambiar(habito, d(10, 5));
 
-        verify(ritmoDAO, never()).update(any());
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO, times(1)).update(guardado.capture());
+        assertEquals(0.7, guardado.getValue().getValor(), D);
+        assertEquals(d(10, 7), guardado.getValue().getDesde());
+        assertEquals(d(10, 7), guardado.getValue().getCambio());
         verify(registroDAO, never()).findByHabitoAndRango(any(), any(), any());
     }
 

@@ -72,7 +72,7 @@ Los valores están en un solo sitio y son provisionales: se ajustan con uso real
 
 El ritmo se ancla el día en que el cambio entra en vigor (ver «Historial de objetivos y cambios»), con el hábito tal como estaba, calculado con las reglas antiguas. Así lo ya cerrado no se vuelve a juzgar con las reglas nuevas. El ancla pasa a ese día y el periodo que lo contiene solo puede subir: un cambio nunca perjudica.
 
-- **Cambio que se aplica hoy**: se ancla antes de guardar, en hoy.
+- **Cambio que se aplica ya**: se ancla antes de guardar, al empezar el periodo de hoy con las reglas nuevas y sin pasar de la fecha de efecto. Un semanal que empieza el lunes de esta semana se ancla ese lunes: no se cierra nada de esta semana con las reglas antiguas y la semana entera es su primer periodo, que solo puede subir. Un diario (meta de un diario, o de semanal a diario) se ancla hoy, para no cerrar como días sin hacer los de esta semana anteriores al cambio. Si el ancla ya estaba más allá (un cambio anterior de esta misma semana, o el día en que se creó el hábito), se queda donde está y el cambio pasa a su día.
 - **Cambio programado** (mañana o el lunes siguiente): se ancla al aplicarlo, en su fecha de efecto aunque se lea días después. Se aplica antes de cualquier lectura del ritmo, así que el ancla nunca ha pasado de esa fecha; si la hubiera pasado, no se toca.
 - Solo cuentan la frecuencia y la meta: cambiar los días fijos sin cambiar cuántos son no ancla el ritmo.
 
@@ -145,17 +145,18 @@ Un cambio nunca reinterpreta un periodo en el que ya hay registros. «Con regist
 
 | Qué cambia | Periodo | Sin registros en el periodo | Con registros en el periodo |
 |---|---|---|---|
-| Meta de un diario que sigue diario (veces al día) | el día | se aplica hoy | se aplica mañana |
-| Días por semana o días fijos de un semanal | la semana (lunes a domingo) | se aplica hoy | se aplica el lunes siguiente |
-| Frecuencia (diario ↔ semanal) | la semana | se aplica hoy | se aplica el lunes siguiente |
+| Meta de un diario que sigue diario (veces al día) | el día | se aplica desde hoy | se aplica desde mañana |
+| Días por semana o días fijos de un semanal | la semana (lunes a domingo) | se aplica desde el lunes de esta semana | se aplica desde el lunes siguiente |
+| Frecuencia (diario ↔ semanal) | la semana | se aplica desde el lunes de esta semana | se aplica desde el lunes siguiente |
 
+- Un cambio semanal sin registros esta semana empieza el lunes para que la semana entera se juzgue con una sola regla: un completado retroactivo de esta semana usa ya el objetivo nuevo. Nada empieza antes de la fecha de inicio del hábito: uno creado a mitad de semana cambia desde ese día. Las versiones que hubiera entre ese lunes y hoy desaparecen (solo cubrían días sin registros), y una que ya empezara ese lunes se reescribe.
 - Un cambio que mezcla las dos cosas va entero a una sola fecha, la de la semana.
-- Un hábito sin ningún registro aplica cualquier cambio al momento. Uno que aún no ha empezado no cambia antes de su fecha de inicio.
+- Un hábito sin ningún registro aplica cualquier cambio al momento: la meta de un diario desde hoy, lo semanal desde el lunes de esta semana (o desde su fecha de inicio).
 - Con fecha futura, el objetivo nuevo queda programado y `habito` conserva el de hoy hasta entonces. El nombre, la descripción, la categoría y el recordatorio se guardan al momento.
 - **Nunca hay más de una versión futura**: si llega otro cambio antes de su fecha, la reemplaza. Un formulario que trae el objetivo vigente hoy no es un cambio: no crea versión ni anula la programada.
 - La regla está en `CalculoObjetivo`.
 
-El `PUT /api/habitos/{id}` responde `{mensaje, aplicaDesde}`: hoy, o la fecha futura del cambio programado. El detalle (`GET /api/habitos/{id}/detalle`) trae `objetivoProgramado` (`desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo`, `diasSemana`), o null si no hay ninguno.
+El `PUT /api/habitos/{id}` responde `{mensaje, aplicaDesde}`: hoy, el lunes de esta semana (un cambio semanal ya en vigor), o la fecha futura del cambio programado. El detalle (`GET /api/habitos/{id}/detalle`) trae `objetivoProgramado` (`desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo`, `diasSemana`), o null si no hay ninguno.
 
 ---
 

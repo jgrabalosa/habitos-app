@@ -223,9 +223,10 @@ public class RitmoService {
     }
 
     /**
-     * Igual, con el día del cambio dado. Lo usan los tests para fijarlo y
-     * ObjetivoService al aplicar un cambio programado, que se ancla en su
-     * fecha de efecto aunque se lea después.
+     * Igual, con el día del cambio dado. Lo usan los tests para fijarlo,
+     * HabitoService (un semanal que empieza el lunes de esta semana se ancla
+     * ese lunes) y ObjetivoService al aplicar un cambio programado, que se
+     * ancla en su fecha de efecto aunque se lea después.
      */
     @Transactional
     public void anclarAntesDeCambiar(Habito habitoComoEstaba, LocalDate hoy) {
@@ -241,19 +242,18 @@ public class RitmoService {
             ritmoDAO.save(ritmo);
             return;
         }
-        // Un cambio programado se ancla en su fecha, que puede ser anterior
-        // al día en que se lee. Si el ancla ya la ha pasado, lo de entre
-        // medias ya se cerró y no se vuelve a juzgar: no se toca. No debería
-        // pasar, porque el cambio se aplica antes de cualquier lectura del
-        // ritmo (ObjetivoService.ponerAlDia).
-        if (ritmo.getDesde().isAfter(hoy)) {
-            return;
-        }
+        // El día del cambio puede ser anterior a hoy: un cambio programado se
+        // ancla en su fecha aunque se lea después, y un semanal sin
+        // registros esta semana, el lunes. Si el ancla ya está más allá —un
+        // cambio anterior de esta misma semana, o el día en que se creó el
+        // hábito—, lo de antes no se vuelve a juzgar: el ancla se queda y el
+        // cambio pasa a su día, cuyo periodo solo podrá subir.
+        LocalDate dia = ritmo.getDesde().isAfter(hoy) ? ritmo.getDesde() : hoy;
         double vigente = ponerAlDia(ritmo, habitoComoEstaba,
-                fechasHechas(ritmo, habitoComoEstaba, hoy), hoy).valor();
+                fechasHechas(ritmo, habitoComoEstaba, dia), dia).valor();
         ritmo.setValor(vigente);
-        ritmo.setDesde(hoy);
-        ritmo.setCambio(hoy);
+        ritmo.setDesde(dia);
+        ritmo.setCambio(dia);
         ritmoDAO.update(ritmo);
     }
 
