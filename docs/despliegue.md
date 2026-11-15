@@ -171,11 +171,12 @@ en V20, que es la última de `main`):
 
 ### 0. Antes, una sola vez
 
-- **Repo de Focus en GitHub**: crear `enfoque_app_mobile` y subir su `wip`.
-  Hoy el clon no tiene remoto.
-- **Firebase** (`habitos-app-5a054`): dar de alta `com.norday.enfoque` y
-  `com.norday.enfoque.prueba`, con las SHA-1 de depuración y de subida, y
-  bajar el `google-services.json` con las dos (no se versiona).
+- **Repo de Focus en GitHub**: hecho el 15-nov-2026
+  (`jgrabalosa/enfoque_app_mobile`, rama `wip`).
+- **Firebase** (`habitos-app-5a054`): `com.norday.enfoque.prueba` está dado
+  de alta desde el 15-nov-2026, con la SHA-1 de depuración de la máquina de
+  Quim. Falta `com.norday.enfoque`, con las SHA-1 de depuración y de subida,
+  y volver a bajar el `google-services.json` con las dos (no se versiona).
 - **Google Cloud**: un cliente OAuth Android por paquete y huella (Firebase
   sola no basta para Google Sign-In). Cuando Play genere la clave de firma
   de apps de `com.norday.enfoque`, añadir también su SHA-1.
@@ -185,12 +186,9 @@ en V20, que es la última de `main`):
   antes de darlas de alta para Focus (el borrado ya borra las sesiones,
   `LimpiadorEnfoque`; es el texto lo que falta). Comprobar si la cuenta de
   desarrollador exige prueba cerrada antes de Producción para una app nueva.
-- **Primer build de Focus**. Ni el Gradle ni `MainActivity.kt` se han
-  compilado nunca (lo dice su `CLAUDE.md`):
-
-  ```bash
-  flutter build apk --debug --flavor prueba --dart-define=NORDAY_API_URL=https://staging-api.norday.app/api
-  ```
+- **Primer build de Focus**: hecho el 15-nov-2026, en debug y con el flavor
+  `prueba`. En el móvil ya funcionan el login, Inicio y el enlace desde
+  Habits. Faltan los avisos de gracia y de fin y una build de release (R8).
 
 ### 1. El core: tag `v0.55.0`
 
