@@ -187,7 +187,8 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
 Una sesión de Norday Focus puede llevar sus minutos a un hábito de minutos.
 `enfoque` no conoce los hábitos ni `habitos` conoce las sesiones: el motor
 declara el puerto `DestinoMinutos` (`gamificacion.service`, con los records
-`DestinoDisponible` y `ResultadoAporte` en `gamificacion.model`) y `habitos`
+`DestinoDisponible`, `ResultadoAporte` y `ProgresoDestino` en
+`gamificacion.model`) y `habitos`
 lo implementa en `DestinoMinutosHabitos` (tipo `habito`). `enfoque` recibe
 todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
 
@@ -195,8 +196,11 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
   valida antes de completar (dueño, que exista, que no esté en pausa, que el
   día sea de minutos en la versión vigente ese día, semana en curso y no
   futuro, de 1 a 600) y responde `RECHAZADO` con un código de motivo, que es
-  una clave de `mensajes/habitos`. Si completar lanza igualmente (una carrera),
-  se traduce a `RECHAZADO`. Un fallo técnico sí sale, para que se reintente.
+  una clave de `mensajes/habitos`. Si completar lanza igualmente una
+  `ConflictoException` (una carrera), se traduce a `RECHAZADO`. Un fallo
+  técnico, o un `IllegalArgumentException` inesperado, sí sale: la sesión
+  queda `PENDIENTE`, `EnfoqueController` responde 503 y la app reintenta con
+  la misma clave (5xx o sin respuesta = reintentar; 400 y 409 = definitivo).
 - **Registrar una sesión son tres transacciones, no una**
   (`SesionEnfoqueService.registrar`, sin `@Transactional`): guardar la sesión
   (idempotente por clave, aporte `PENDIENTE` si hay destino), aportar en la
@@ -212,6 +216,17 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
   ni paga dos veces, ni en `sesion_enfoque` ni en `registro`; una sesión que
   quedó `PENDIENTE` (el proceso murió entre aportar y apuntar) se completa
   al reintentar, con `REPETIDO`.
+- **El reintento devuelve el resultado original.** La sesión guarda lo que
+  pagó el hábito (`monedas_aportadas`, `xp_aportada`, `logros_aportados`) y
+  el 200 lo devuelve; el progreso del día se lee en el momento con
+  `DestinoMinutos.progreso`, que solo lee. Nunca se vuelve a llamar a
+  `aportar` para una sesión cerrada.
+- **El resultado se apunta con precedencia** (en el propio `UPDATE`):
+  `PENDIENTE` lo acepta todo, `ACEPTADO` gana a `REPETIDO` y `RECHAZADO`,
+  `REPETIDO` gana a `RECHAZADO`.
+- **Limitación conocida:** deshacer en Norday Habits un registro que vino de
+  una sesión no toca la sesión (sus `minutos_aportados` se quedan), y si la
+  sesión estaba `PENDIENTE`, un reintento posterior volvería a sumar.
 - **Enfoque no paga nada propio**: ni monedas, ni XP, ni logros. Paga el
   hábito, con sus reglas, igual que el panel de minutos.
 

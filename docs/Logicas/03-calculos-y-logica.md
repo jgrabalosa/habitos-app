@@ -236,8 +236,9 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 - Duración elegida de 10 a 120 minutos, de 5 en 5. Estados: `COMPLETADA` (llegó al final), `TERMINADA` (acabada antes, con al menos 10 minutos) y `PERDIDA` (se rindió o salió de la app y no volvió).
 - **Minutos** = minutos enteros transcurridos (`duracionSeg / 60`, hacia abajo) si es `COMPLETADA` o `TERMINADA`; una `PERDIDA` nunca suma.
 - **Día** = el día de inicio en la zona del usuario. Es el día al que van los minutos, aunque la sesión acabe pasada la medianoche o llegue días después.
-- Reglas al guardarla (400 si no): `duracionSeg` ≥ 600 si cuenta y ≤ 7260 (120 min + 1 de margen); que termine como mucho 2 minutos después de la hora del servidor; que no empezara hace más de 7 días; clave UUID. Si se solapa con otra sesión del usuario, 409.
+- Reglas al guardarla (400 si no): `duracionSeg` ≥ 600 si cuenta, ≤ 7260 (120 min + 1 de margen) y ≤ `duracionObjetivoMin` × 60 + 60 (sin pausas, no puede durar más que lo elegido más el minuto de margen); que termine como mucho 2 minutos después de la hora del servidor; que no empezara hace más de 7 días; clave UUID. Si se solapa con otra sesión del usuario, 409.
 - **Clave**: la app la genera al empezar. La misma clave con el mismo cuerpo devuelve la sesión guardada (200); con otro cuerpo, 409. La misma clave viaja al registro del hábito, así que un reintento tampoco suma dos veces allí.
+- **El reintento devuelve el resultado original**: monedas, XP y logros son los que pagó el hábito la primera vez (se guardan en la sesión), y el progreso del día (`minutosDia`, `minutosObjetivo`, `diaHecho`) se lee en el momento del hábito, sin tocar nada. Si la sesión quedó `PENDIENTE` y el reintento la completa con `REPETIDO`, monedas y XP van a 0: lo pagado entonces no se conoce.
 
 ### El aporte a un hábito
 
@@ -246,11 +247,20 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 - Estados del aporte: `SIN_DESTINO`, `PENDIENTE` (guardada y aún sin llevar), `ACEPTADO`, `REPETIDO` (la clave ya estaba en el hábito: no suma ni paga) y `RECHAZADO`. Una `PERDIDA` con destino queda `RECHAZADO` con el motivo `enfoque.aporte.sesion.perdida`.
 - **Tres pasos, no una transacción**: guardar la sesión, aportar en la transacción propia del hábito y apuntar el resultado. Un rechazo del hábito no puede llevarse por delante la sesión. Si el proceso se corta entre aportar y apuntar, la sesión queda `PENDIENTE` y el reintento la completa (`REPETIDO`).
 - Deshacer el registro desde Norday Habits devuelve lo suyo como cualquier paso; la sesión no se deshace (v1).
+- **Limitación conocida**: deshacer en Norday Habits un registro que vino de una sesión no toca la sesión: su `minutos_aportados` (y monedas, XP y logros aportados) se quedan como estaban. Y si la sesión estaba `PENDIENTE` cuando se deshizo el registro, un reintento posterior con la misma clave volvería a sumar los minutos, porque la clave ya no está en ningún registro.
+
+### Contrato de errores para la app
+
+- **5xx o sin respuesta** (se cortó la red, 503 por un fallo técnico): reintentar más tarde con **la misma clave y el mismo cuerpo**. Si la sesión llegó a guardarse, el reintento la completa sin sumar ni pagar dos veces.
+- **400 y 409**: definitivos. La petición no vale (400, también si el cuerpo no es JSON o un parámetro no tiene el tipo que toca) o choca con lo guardado (409: otra sesión con esa clave o una sesión solapada). Reintentar la misma no cambia nada.
+- Un fallo técnico al llevar los minutos al hábito (la base de datos, un error inesperado) responde 503 con la sesión guardada y `PENDIENTE`. Los rechazos por las reglas del hábito no son fallos: van en el 201 con el aporte `RECHAZADO`.
+- Todos los errores llevan `{"mensaje": "<texto en el idioma del usuario>"}`, salvo el 401, que va sin cuerpo.
 
 ### Racha y resumen
 
 - **Racha de enfoque**: días seguidos con al menos una sesión `COMPLETADA` o `TERMINADA`, terminando hoy o ayer. Solo es un indicador: no paga nada.
 - El resumen (minutos y sesiones por día, totales) cuenta solo `COMPLETADA` y `TERMINADA`, como mucho 62 días.
+- El historial va de la más reciente a la más antigua, con `pagina` de 0 a 10000 y `tamano` de 1 a 100.
 
 ---
 

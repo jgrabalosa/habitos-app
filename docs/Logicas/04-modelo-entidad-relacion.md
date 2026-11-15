@@ -224,9 +224,15 @@ Tabla `sesion_enfoque`, del módulo `enfoque` (migración V26). Una fila por ses
 - `aporte_estado`: obligatorio, hasta 12 caracteres: `SIN_DESTINO`, `PENDIENTE`, `ACEPTADO`, `REPETIDO` o `RECHAZADO`.
 - `aporte_motivo`: admite nulo, hasta 40 caracteres. En un rechazo, el código del motivo (una clave de los textos).
 - `minutos_aportados`: obligatorio, por defecto 0. Los minutos que están en el destino por esta sesión.
+- `monedas_aportadas` y `xp_aportada`: obligatorios, por defecto 0. Lo que pagó el destino al recibir los minutos; un reintento lo devuelve tal cual.
+- `logros_aportados`: admite nulo, hasta 1000 caracteres. Los códigos de los logros que desbloqueó el aporte, separados por comas; nulo si ninguno.
 - `creado_en`: obligatoria, en UTC.
 
 Índices: (`usuario_ref`, `dia`) para el resumen y la racha; (`usuario_ref`, `inicio_utc`) para el historial y el solape.
+
+El resultado del aporte se apunta con precedencia: `PENDIENTE` lo acepta todo; después `ACEPTADO` gana a `REPETIDO` y a `RECHAZADO`, y `REPETIDO` gana a `RECHAZADO`. Si dos reintentos simultáneos responden distinto, queda el que pagó.
+
+Deshacer en Norday Habits el registro que creó una sesión no toca la sesión: sus columnas `*_aportad*` se quedan como estaban (limitación conocida, ver 03).
 
 ### Versión mínima (VersionApp)
 
@@ -381,7 +387,7 @@ La exportación de datos se organiza mediante los exportadores correspondientes 
 
 El exportador de notificaciones (`ExportadorDispositivos`, sección `notificaciones`) dice en qué apps tiene el usuario un token registrado y desde cuándo (`app`, `actualizadoEn`), sin el token, como tampoco sale `usuario.fcm_token`.
 
-Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
+Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados`, `monedasAportadas`, `xpAportada`, `logrosAportados` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
 
 ---
 
