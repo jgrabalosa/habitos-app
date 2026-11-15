@@ -28,5 +28,15 @@ public interface IUsuarioDAO {
      * la ha borrado (la baja de la cuenta) mientras esta esperaba.
      */
     boolean bloquear(int usuarioId);
+
+    /**
+     * Bloquea al usuario (como {@link #bloquear}) y lo devuelve releído de la
+     * base de datos, ya con el bloqueo: si ya estaba en la sesión (con
+     * open-in-view el controlador lo ha leído antes), sus valores eran los de
+     * antes de esperar, y guardarlo entero pisaría lo que otro confirmó
+     * entretanto. null si la fila ya no existe; entonces la copia de la
+     * sesión, si la había, se suelta para que nadie la guarde.
+     */
+    Usuario bloquearYReleer(int usuarioId);
     void delete(int id);
 }

@@ -139,6 +139,36 @@ public class RegistroDAO implements IRegistroDAO {
         em.merge(registro);
     }
 
+    // Una columna y no el registro entero: la nota y la valoración llegan por
+    // peticiones distintas, y guardar el registro leído antes de esperar pisaba
+    // la otra. Después se relee la copia de la sesión, si la hay, para que no
+    // quede nada viejo que un flush pueda escribir.
+    @Override
+    public int actualizarNota(int registroId, String nota) {
+        return actualizarColumna(registroId, "nota", nota);
+    }
+
+    @Override
+    public int actualizarValoracion(int registroId, Integer valoracion) {
+        return actualizarColumna(registroId, "valoracion", valoracion);
+    }
+
+    private int actualizarColumna(int registroId, String campo, Object valor) {
+        int filas = em.createQuery("UPDATE Registro r SET r." + campo + " = :valor WHERE r.registroId = :id")
+                .setParameter("valor", valor)
+                .setParameter("id", registroId)
+                .executeUpdate();
+        Registro enSesion = em.find(Registro.class, registroId);
+        if (enSesion != null) {
+            if (filas == 0) {
+                em.detach(enSesion);
+            } else {
+                em.refresh(enSesion);
+            }
+        }
+        return filas;
+    }
+
     // Para los logros de volumen. Nativa porque cada registro se juzga con la
     // unidad de la versión del objetivo vigente en su fecha (la de mayor
     // desde <= fecha; antes de la primera, la primera; sin versiones, la del

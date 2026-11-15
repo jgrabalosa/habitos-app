@@ -97,6 +97,19 @@ public class UsuarioDAO implements IUsuarioDAO {
     }
 
     @Override
+    public Usuario bloquearYReleer(int usuarioId) {
+        boolean existe = bloquear(usuarioId);
+        // find devuelve la copia de la sesión si la hay, sin consultar.
+        Usuario usuario = em.find(Usuario.class, usuarioId);
+        if (!existe) {
+            if (usuario != null) em.detach(usuario);
+            return null;
+        }
+        em.refresh(usuario);
+        return usuario;
+    }
+
+    @Override
     public void delete(int id) {
         Usuario usuario = findById(id);
         if (usuario != null) {

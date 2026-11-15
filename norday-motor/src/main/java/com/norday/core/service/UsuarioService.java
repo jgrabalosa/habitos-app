@@ -125,12 +125,23 @@ public class UsuarioService {
     @Transactional
     public ResultadoLoginGoogle loginConGoogle(String email, String nombre) {
         Usuario usuario = usuarioDAO.findByEmail(email);
+        if (usuario != null) {
+            // Entrar con Google concede LOGIN_GOOGLE y puede escribir el
+            // proveedor: el usuario, bloqueado antes de nada y releído tras el
+            // bloqueo (ver IUsuarioDAO.bloquearYReleer), para no pisar lo que
+            // otro confirmó entretanto. No lanza: un fallo aquí dejaría el
+            // login entero marcado para deshacer.
+            usuario = usuarioDAO.bloquearYReleer(usuario.getUsuarioId());
+            // Si la cuenta se ha borrado (su baja) mientras se esperaba, o ya
+            // no tiene este email, se sigue como si no se hubiera encontrado:
+            // un alta nueva, lo mismo que pasaría si el login llegara un
+            // momento después. Nunca un token de una cuenta que ya no existe.
+            if (usuario != null && !email.equals(usuario.getEmail())) {
+                usuario = null;
+            }
+        }
 
         if (usuario != null) {
-            // Entrar con Google concede LOGIN_GOOGLE: el usuario, bloqueado
-            // antes de escribir nada (ver IUsuarioDAO.bloquear). No lanza: un
-            // fallo aquí dejaría el login entero marcado para deshacer.
-            usuarioDAO.bloquear(usuario.getUsuarioId());
             if (!"GOOGLE".equals(usuario.getProveedorAuth())) {
                 usuario.setProveedorAuth("GOOGLE");
                 usuarioDAO.update(usuario);
@@ -160,14 +171,14 @@ public class UsuarioService {
 
     @Transactional
     public void actualizarPerfil(Usuario usuario) {
-        Usuario existente = usuarioDAO.findById(usuario.getUsuarioId());
-        if (existente == null) {
-            throw new RecursoNoEncontradoException("Usuario no encontrado");
-        }
         // Editar el perfil concede BIENVENIDO: el usuario, bloqueado antes de
-        // escribir nada (ver IUsuarioDAO.bloquear), y todo en una transacción,
+        // leer nada (ver IUsuarioDAO.bloquear), y todo en una transacción,
         // para que el logro no se cuele en lo que mide otra operación suya.
-        if (!usuarioDAO.bloquear(existente.getUsuarioId())) {
+        // Releído tras el bloqueo: la copia que el controlador ya tenía en la
+        // sesión puede ser vieja, y guardarla entera pisaba lo confirmado
+        // entretanto (el token de notificaciones, las preferencias).
+        Usuario existente = usuarioDAO.bloquearYReleer(usuario.getUsuarioId());
+        if (existente == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 

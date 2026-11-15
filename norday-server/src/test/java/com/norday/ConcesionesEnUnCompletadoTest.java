@@ -238,9 +238,12 @@ class ConcesionesEnUnCompletadoTest {
     @Test
     void logroAlEditarElPerfil() throws Exception {
         conUnPasoAMedias(() -> {
+            // El mismo nombre: así guardar no escribe nada en el usuario y no
+            // hay un UPDATE propio que espere al completado; solo el bloqueo
+            // de actualizarPerfil lo hace esperar.
             Usuario cambios = new Usuario();
             cambios.setUsuarioId(usuarioId);
-            cambios.setNombre("Otro nombre");
+            cambios.setNombre("Test Concesiones");
             usuarioService.actualizarPerfil(cambios);
             return null;
         });

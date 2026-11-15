@@ -579,12 +579,17 @@ public class RegistroService {
         // para que la nota y el logro vayan juntos bajo ese bloqueo.
         Usuario usuario = registro.getHabito().getPropietario();
         habitoService.bloquearUsuario(usuario);
-        registro.setNota(nota);
-        registroDAO.update(registro);
+        // Solo la columna de la nota, y tras el bloqueo: el registro leído
+        // arriba puede ser viejo (una valoración confirmada entretanto) o ya
+        // no existir (deshecho mientras se esperaba): entonces 404.
+        if (registroDAO.actualizarNota(registroId, nota) == 0) {
+            throw new RecursoNoEncontradoException("Registro no encontrado");
+        }
 
         logrosHabitosService.evaluarTrasAnadirNota(usuario);
     }
 
+    @Transactional
     public void actualizarValoracion(int registroId, Integer valoracion) {
         if (valoracion == null || valoracion < 1 || valoracion > 5) {
             throw new IllegalArgumentException("La valoración debe estar entre 1 y 5");
@@ -593,8 +598,11 @@ public class RegistroService {
         if (registro == null) {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
-        registro.setValoracion(valoracion);
-        registroDAO.update(registro);
+        // Como la nota: bajo el bloqueo del usuario y solo su columna.
+        habitoService.bloquearUsuario(registro.getHabito().getPropietario());
+        if (registroDAO.actualizarValoracion(registroId, valoracion) == 0) {
+            throw new RecursoNoEncontradoException("Registro no encontrado");
+        }
     }
 
     /**
