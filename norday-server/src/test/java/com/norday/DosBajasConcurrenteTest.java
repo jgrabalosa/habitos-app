@@ -50,8 +50,12 @@ class DosBajasConcurrenteTest {
 
     private Integer usuarioId;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null && tx.execute(e -> em.find(Usuario.class, usuarioId)) != null) {
             usuarioService.eliminarCuenta(usuarioId);
         }
@@ -85,7 +89,7 @@ class DosBajasConcurrenteTest {
             return null;
         }).when(limpiadorHabitos).limpiar(any(Usuario.class));
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<?> primera = hilos.submit(() -> {
             usuarioService.eliminarCuenta(id);
             return null;

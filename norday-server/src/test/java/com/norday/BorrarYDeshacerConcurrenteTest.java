@@ -73,8 +73,12 @@ class BorrarYDeshacerConcurrenteTest {
 
     private Integer usuarioId;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -126,7 +130,7 @@ class BorrarYDeshacerConcurrenteTest {
             return hoyDelHabito;
         }).when(rachaService).hoyDe(any(Habito.class));
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<?> deshacer = hilos.submit(() -> {
             hiloDeshacer[0] = Thread.currentThread();
             return registroService.deshacerRegistro(registroId);

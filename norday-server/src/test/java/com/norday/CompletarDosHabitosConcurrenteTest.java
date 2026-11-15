@@ -83,8 +83,12 @@ class CompletarDosHabitosConcurrenteTest {
 
     private Integer usuarioId;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -162,7 +166,7 @@ class CompletarDosHabitosConcurrenteTest {
             return invocacion.callRealMethod();
         }).when(logrosHabitosService).evaluarTrasCompletarRegistro(any(Usuario.class), any(Habito.class));
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<Map<String, Object>> pasoA = hilos.submit(() -> completarEnUnaPeticion(habitoA));
         assertTrue(aEnPausa.await(30, TimeUnit.SECONDS), "A llega a evaluar sus logros");
         Future<Map<String, Object>> pasoB = hilos.submit(() -> {

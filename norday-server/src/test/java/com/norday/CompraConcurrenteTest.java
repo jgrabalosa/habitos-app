@@ -88,8 +88,12 @@ class CompraConcurrenteTest {
 
     private Integer usuarioId;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -150,7 +154,7 @@ class CompraConcurrenteTest {
             return invocacion.callRealMethod();
         }).when(logrosHabitosService).evaluarTrasCompletarRegistro(any(Usuario.class), any(Habito.class));
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<Map<String, Object>> paso = hilos.submit(() -> tx.execute(estado -> registroService.completar(
                 habitoService.buscarPorId(habitoId),
                 new Solicitud(null, null, "30", UUID.randomUUID(), OrigenRegistro.MANUAL))));
@@ -195,7 +199,7 @@ class CompraConcurrenteTest {
             return saldo;
         }).when(usuarioMonedaService).consultarSaldo(anyInt());
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<?> primera = hilos.submit(() -> {
             comprar(pausa.getProductoId());
             return null;

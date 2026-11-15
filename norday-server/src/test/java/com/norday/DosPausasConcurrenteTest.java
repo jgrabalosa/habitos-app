@@ -71,8 +71,12 @@ class DosPausasConcurrenteTest {
 
     private Integer usuarioId;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -117,7 +121,7 @@ class DosPausasConcurrenteTest {
             return leido;
         }).when(usuarioProductoDAO).findByUsuarioYProducto(anyInt(), anyInt());
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<?> primera = hilos.submit(() -> {
             pausaService.pausar(ids[0]);
             return null;

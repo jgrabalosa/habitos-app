@@ -72,8 +72,12 @@ class ObjetivoAlDiaConcurrenteTest {
     private Integer usuarioId;
     private String token;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -111,7 +115,7 @@ class ObjetivoAlDiaConcurrenteTest {
 
         CountDownLatch leido = new CountDownLatch(1);
         CountDownLatch cambiado = new CountDownLatch(1);
-        ExecutorService hilos = Executors.newSingleThreadExecutor();
+        hilos = Executors.newSingleThreadExecutor();
         Future<?> lectura = hilos.submit(() -> tx.execute(estado -> {
             Habito viejo = habitoService.buscarPorId(habitoId);
             leido.countDown();

@@ -93,8 +93,12 @@ class EditarYPausarConcurrenteTest {
     private Integer usuarioId;
     private String token;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -177,7 +181,7 @@ class EditarYPausarConcurrenteTest {
             return invocacion.callRealMethod();
         }).when(objetivoService).programar(any(), any(), any(), any());
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<String> put = hilos.submit(() -> editar(habitoId,
                 "{\"nombre\":\"Leer\",\"frecuencia\":\"DIARIO\",\"meta\":1,\"diasSemana\":null,"
                         + "\"recordatorioActivo\":true,\"unidad\":\"MINUTOS\",\"minutosObjetivo\":60}"));
@@ -208,7 +212,7 @@ class EditarYPausarConcurrenteTest {
         // de llegar al servicio se pausa y se confirma la pausa.
         CountDownLatch leido = new CountDownLatch(1);
         CountDownLatch pausaConfirmada = new CountDownLatch(1);
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<Map<String, Object>> completar = hilos.submit(() -> tx.execute(estado -> {
             Habito habito = habitoService.buscarPorId(habitoId);
             assertTrue(habito.isActivo());
@@ -246,7 +250,7 @@ class EditarYPausarConcurrenteTest {
             return invocacion.callRealMethod();
         }).when(habitoService).actualizar(any(), any(), any(), any());
 
-        ExecutorService hilos = Executors.newSingleThreadExecutor();
+        hilos = Executors.newSingleThreadExecutor();
         Future<String> put = hilos.submit(() -> editar(habitoId,
                 "{\"nombre\":\"Leer más\",\"frecuencia\":\"DIARIO\",\"meta\":1,\"diasSemana\":null,"
                         + "\"recordatorioActivo\":true}"));

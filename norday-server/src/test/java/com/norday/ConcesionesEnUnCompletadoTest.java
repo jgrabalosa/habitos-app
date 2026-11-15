@@ -89,8 +89,12 @@ class ConcesionesEnUnCompletadoTest {
     private int habitoA;
     private int registroDeOtro;
 
+    /** Los hilos del test: se cierran siempre al terminar, también si falla. */
+    private ExecutorService hilos;
+
     @AfterEach
     void borrar() {
+        if (hilos != null) hilos.shutdownNow();
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
@@ -163,7 +167,7 @@ class ConcesionesEnUnCompletadoTest {
             return invocacion.callRealMethod();
         }).when(logrosHabitosService).evaluarTrasCompletarRegistro(any(Usuario.class), any(Habito.class));
 
-        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        hilos = Executors.newFixedThreadPool(2);
         Future<Map<String, Object>> paso = hilos.submit(() -> tx.execute(estado -> registroService.completar(
                 habitoService.buscarPorId(habitoA),
                 new Solicitud(null, null, "30", UUID.randomUUID(), OrigenRegistro.MANUAL))));
