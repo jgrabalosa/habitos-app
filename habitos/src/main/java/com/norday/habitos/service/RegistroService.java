@@ -161,6 +161,14 @@ public class RegistroService {
         if (fecha.isBefore(lunesDeEstaSemana)) {
             throw new ConflictoException("Solo se puede completar una fecha de la semana en curso");
         }
+        // Ni un día anterior al alta del hábito: uno creado el viernes no
+        // existía de lunes a jueves, y marcarlos el mismo viernes cobraba los
+        // pasos, el hito de 3 días y el logro de constancia el día del alta.
+        // Deshacer no lleva esta regla: si quedó algún registro así de antes,
+        // se puede quitar.
+        if (habito.getFechaInicio() != null && fecha.isBefore(habito.getFechaInicio())) {
+            throw new ConflictoException(textosService.texto("registro.fecha.antes.alta", usuario));
+        }
 
         // El objetivo de hoy al día, y el día se juzga con el que tenía esa
         // fecha: un completado retroactivo de esta semana puede caer antes
