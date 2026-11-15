@@ -181,10 +181,13 @@ en V20, que es la última de `main`):
   sola no basta para Google Sign-In). Cuando Play genere la clave de firma
   de apps de `com.norday.enfoque`, añadir también su SHA-1.
 - **Play Console**: crear `com.norday.enfoque` con su ficha, la política de
-  privacidad y la URL de borrado de cuenta. **Hoy `privacidad.html` y
-  `eliminar-cuenta.html` solo hablan de Norday Habits**: a decidir el texto
-  antes de darlas de alta para Focus (el borrado ya borra las sesiones,
-  `LimpiadorEnfoque`; es el texto lo que falta). Comprobar si la cuenta de
+  privacidad y la URL de borrado de cuenta: las mismas de Habits,
+  `https://norday.app/privacidad.html` y `https://norday.app/eliminar-cuenta.html`.
+  En `wip-enfoque` ya hablan de las dos apps (15-nov-2026), así que solo
+  valen para Focus una vez desplegado este backend en producción. Al
+  desplegar, poner en «Última actualización» la fecha real de publicación. El
+  borrador de los textos de la ficha está en el doc «Norday Focus — ficha de
+  Google Play (borrador)». Comprobar si la cuenta de
   desarrollador exige prueba cerrada antes de Producción para una app nueva.
 - **Primer build de Focus**: hecho el 15-nov-2026, en debug y con el flavor
   `prueba`. En el móvil ya funcionan el login, Inicio y el enlace desde
