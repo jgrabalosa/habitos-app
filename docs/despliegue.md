@@ -247,7 +247,12 @@ cuenta:
   `RECHAZADO` y no suma); una en modo avión, que se queda en la cola y se
   envía al volver la red sin sumar dos veces.
 - **Los dos tokens**: `SELECT app_id FROM usuario_dispositivo WHERE
-  usuario_ref = <id>;` da dos filas, `habitos` y `enfoque`.
+  usuario_ref = <id>;` da dos filas, `habitos` y `enfoque`. En la prueba del
+  15-nov-2026 dio **0 filas** para la cuenta de prueba (usuario 9) aunque un
+  aviso push sí llegó al móvil: puede que saliera de la reserva
+  `usuario.fcm_token` y no de la tabla. Mirarlo antes de publicar: si la app
+  ya había enviado ese token antes de V24, la caché del móvil
+  (`fcm_token_enviado_<id>`) impide reenviarlo.
 - **La APK de la versión 5** (la 1.1.0 que está en Play): los hábitos de
   veces siguen igual, y completar uno de minutos da **409** con el texto
   «Actualiza Norday Habits» (`registro.minutos.actualizar.app`), nunca un
