@@ -40,6 +40,9 @@ class ProductoServiceTest {
     @Mock
     private LogroService logroService;
 
+    @Mock
+    private com.norday.core.repository.IUsuarioDAO usuarioDAO;
+
     @InjectMocks
     private ProductoService productoService;
 
@@ -50,6 +53,8 @@ class ProductoServiceTest {
     void setUp() {
         usuario = new Usuario();
         usuario.setUsuarioId(1);
+        // La fila del usuario existe al bloquearla.
+        lenient().when(usuarioDAO.bloquear(1)).thenReturn(true);
 
         identidad = new Producto();
         identidad.setProductoId(10);

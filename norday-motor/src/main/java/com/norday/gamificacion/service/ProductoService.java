@@ -3,6 +3,7 @@ package com.norday.gamificacion.service;
 import com.norday.core.exception.ConflictoException;
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.core.repository.IUsuarioDAO;
 import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioProducto;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
@@ -47,6 +48,29 @@ public class ProductoService {
 
     @Autowired
     private LogroService logroService;
+
+    @Autowired
+    private IUsuarioDAO usuarioDAO;
+
+    /**
+     * Bloquea al usuario hasta el final de la transacción (ver
+     * IUsuarioDAO.bloquear). Es la primera línea de todo lo que toca su saldo
+     * o su inventario: comprar lee el saldo y lo gasta, los consumibles se
+     * leen y se escriben menos uno, y quien mide «saldo después − saldo
+     * antes» de algo del usuario (el completado de una app) no puede tener
+     * una compra en medio. Sin el bloqueo, dos compras a la vez pasaban las
+     * dos con saldo para una, y una compra en medio de un completado salía
+     * gratis al deshacerlo.
+     *
+     * Va aquí y no en UsuarioMonedaService.registrarMovimiento: ahí llegaría
+     * tarde (después de leer) y en desorden (quien bloquea al usuario lo hace
+     * antes que nada más). Si la fila ya no está (una baja), 404.
+     */
+    private void bloquearUsuario(Usuario usuario) {
+        if (!usuarioDAO.bloquear(usuario.getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
+    }
 
     /**
      * El logro que corresponde a un tema, derivado de su código:
@@ -102,6 +126,7 @@ public class ProductoService {
 
     @Transactional
     public List<String> comprarProducto(Usuario usuario, int productoId) {
+        bloquearUsuario(usuario);
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RuntimeException("Producto no disponible");
@@ -137,6 +162,7 @@ public class ProductoService {
 
     @Transactional
     public void otorgarProducto(Usuario usuario, int productoId) {
+        bloquearUsuario(usuario);
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RuntimeException("Producto no disponible");
@@ -219,6 +245,10 @@ public class ProductoService {
      */
     @Transactional
     public void gastarUnidad(Usuario usuario, String codigo) {
+        // Quien llama ya suele tener al usuario bloqueado (la pausa de un
+        // hábito lo bloquea antes que nada); volver a pedirlo en la misma
+        // transacción no espera. Si no, lo bloquea aquí, antes de leer.
+        bloquearUsuario(usuario);
         Producto producto = productoDAO.findByCodigo(codigo);
         UsuarioProducto poseido = producto == null ? null
                 : usuarioProductoDAO.findByUsuarioYProducto(
@@ -232,6 +262,7 @@ public class ProductoService {
 
     @Transactional
     public Map<String, Object> usarProducto(Usuario usuario, int productoId) {
+        bloquearUsuario(usuario);
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
         if (poseido == null) {
@@ -294,6 +325,7 @@ public class ProductoService {
      */
     @Transactional
     public List<String> otorgarIdentidadElegida(Usuario usuario, int productoId) {
+        bloquearUsuario(usuario);
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RecursoNoEncontradoException("Identidad no disponible");
@@ -371,6 +403,7 @@ public class ProductoService {
      */
     @Transactional
     public void asegurarIdentidad(Usuario usuario) {
+        bloquearUsuario(usuario);
         if (usuarioProductoDAO.poseeAlgunoDeCategoria(
                 usuario.getUsuarioId(), CATEGORIA_IDENTIDAD)) {
             return;
