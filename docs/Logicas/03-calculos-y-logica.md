@@ -219,7 +219,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - **Hoy** (`FilaHoyDTO`): añade `unidad`, `minutosHechos` (los del día que se mira) y `minutosObjetivo` (los de ese día); los dos últimos, null en veces. `completados` y `meta` conservan su significado para la app ya instalada: en un hábito de minutos cuentan días (0 o 1 en un diario; días hechos de la semana en un semanal), y `hecho`, `completadoEnFecha` y `fechasCompletadas` miran los días hechos. La tira da crédito parcial a los diarios de minutos.
 - **`/dashboard`, `/semana` y `/resumen`**: en minutos cuentan días hechos. `GET /api/registros/habito/{id}/hoy` también, y añade `minutosHoy` y `minutosObjetivo` (null en veces).
 - **Detalle**: añade `unidad`, `minutosObjetivo` y `totalMinutos` (la suma de los minutos de todos sus registros de minutos, también los de más). En un hábito de veces, `minutosObjetivo` y `totalMinutos` son null. En el mapa de calor cada celda se juzga con la versión vigente ese día: la de un día de minutos está completada si el día llegó a los minutos objetivo de ese día y lleva sus `minutos` y su `minutosObjetivo`; la de un día de veces (por ejemplo, anterior al paso a minutos) se marca como siempre, con `minutos` y `minutosObjetivo` a null; `totalCompletados` y `completadosMesActual` cuentan días hechos en los días de minutos. Los últimos registros llevan `cantidad` y `origen`.
-- `HabitoDTO` (listas, resumen, `GET /api/habitos/{id}`) añade `unidad` y `minutosObjetivo`. `GET /api/registros/habito/{id}` devuelve en cada registro `cantidad` y `origen` (nunca la clave del cliente).
+- `HabitoDTO` (listas, resumen, `GET /api/habitos/{id}`) añade `unidad` y `minutosObjetivo`. `GET /api/registros/habito/{id}` devuelve en cada registro `cantidad` y `origen` (nunca la clave del cliente), además de `creadoEn`, el instante en que se marcó: en UTC y sin zona (`2026-11-15T09:30:00`), a diferencia de `fecha`, que es el día al que corresponde.
 
 ### Crear y editar
 
@@ -229,7 +229,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - De minutos exige `minutosObjetivo` de 1 a 600 (si no, 400). En un diario, la meta pasa a 1; en un semanal, la meta son los días por semana (o el número de días fijos, como siempre).
 - Cambiar los minutos por día o pasar de veces a minutos se aplica por días (ver la tabla de «Regla de cambios»); de minutos a veces responde 409 con un texto del bundle.
 
-## Norday Enfoque
+## Norday Focus (módulo `enfoque`)
 
 Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Enfoque no da monedas, XP ni logros propios: paga el hábito, con sus reglas.
 
@@ -258,7 +258,7 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 - **400 y 409**: definitivos. La petición no vale (400, también si el cuerpo no es JSON o un parámetro no tiene el tipo que toca) o choca con lo guardado (409: otra sesión con esa clave o una sesión solapada). Reintentar la misma no cambia nada.
 - Un fallo técnico al llevar los minutos al hábito (la base de datos, un error inesperado) responde 503 con la sesión guardada y `PENDIENTE`. Los rechazos por las reglas del hábito no son fallos: van en el 201 con el aporte `RECHAZADO`.
 - Una espera de bloqueo que agota su tope (otra operación de la cuenta en curso), al guardar la sesión o al llevar los minutos, responde 503 con el mismo texto que el resto de la API (`error.bloqueo.reintentar`), no con el de fallo técnico (`enfoque.error.temporal`); los dos piden reintentar. Si fue al guardarla, no se ha guardado nada; si fue al llevar los minutos, la sesión queda `PENDIENTE`.
-- Si la cuenta se borra mientras la sesión espera su bloqueo, 404: definitivo.
+- Si la cuenta se borra mientras la sesión espera su bloqueo, 404: definitivo para el backend (la cuenta ya no existe). Norday Focus, en cambio, no lo trata como definitivo: solo saca de la cola los 400 y 409, así que un 404 se queda en la cola y se reintenta hasta que la sesión cumple 7 días.
 - Todos los errores llevan `{"mensaje": "<texto en el idioma del usuario>"}`, salvo el 401, que va sin cuerpo.
 
 ### Racha y resumen
