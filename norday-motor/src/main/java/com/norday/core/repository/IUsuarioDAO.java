@@ -23,7 +23,10 @@ public interface IUsuarioDAO {
      * saldo, sus logros) y no puede dejar que otra operación se cuele en
      * medio. Quien bloquee también algo que cuelga del usuario, lo bloquea
      * después del usuario, nunca antes.
+     *
+     * Devuelve false si la fila ya no existe: por ejemplo, otra transacción
+     * la ha borrado (la baja de la cuenta) mientras esta esperaba.
      */
-    void bloquear(int usuarioId);
+    boolean bloquear(int usuarioId);
     void delete(int id);
 }

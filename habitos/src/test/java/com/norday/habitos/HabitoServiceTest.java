@@ -110,6 +110,7 @@ class HabitoServiceTest {
         existente.setPropietario(usuario);
         // Bloquear devuelve el hábito releído; aquí, el mismo.
         lenient().when(habitoDAO.bloquear(20)).thenReturn(existente);
+        lenient().when(usuarioDAO.bloquear(1)).thenReturn(true);
 
         racha = new Racha(existente, HOY);
         racha.setRachaActual(5);

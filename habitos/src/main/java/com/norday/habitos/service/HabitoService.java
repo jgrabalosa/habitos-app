@@ -200,7 +200,11 @@ public class HabitoService {
      */
     @Transactional
     public Habito bloquear(Habito habito) {
-        usuarioDAO.bloquear(habito.getPropietario().getUsuarioId());
+        // Sin usuario (su baja ha confirmado mientras se esperaba), tampoco
+        // hay hábito.
+        if (!usuarioDAO.bloquear(habito.getPropietario().getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
         Habito releido = habitoDAO.bloquear(habito.getHabitoId());
         if (releido == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");

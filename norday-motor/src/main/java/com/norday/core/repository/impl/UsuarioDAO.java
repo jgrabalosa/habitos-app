@@ -71,10 +71,11 @@ public class UsuarioDAO implements IUsuarioDAO {
     // compatible), solo a las que pidan este mismo bloqueo, modifiquen la
     // fila o la borren.
     @Override
-    public void bloquear(int usuarioId) {
-        em.createNativeQuery("SELECT usuario_id FROM usuario WHERE usuario_id = :id FOR NO KEY UPDATE")
+    public boolean bloquear(int usuarioId) {
+        return !em.createNativeQuery("SELECT usuario_id FROM usuario WHERE usuario_id = :id FOR NO KEY UPDATE")
                 .setParameter("id", usuarioId)
-                .getResultList();
+                .getResultList()
+                .isEmpty();
     }
 
     @Override

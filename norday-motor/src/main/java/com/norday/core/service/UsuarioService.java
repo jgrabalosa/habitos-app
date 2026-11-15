@@ -226,7 +226,12 @@ public class UsuarioService {
         // del usuario llega el último: con una operación que ya tuviera al
         // usuario y esperase a una de esas filas, Postgres abortaría una de
         // las dos por abrazo mortal.
-        usuarioDAO.bloquear(id);
+        // Si al conseguir el bloqueo la fila ya no está, otra baja se ha
+        // adelantado (un doble toque, un reintento): 404, como si no
+        // existiera, en vez de reventar al borrar una fila que ya no está.
+        if (!usuarioDAO.bloquear(id)) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
 
         // Cada módulo borra lo suyo. El orden entre limpiadores da igual (son
         // árboles de FK independientes que solo apuntan a Usuario); lo que
