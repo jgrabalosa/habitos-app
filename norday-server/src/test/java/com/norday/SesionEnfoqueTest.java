@@ -533,6 +533,82 @@ class SesionEnfoqueTest {
         assertEquals(saldoAntes, saldo(a));
     }
 
+    // ── A la vez ──────────────────────────────────────────────────
+
+    /** Lo que responde una petición: el código y el cuerpo. */
+    private record Respuesta(int estado, String cuerpo) {}
+
+    /** Dos envíos a la vez (cada uno en su hilo, salen juntos) y sus respuestas. */
+    private List<Respuesta> aLaVez(int usuarioId, String cuerpoA, String cuerpoB) throws Exception {
+        java.util.concurrent.ExecutorService hilos = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            java.util.concurrent.CountDownLatch salida = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<Respuesta>> futuros = new ArrayList<>();
+            for (String cuerpo : List.of(cuerpoA, cuerpoB)) {
+                futuros.add(hilos.submit(() -> {
+                    salida.await();
+                    var r = enviar(usuarioId, cuerpo).andReturn().getResponse();
+                    return new Respuesta(r.getStatus(), r.getContentAsString());
+                }));
+            }
+            salida.countDown();
+            List<Respuesta> respuestas = new ArrayList<>();
+            for (var futuro : futuros) {
+                respuestas.add(futuro.get(30, java.util.concurrent.TimeUnit.SECONDS));
+            }
+            return respuestas;
+        } finally {
+            hilos.shutdownNow();
+        }
+    }
+
+    private static List<Integer> estados(List<Respuesta> respuestas) {
+        return respuestas.stream().map(Respuesta::estado).sorted().toList();
+    }
+
+    /**
+     * La misma sesión enviada dos veces a la vez (la cola sin conexión y un
+     * reintento): una se crea (201), la otra la encuentra (200), y el hábito
+     * recibe un solo registro y se paga una sola vez.
+     */
+    @Test
+    void laMismaClaveALaVez_una201YOtra200_unSoloRegistro_unSoloPago() throws Exception {
+        for (int vuelta = 0; vuelta < 5; vuelta++) {
+            int a = usuario();
+            int leer = habito(a, "Leer", minutosDiario(30), true);
+            String clave = UUID.randomUUID().toString();
+            String cuerpo = sesion25(clave, leer);
+
+            List<Respuesta> respuestas = aLaVez(a, cuerpo, cuerpo);
+
+            assertEquals(List.of(200, 201), estados(respuestas), "vuelta " + vuelta + ": " + respuestas);
+            assertEquals(1, registros(leer).size(), "vuelta " + vuelta + ": un solo registro");
+            assertEquals(List.of("20 HABITO_COMPLETADO"),
+                    movimientos(a).stream().filter(m -> m.endsWith("HABITO_COMPLETADO")).toList(),
+                    "vuelta " + vuelta + ": un solo pago del hábito");
+            assertEquals(1, sesionesDe(a));
+            Object[] fila = filaSesion(clave);
+            assertEquals("ACEPTADO", fila[0], "vuelta " + vuelta + ": queda apuntado el que pagó");
+            assertEquals(25, ((Number) fila[2]).intValue());
+        }
+    }
+
+    /** Dos sesiones distintas que se solapan, a la vez: una se guarda y la otra es 409. */
+    @Test
+    void dosSesionesQueSeSolapanALaVez_una201YOtra409() throws Exception {
+        for (int vuelta = 0; vuelta < 5; vuelta++) {
+            int a = usuario();
+            Instant inicio = AHORA.minusSeconds(3600);
+            String una = cuerpo(UUID.randomUUID().toString(), inicio, 1500, 25, "COMPLETADA", null);
+            String otra = cuerpo(UUID.randomUUID().toString(), inicio.plusSeconds(300), 1500, 25, "COMPLETADA", null);
+
+            List<Respuesta> respuestas = aLaVez(a, una, otra);
+
+            assertEquals(List.of(201, 409), estados(respuestas), "vuelta " + vuelta + ": " + respuestas);
+            assertEquals(1, sesionesDe(a), "vuelta " + vuelta);
+        }
+    }
+
     @Test
     void laMismaClave_conOtroCuerpo_es409_yNoCambiaNada() throws Exception {
         int a = usuario();
