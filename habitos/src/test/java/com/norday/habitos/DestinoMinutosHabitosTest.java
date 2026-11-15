@@ -226,6 +226,22 @@ class DestinoMinutosHabitosTest {
     }
 
     @Test
+    void rechaza_unDiaAnteriorAlAltaDelHabito_conSuPropioMotivo() {
+        // Creado el viernes: de lunes a jueves no existía. Completar lo
+        // rechazaría lanzando y acabaría en "conflicto"; aquí, con su motivo.
+        leer.setFechaInicio(HOY);
+        rechazado(aportar(10, 25, LUNES), "aporte.habito.antes.alta");
+        rechazado(aportar(10, 25, HOY.minusDays(1)), "aporte.habito.antes.alta");
+    }
+
+    @Test
+    void elDiaDelAlta_seCompleta() {
+        leer.setFechaInicio(HOY);
+        when(registroService.completar(any(), any())).thenReturn(respuestaDeCompletar(false));
+        assertEquals(ResultadoAporte.Estado.ACEPTADO, aportar(10, 25, HOY).estado());
+    }
+
+    @Test
     void rechaza_diaFuturo() {
         rechazado(aportar(10, 25, HOY.plusDays(1)), DestinoMinutosHabitos.MOTIVO_DIA_FUTURO);
         rechazado(aportar(10, 25, null), DestinoMinutosHabitos.MOTIVO_DIA_FUTURO);

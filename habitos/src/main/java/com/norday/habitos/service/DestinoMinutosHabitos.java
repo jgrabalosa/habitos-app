@@ -36,7 +36,8 @@ import java.util.UUID;
  *
  * {@link #aportar} valida antes de completar (dueño, que exista, que no esté
  * en pausa, que el día sea de minutos en la versión vigente ese día, que sea
- * de la semana en curso y no futuro, y de 1 a 600 minutos) y responde
+ * de la semana en curso, no futuro y no anterior al alta del hábito, y de 1 a
+ * 600 minutos) y responde
  * RECHAZADO con un código de motivo, que es una clave del bundle de habitos.
  * Si pasa, completa con {@link RegistroService#completar} igual que el panel
  * de minutos de la app (mismos minutos, misma clave, mismo premio), con origen
@@ -82,12 +83,14 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
     public static final String MOTIVO_NO_MINUTOS = "aporte.habito.no.minutos";
     public static final String MOTIVO_DIA_FUTURO = "aporte.habito.dia.futuro";
     public static final String MOTIVO_SEMANA_PASADA = "aporte.habito.semana.pasada";
+    public static final String MOTIVO_ANTES_ALTA = "aporte.habito.antes.alta";
     public static final String MOTIVO_MINUTOS_RANGO = "aporte.habito.minutos.rango";
     public static final String MOTIVO_ORIGEN = "aporte.habito.origen";
     public static final String MOTIVO_CONFLICTO = "aporte.habito.conflicto";
 
     public static final List<String> MOTIVOS = List.of(MOTIVO_NO_ENCONTRADO, MOTIVO_PAUSADO, MOTIVO_NO_MINUTOS,
-            MOTIVO_DIA_FUTURO, MOTIVO_SEMANA_PASADA, MOTIVO_MINUTOS_RANGO, MOTIVO_ORIGEN, MOTIVO_CONFLICTO);
+            MOTIVO_DIA_FUTURO, MOTIVO_SEMANA_PASADA, MOTIVO_ANTES_ALTA, MOTIVO_MINUTOS_RANGO, MOTIVO_ORIGEN,
+            MOTIVO_CONFLICTO);
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DestinoMinutosHabitos.class);
 
@@ -246,6 +249,11 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
         LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
         if (dia.isBefore(lunesDeEstaSemana)) {
             return MOTIVO_SEMANA_PASADA;
+        }
+        // Ni un día anterior al alta del hábito, como en completar: un
+        // hábito creado el viernes no existía de lunes a jueves.
+        if (habito.getFechaInicio() != null && dia.isBefore(habito.getFechaInicio())) {
+            return MOTIVO_ANTES_ALTA;
         }
         // De minutos según la versión vigente ESE día, no la de hoy: en veces,
         // completar no rechazaría, contaría una vez e ignoraría los minutos.

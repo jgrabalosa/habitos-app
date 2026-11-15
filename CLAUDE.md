@@ -194,8 +194,8 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
 
 - **El destino nunca lanza por sus reglas.** `DestinoMinutosHabitos.aportar`
   valida antes de completar (dueño, que exista, que no esté en pausa, que el
-  día sea de minutos en la versión vigente ese día, semana en curso y no
-  futuro, de 1 a 600) y responde `RECHAZADO` con un código de motivo, que es
+  día sea de minutos en la versión vigente ese día, semana en curso, no
+  futuro y no anterior al alta del hábito, de 1 a 600) y responde `RECHAZADO` con un código de motivo, que es
   una clave de `mensajes/habitos`. Si completar lanza igualmente una
   `ConflictoException` (una carrera), se traduce a `RECHAZADO`. Un fallo
   técnico, o un `IllegalArgumentException` inesperado, sí sale: la sesión
