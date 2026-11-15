@@ -339,4 +339,21 @@ class TokenPorAppTest {
         assertEquals("token-habits-a", tokenEnUsuario(a));
         assertEquals("token-focus", dispositivoService.tokenDe(b.getUsuarioId(), AppNorday.ENFOQUE));
     }
+
+    /**
+     * usuario.fcm_token admite 255 caracteres y la tabla 4096. Un token de
+     * Habits más largo se guarda en la tabla y deja la columna a null: ni
+     * falla el registro ni se queda en la columna el token anterior.
+     */
+    @Test
+    void tokenDeHabitsQueNoCabeEnLaColumna_seGuardaEnLaTabla_yLaColumnaQuedaANull() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        String largo = "t".repeat(300);
+        mockMvc.perform(registrar(usuario, "habitos", "token-corto")).andExpect(status().isOk());
+
+        mockMvc.perform(registrar(usuario, "habitos", largo)).andExpect(status().isOk());
+
+        assertNull(tokenEnUsuario(usuario));
+        assertEquals(largo, dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+    }
 }

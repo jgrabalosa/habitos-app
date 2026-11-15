@@ -49,8 +49,11 @@ public class Usuario {
     // se lee como reserva de Habits cuando no hay fila (DispositivoService).
     // WRITE_ONLY: nunca sale en una respuesta.
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(name = "fcm_token", length = 255)
+    @Column(name = "fcm_token", length = LONGITUD_MAXIMA_FCM_TOKEN)
     private String fcmToken;
+
+    /** La de la columna usuario.fcm_token; la tabla usuario_dispositivo admite más. */
+    public static final int LONGITUD_MAXIMA_FCM_TOKEN = 255;
 
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;

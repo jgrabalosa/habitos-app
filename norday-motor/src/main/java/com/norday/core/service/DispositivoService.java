@@ -68,9 +68,19 @@ public class DispositivoService {
         }
 
         if (AppNorday.HABITOS.equals(appId)) {
-            usuario.setFcmToken(fcmToken);
+            usuario.setFcmToken(cabeEnLaColumna(fcmToken) ? fcmToken : null);
             usuarioDAO.update(usuario);
         }
+    }
+
+    /**
+     * La columna de transición admite menos que la tabla. Un token de Habits
+     * que no cabe va solo a la tabla, y la columna queda a null: el registro
+     * no falla y la columna no se queda con el token anterior. Lo pierde solo
+     * el jar anterior, si se volviera a él.
+     */
+    private static boolean cabeEnLaColumna(String fcmToken) {
+        return fcmToken == null || fcmToken.length() <= Usuario.LONGITUD_MAXIMA_FCM_TOKEN;
     }
 
     /**

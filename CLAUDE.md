@@ -160,7 +160,8 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
 - **`usuario.fcm_token` es columna de transición**: se sigue escribiendo
   con el token de `habitos` para poder volver al jar anterior a V24, y
   `DispositivoService` la lee como reserva para `habitos` cuando no hay
-  fila. Ningún envío la lee directamente. Volver al jar anterior solo es
+  fila. Admite 255 caracteres y la tabla 4096: un token más largo va solo a
+  la tabla y deja la columna a null. Ningún envío la lee directamente. Volver al jar anterior solo es
   seguro mientras Norday Focus no esté publicada, y al volver a avanzar hay
   que resincronizar (SQL en `docs/despliegue.md`). No se quita hasta que no
   haga falta volver atrás.
