@@ -220,6 +220,13 @@ public class UsuarioService {
         if (usuario == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
+        // El usuario se bloquea antes que nada de lo que cuelga de él: es el
+        // orden de todos los bloqueos (ver IUsuarioDAO.bloquear). Sin esto,
+        // los limpiadores bloquean primero las filas que borran y el borrado
+        // del usuario llega el último: con una operación que ya tuviera al
+        // usuario y esperase a una de esas filas, Postgres abortaría una de
+        // las dos por abrazo mortal.
+        usuarioDAO.bloquear(id);
 
         // Cada módulo borra lo suyo. El orden entre limpiadores da igual (son
         // árboles de FK independientes que solo apuntan a Usuario); lo que

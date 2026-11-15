@@ -65,6 +65,18 @@ public class UsuarioDAO implements IUsuarioDAO {
                 .executeUpdate();
     }
 
+    // FOR NO KEY UPDATE y no PESSIMISTIC_WRITE, que en Postgres es FOR
+    // UPDATE: así no frena a otras transacciones que inserten filas que
+    // apunten al usuario (la comprobación de la FK toma FOR KEY SHARE, que es
+    // compatible), solo a las que pidan este mismo bloqueo, modifiquen la
+    // fila o la borren.
+    @Override
+    public void bloquear(int usuarioId) {
+        em.createNativeQuery("SELECT usuario_id FROM usuario WHERE usuario_id = :id FOR NO KEY UPDATE")
+                .setParameter("id", usuarioId)
+                .getResultList();
+    }
+
     @Override
     public void delete(int id) {
         Usuario usuario = findById(id);

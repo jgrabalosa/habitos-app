@@ -132,12 +132,15 @@ public class RegistroService {
             if (previo != null) return repetido(habito, previo, usuario);
         }
 
-        // Los completados de un mismo hábito van de uno en uno: se bloquea su
-        // fila hasta el final de la transacción. Sin esto, dos pasos a la vez
-        // leen el mismo "antes" y cobran los dos la misma parte del día (o el
-        // extra de la semana). Lo que viene después lee ya lo que confirmó el
-        // anterior, así que la clave se vuelve a mirar. Mismo orden de
-        // bloqueo que deshacer (primero el hábito), para no abrazarse.
+        // Los completados de un mismo usuario van de uno en uno: se bloquean
+        // su fila y la del hábito hasta el final de la transacción. Sin el
+        // hábito, dos pasos a la vez leen el mismo "antes" y cobran los dos la
+        // misma parte del día (o el extra de la semana). Sin el usuario, el
+        // paso de otro hábito suyo que confirme en medio entra en el "saldo
+        // después − saldo antes" y en los logros nuevos de este, y deshacer
+        // este los devolvería. Lo que viene después lee ya lo que confirmó el
+        // anterior, así que la clave se vuelve a mirar. El orden (usuario,
+        // hábito) lo fija habitoService.bloquear, el mismo que en deshacer.
         habitoService.bloquear(habito);
         if (clave != null) {
             Registro previo = registroDAO.findByClave(clave);
@@ -355,6 +358,10 @@ public class RegistroService {
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
         // saldo recoge de una vez el completado, el hito de racha y los logros.
+        // El usuario está bloqueado desde antes de leer el saldo de antes:
+        // ningún completado ni deshacer suyo se cuela en medio. Lo que escriba
+        // en su saldo o sus logros una operación que no lo bloquea (la tienda,
+        // los logros de ritmo al abrir Hoy) todavía podría.
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
         ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
                 periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, xpOtorgada,
@@ -596,8 +603,10 @@ public class RegistroService {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         Habito habito = registro.getHabito();
-        // Igual que al completar: de uno en uno por hábito, para que "el
-        // último registro" no cambie entre comprobarlo y borrarlo.
+        // Igual que al completar: de uno en uno por usuario y hábito, para que
+        // "el último registro" no cambie entre comprobarlo y borrarlo, y para
+        // no deshacer en medio de un completado de otro hábito suyo que está
+        // midiendo su saldo y sus logros.
         habitoService.bloquear(habito);
         // Un hábito en pausa no se deshace: la pausa lo para todo.
         if (!habito.isActivo()) {

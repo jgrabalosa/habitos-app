@@ -94,6 +94,9 @@ public class HabitoService {
     @Autowired
     private TextosService textosService;
 
+    @Autowired
+    private com.norday.core.repository.IUsuarioDAO usuarioDAO;
+
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
      *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos.
      *  En un diario de minutos la meta es siempre 1: lo que se pide es un día. */
@@ -178,12 +181,21 @@ public class HabitoService {
     }
 
     /**
-     * Bloquea el hábito hasta el final de la transacción en curso: dos
-     * completados (o un completado y un deshacer) del mismo hábito se
-     * hacen uno detrás de otro, y el segundo ve lo que hizo el primero.
+     * Bloquea a su propietario y al hábito, en ese orden, hasta el final de
+     * la transacción en curso. Dos completados (o un completado y un
+     * deshacer) del mismo hábito se hacen uno detrás de otro, y el segundo ve
+     * lo que hizo el primero. El usuario también: lo que dio un completado se
+     * mide como saldo y logros después menos antes, y un completado de otro
+     * hábito del mismo usuario confirmado en medio se colaba en la cuenta (y
+     * deshacer el primero lo devolvía y retiraba sus logros).
+     *
+     * Siempre usuario y después hábito, y siempre por aquí: es el único sitio
+     * que bloquea un hábito, así que dos operaciones no pueden pedirlos en
+     * orden contrario y abrazarse.
      */
     @Transactional
     public void bloquear(Habito habito) {
+        usuarioDAO.bloquear(habito.getPropietario().getUsuarioId());
         habitoDAO.bloquear(habito.getHabitoId());
     }
 
