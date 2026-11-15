@@ -54,8 +54,8 @@ public class ProductoService {
 
     /**
      * Bloquea al usuario hasta el final de la transacción (ver
-     * IUsuarioDAO.bloquear). Es la primera línea de todo lo que toca su saldo
-     * o su inventario: comprar lee el saldo y lo gasta, los consumibles se
+     * IUsuarioDAO.bloquear). Es la primera línea de todo lo que toca su saldo,
+     * su inventario o sus logros (equipar una identidad concede el suyo): comprar lee el saldo y lo gasta, los consumibles se
      * leen y se escriben menos uno, y quien mide «saldo después − saldo
      * antes» de algo del usuario (el completado de una app) no puede tener
      * una compra en medio. Sin el bloqueo, dos compras a la vez pasaban las
@@ -199,6 +199,8 @@ public class ProductoService {
 
     @Transactional
     public List<String> equiparProducto(Usuario usuario, int productoId) {
+        // Equipar una identidad concede su logro: como el resto de la tienda.
+        bloquearUsuario(usuario);
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
         if (poseido == null) {

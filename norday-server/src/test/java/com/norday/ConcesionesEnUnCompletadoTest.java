@@ -58,7 +58,7 @@ import static org.mockito.Mockito.doAnswer;
  * Cada caso: el paso de A se detiene después de leer su saldo y sus logros
  * de antes; en otro hilo se hace la operación que concede (abrir Hoy con un
  * ritmo alto, crear un hábito, poner la primera nota, crear la primera
- * categoría, editar el perfil); el paso sigue cuando la operación termina o
+ * categoría, equipar una identidad, editar el perfil); el paso sigue cuando la operación termina o
  * se queda esperando un bloqueo (ver EsperaDeBloqueo). Después se deshace A.
  */
 @SpringBootTest
@@ -75,6 +75,9 @@ class ConcesionesEnUnCompletadoTest {
     @Autowired private MascotaService mascotaService;
     @Autowired private TransactionTemplate tx;
     @Autowired private DataSource dataSource;
+    @Autowired private com.norday.gamificacion.service.ProductoService productoService;
+    @Autowired private com.norday.gamificacion.repository.IProductoDAO productoDAO;
+    @Autowired private com.norday.gamificacion.repository.IUsuarioProductoDAO usuarioProductoDAO;
 
     @MockitoSpyBean
     private LogrosHabitosService logrosHabitosService;
@@ -211,6 +214,21 @@ class ConcesionesEnUnCompletadoTest {
             categoriaService.crearCategoria(new Categoria(null, "Mía", null, null, null, false, 0, usuario()));
             return null;
         });
+    }
+
+    @Test
+    void logroAlEquiparUnaIdentidad() throws Exception {
+        // Una identidad que ya posee sin equipar y cuyo logro le falta:
+        // equiparla lo concede.
+        List<String> logros = conUnPasoAMedias(() -> {
+            com.norday.gamificacion.model.Producto tema = productoDAO.findByCodigo("TEMA_NEOTOKYO_PLUS");
+            if (usuarioProductoDAO.findByUsuarioYProducto(usuarioId, tema.getProductoId()) == null) {
+                em.persist(new com.norday.gamificacion.model.UsuarioProducto(usuario(), tema, 1));
+                em.flush();
+            }
+            return productoService.equiparProducto(usuario(), tema.getProductoId());
+        });
+        assertEquals(List.of("IDENTIDAD_NEOTOKYO_PLUS"), logros);
     }
 
     @Test
