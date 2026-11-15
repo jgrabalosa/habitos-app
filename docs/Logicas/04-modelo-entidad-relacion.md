@@ -1,6 +1,6 @@
 # Norday Habits — Modelo Entidad-Relación
 
-*Última actualización: octubre de 2026*
+*Última actualización: noviembre de 2026*
 
 > Este documento describe el modelo funcional y las principales relaciones de datos actualmente implementadas en el backend. No debe interpretarse como especificación de funcionalidades futuras.
 
