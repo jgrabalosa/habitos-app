@@ -1,5 +1,6 @@
 package com.norday;
 
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.service.MascotaService;
@@ -48,19 +49,20 @@ import static org.mockito.Mockito.doAnswer;
  * ya ha borrado, Postgres abortaría una de las dos ("deadlock detected").
  *
  * La intercalación se fuerza: la baja se detiene justo después de borrar los
- * hábitos y espera, como mucho unos segundos, a que el completado termine.
+ * hábitos y espera a que el completado termine o se quede esperando un
+ * bloqueo (ver EsperaDeBloqueo).
  */
 @SpringBootTest
 class BajaYCompletarConcurrenteTest {
 
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
-    private static final long ESPERA_MAXIMA_SEGUNDOS = 3;
 
     @Autowired private RegistroService registroService;
     @Autowired private HabitoService habitoService;
     @Autowired private UsuarioService usuarioService;
     @Autowired private MascotaService mascotaService;
     @Autowired private TransactionTemplate tx;
+    @Autowired private javax.sql.DataSource dataSource;
 
     @MockitoSpyBean
     private LimpiadorHabitos limpiadorHabitos;
@@ -119,7 +121,7 @@ class BajaYCompletarConcurrenteTest {
             // Que los borrados lleguen a Postgres ya, con sus bloqueos.
             em.flush();
             bajaEnPausa.countDown();
-            completarTerminado.await(ESPERA_MAXIMA_SEGUNDOS, TimeUnit.SECONDS);
+            EsperaDeBloqueo.hastaQueTermineOEspere(completarTerminado, dataSource);
             return null;
         }).when(limpiadorHabitos).limpiar(any(Usuario.class));
 
@@ -149,7 +151,7 @@ class BajaYCompletarConcurrenteTest {
         try {
             completar.get(30, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            // Que el completado falle es legítimo: el hábito ya no existe.
+            // El completado tiene que fallar: el hábito ya no existe.
             falloCompletar = e.getCause();
         }
         hilos.shutdown();
@@ -159,7 +161,9 @@ class BajaYCompletarConcurrenteTest {
         assertAll(
                 () -> assertNull(bajaFallida, "la baja termina"),
                 () -> assertFalse(completarFallido != null && esAbrazo(completarFallido),
-                        "el completado no muere por abrazo: " + completarFallido));
+                        "el completado no muere por abrazo: " + completarFallido),
+                () -> assertInstanceOf(RecursoNoEncontradoException.class, completarFallido,
+                        "el completado llega tarde: el hábito ya no existe"));
         assertNull(tx.execute(e -> em.find(Usuario.class, aBorrar)), "el usuario ya no existe");
     }
 }

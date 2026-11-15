@@ -62,14 +62,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * que se leyó antes puede ser vieja.
  *
  * La intercalación se fuerza con esperas; donde el bloqueo impide que el
- * otro confirme, la espera termina a los pocos segundos y sigue.
+ * otro confirme, la espera termina en cuanto el otro se queda esperando el
+ * bloqueo (ver EsperaDeBloqueo).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 class EditarYPausarConcurrenteTest {
 
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
-    private static final long ESPERA_MAXIMA_SEGUNDOS = 3;
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtUtil jwtUtil;
@@ -79,6 +79,7 @@ class EditarYPausarConcurrenteTest {
     @Autowired private MascotaService mascotaService;
     @Autowired private IProductoDAO productoDAO;
     @Autowired private TransactionTemplate tx;
+    @Autowired private javax.sql.DataSource dataSource;
 
     @MockitoSpyBean
     private ObjetivoService objetivoService;
@@ -171,7 +172,7 @@ class EditarYPausarConcurrenteTest {
         doAnswer(invocacion -> {
             if (putEnPausa.getCount() > 0) {
                 putEnPausa.countDown();
-                pasoConfirmado.await(ESPERA_MAXIMA_SEGUNDOS, TimeUnit.SECONDS);
+                EsperaDeBloqueo.hastaQueTermineOEspere(pasoConfirmado, dataSource);
             }
             return invocacion.callRealMethod();
         }).when(objetivoService).programar(any(), any(), any(), any());

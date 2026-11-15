@@ -54,9 +54,9 @@ import static org.mockito.Mockito.doAnswer;
  * bloquea al usuario, y no solo al hábito.
  *
  * La intercalación se fuerza: A se detiene después de leer el saldo y los
- * logros de antes (al ir a evaluar sus logros) y espera a que B confirme,
- * como mucho unos segundos. Con el bloqueo, B no puede confirmar hasta que A
- * termina: A sigue al agotar la espera y B va después.
+ * logros de antes (al ir a evaluar sus logros) y espera a que B confirme o
+ * a que B se quede esperando un bloqueo (ver EsperaDeBloqueo). Con el
+ * bloqueo, B espera a A: A sigue en cuanto lo ve y B va después.
  *
  * Sin @Transactional, como CompletarConcurrenteTest: los datos se crean con
  * TransactionTemplate y se borran con la baja de la cuenta.
@@ -65,7 +65,6 @@ import static org.mockito.Mockito.doAnswer;
 class CompletarDosHabitosConcurrenteTest {
 
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
-    private static final long ESPERA_MAXIMA_SEGUNDOS = 3;
 
     @Autowired private RegistroService registroService;
     @Autowired private HabitoService habitoService;
@@ -74,6 +73,7 @@ class CompletarDosHabitosConcurrenteTest {
     @Autowired private UsuarioMonedaService usuarioMonedaService;
     @Autowired private MascotaService mascotaService;
     @Autowired private TransactionTemplate tx;
+    @Autowired private javax.sql.DataSource dataSource;
 
     @MockitoSpyBean
     private LogrosHabitosService logrosHabitosService;
@@ -157,7 +157,7 @@ class CompletarDosHabitosConcurrenteTest {
             Habito habito = invocacion.getArgument(1);
             if (habito.getHabitoId() == habitoA && aEnPausa.getCount() > 0) {
                 aEnPausa.countDown();
-                bConfirmado.await(ESPERA_MAXIMA_SEGUNDOS, TimeUnit.SECONDS);
+                EsperaDeBloqueo.hastaQueTermineOEspere(bConfirmado, dataSource);
             }
             return invocacion.callRealMethod();
         }).when(logrosHabitosService).evaluarTrasCompletarRegistro(any(Usuario.class), any(Habito.class));
