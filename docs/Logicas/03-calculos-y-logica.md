@@ -138,7 +138,7 @@ Cada hábito guarda las versiones de su objetivo en la tabla `habito_objetivo`: 
 
 - **Versión vigente** en una fecha: la de mayor `desde` que no la pasa. Una fecha anterior a la primera versión se juzga con la primera; un hábito sin versiones, con el objetivo que guarda `habito`.
 - **Qué se juzga con ella**: los días hechos (hitos y logros de constancia), el completado (la meta del periodo, el límite de un registro por día del semanal, el tope del diario, los puntos del paso, si es una vuelta y cuándo sale la valoración), Hoy (cada fila en la fecha que se mira y cada día de la tira), el día completo, el ánimo de la mascota, los recordatorios y la semana de la app ya instalada (`/semana`). En un completado retroactivo de esta semana, la meta es la de su fecha.
-- **La copia en `habito`**: `unidad`, `frecuencia`, `meta`, `minutos_objetivo` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
+- **La copia en `habito`**: `unidad`, `frecuencia`, `meta`, `minutos_objetivo` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. Ponerla al día escribe solo esas cinco columnas (un `UPDATE` de ellas, `IHabitoDAO.actualizarObjetivo`) y después relee el hábito: las lecturas no bloquean y pueden traer una copia vieja del hábito, y guardarlo entero devolvía activo un hábito pausado entretanto y le ponía el nombre de antes. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
 - **Al crear** un hábito se guarda su primera versión, desde la fecha de inicio. V22 dio una a cada hábito existente, con su objetivo de entonces.
 
 ### Regla de cambios
@@ -296,13 +296,26 @@ Deshacer (`RegistroService.deshacerRegistro`):
 - borra la reversión y el registro;
 - restaura el día completo de la mascota solo si el registro era de hoy y el día deja de estar completo.
 
-Las monedas y los logros que dio un completado se miden como «saldo después − saldo antes» y «logros después − logros antes». Para que esa cuenta sea solo suya, el completado bloquea al usuario desde antes de leer el «antes»: otro completado o deshacer del mismo usuario, aunque sea de otro hábito, espera. Lo que escribe en el saldo o en los logros una operación que no bloquea al usuario (comprar en la tienda, los logros de ritmo al abrir Hoy) todavía podría colarse en esa cuenta.
+Las monedas y los logros que dio un completado se miden como «saldo después − saldo antes» y «logros después − logros antes». Para que esa cuenta sea solo suya, el completado bloquea al usuario desde antes de leer el «antes»: otro completado o deshacer del mismo usuario, aunque sea de otro hábito, espera. Por lo mismo, todo lo demás que escribe en su saldo o en sus logros también bloquea al usuario antes que nada (ver «Bloqueos»): si no, lo concedido se colaría en esa cuenta y deshacer el completado lo devolvería (una compra hecha en medio salía gratis).
 
 ### Bloqueos
 
-Todo lo que cambia un hábito pasa por `HabitoService.bloquear`: completar, deshacer, editar (`PUT`), pausar y reanudar. Bloquea, hasta el final de la transacción, primero la fila del usuario (`IUsuarioDAO.bloquear`, `FOR NO KEY UPDATE`) y después la del hábito (`FOR UPDATE`), y devuelve el hábito releído con el bloqueo: el que traía quien llama se leyó antes de esperar (con open-in-view, en el controlador) y puede ser viejo. Si el hábito ya no existe, 404.
+Todo lo que cambia un hábito pasa por `HabitoService.bloquear`: completar, deshacer, editar (`PUT`), pausar, reanudar, borrar y anular un cambio programado. Bloquea, hasta el final de la transacción, primero la fila del usuario (`IUsuarioDAO.bloquear`, `FOR NO KEY UPDATE`) y después la del hábito (`FOR UPDATE`), y devuelve el hábito releído con el bloqueo: el que traía quien llama se leyó antes de esperar (con open-in-view, en el controlador) y puede ser viejo. Si el usuario o el hábito ya no existen (`IUsuarioDAO.bloquear` devuelve `false` si la fila se borró mientras se esperaba), 404.
 
-- **Un solo orden, usuario → hábito.** Es el único sitio que bloquea un hábito, así que dos operaciones no pueden pedirlos al revés. La baja de la cuenta (`UsuarioService.eliminarCuenta`) bloquea al usuario antes de los limpiadores: sin eso, los limpiadores bloqueaban (al borrarlas) las filas de los hábitos y el usuario se borraba el último, el orden contrario.
+Lo que concede logros, monedas o XP sin cambiar un hábito bloquea solo al usuario, como primera escritura de su transacción:
+
+| Dónde | Qué concede |
+|---|---|
+| `HoyService.obtenerHoy` (`HabitoService.bloquearUsuario`, antes de poner al día objetivos y ritmos) | logros de ritmo |
+| `HabitoService.crearHabito` | `PRIMER_HABITO`, activos, categorías |
+| `CategoriaService.crearCategoria` | `PRIMERA_CATEGORIA` |
+| `RegistroService.actualizarNota` (transaccional) | `PRIMERA_NOTA` |
+| `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad y equipar | gasto, regalos, XP de la comida, logros de identidad |
+| `UsuarioService.actualizarPerfil` (transaccional) y `loginConGoogle` con un usuario que ya existe | `BIENVENIDO`, `LOGIN_GOOGLE` |
+
+No lo necesitan el alta (con Google o sin él: el usuario se acaba de crear en esa misma transacción y nadie más lo ve) ni `MascotaService.ganarExperiencia` y `restarExperiencia`, que solo llaman completar, deshacer y usar un producto, ya bloqueados. El bloqueo no va dentro de `UsuarioMonedaService.registrarMovimiento`: ahí llegaría después de leer el saldo y fuera de orden.
+
+- **Un solo orden, usuario → hábito.** Es el único sitio que bloquea un hábito, así que dos operaciones no pueden pedirlos al revés. Cuidado también con los bloqueos implícitos: borrar o actualizar filas las bloquea. La baja de la cuenta (`UsuarioService.eliminarCuenta`) bloquea al usuario antes de los limpiadores, y borrar un hábito lo bloquea antes de borrar sus hitos, registros y demás: sin eso, los dos borraban las filas hijas antes que el usuario o el hábito, el orden contrario, y con un completado o un deshacer a medias Postgres abortaba una de las dos. Dos bajas a la vez: la segunda espera y da 404.
 - **`FOR NO KEY UPDATE` y no `FOR UPDATE` en el usuario**: no frena a quien inserta filas que apuntan al usuario (la comprobación de la clave ajena toma `FOR KEY SHARE`, compatible); sí a quien pide el mismo bloqueo, modifica la fila o la borra.
 - **Editar un objetivo** bloquea antes de leer los registros con los que decide la fecha del cambio: un paso confirmado en medio ya no puede quedar fuera (el día se juzgaría con el objetivo nuevo y cobraría dos veces, 25 + 13).
 
@@ -312,10 +325,12 @@ Todo lo que cambia un hábito pasa por `HabitoService.bloquear`: completar, desh
 
 La XP de cada completado se reparte como se describe en «Completar un hábito». La mascota suma la XP de cada paso, y sube de nivel y de fase según sus umbrales (en `MascotaService`).
 
-Cuando la mascota cambia de fase, puede disparar logros propios del motor:
+La mascota tiene dos logros propios del motor, que se tienen con esa fase o una superior:
 
-- `MASCOTA_CRIA`
-- `MASCOTA_ADULTO`
+- `MASCOTA_CRIA`: en cría o adulta;
+- `MASCOTA_ADULTO`: adulta.
+
+Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y una sola vez (`otorgarSiNoTiene`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y el siguiente paso que dé XP los devuelve. Al perder XP no se miran.
 
 Estos logros son independientes de los logros específicos del dominio de hábitos.
 
@@ -424,8 +439,8 @@ Hay **7 logros** genéricos del motor (`CatalogoGamificacionInitializer`):
 | `IDENTIDAD_PROFUNDIDAD` | Bajo las estrellas | Fácil | 250 | Consigue la identidad Profundidad |
 | `IDENTIDAD_NEOTOKYO_PLUS` | Luces de neón | Fácil | 250 | Consigue la identidad Neotokyo+ |
 | `IDENTIDAD_DULCE` | Con cariño | Fácil | 250 | Consigue la identidad Dulce |
-| `MASCOTA_CRIA` | Ha salido del cascarón | Medio | 100 | Tu mascota evoluciona de huevo a cría |
-| `MASCOTA_ADULTO` | Nori ha crecido | Medio | 100 | Tu mascota evoluciona de cría a adulto |
+| `MASCOTA_CRIA` | Ha salido del cascarón | Medio | 100 | Tu mascota evoluciona de huevo a cría (al ganar XP, en cría o adulta) |
+| `MASCOTA_ADULTO` | Nori ha crecido | Medio | 100 | Tu mascota evoluciona de cría a adulto (al ganar XP, adulta) |
 
 `IDENTIDAD_ALBA` está retirado.
 

@@ -440,11 +440,25 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
   se mide sobre el usuario se protege bloqueando al usuario.
 - **Los bloqueos, siempre en el mismo orden: usuario y después hábito.**
   Todo lo que cambia un hábito pasa por `HabitoService.bloquear` (completar,
-  deshacer, editar, pausar, reanudar), que bloquea los dos en ese orden y
-  devuelve el hábito releído. No se bloquea un hábito por otro camino. Ojo
-  también con los bloqueos implícitos: borrar filas las bloquea, y la baja
-  de la cuenta borraba los hábitos antes que al usuario; por eso
-  `eliminarCuenta` bloquea al usuario al empezar.
+  deshacer, editar, pausar, reanudar, borrar, anular un cambio programado),
+  que bloquea los dos en ese orden y devuelve el hábito releído. No se
+  bloquea un hábito por otro camino. Ojo también con los bloqueos
+  implícitos: borrar o actualizar filas las bloquea. La baja de la cuenta y
+  el borrado de un hábito borraban las hijas antes que al usuario o al
+  hábito; por eso bloquean al empezar.
+- **Todo lo que concede logros, monedas o XP bloquea al usuario como
+  primera escritura** (Hoy, crear hábito o categoría, notas, perfil, login
+  con Google, toda la tienda). Si no, se cuela en el «después − antes» de
+  un completado a medias, y deshacerlo lo devuelve: una compra hecha en
+  medio salía gratis. Nunca dentro de `registrarMovimiento`: llegaría
+  después de leer el saldo y fuera de orden. La lista está en 03,
+  «Bloqueos».
+- **Una lectura que escribe, escribe solo sus columnas.** Poner al día la
+  copia del objetivo se hace desde lecturas sin bloqueo, con una copia del
+  hábito que puede ser vieja; guardarlo entero reactivaba hábitos pausados.
+- **Un logro de estado se mira cada vez, no solo en el instante del
+  cambio.** `MASCOTA_CRIA` se daba solo al cambiar de fase: si deshacer lo
+  retiraba con la mascota todavía en cría, no volvía nunca.
 
 ### Contrato con los clientes
 
