@@ -285,6 +285,11 @@ cuenta:
   a la vez, con Habits en lanzamiento por fases.
 - Comprobar desde un móvil **que no sea tester** que la ficha de Focus se ve
   antes de soltar Habits.
+- **Pendiente de probar en cuanto exista la ficha**: «Empezar sesión» en un
+  móvil **sin** Focus instalada tiene que abrir esa ficha de Play. En la
+  prueba en staging del 15-nov-2026 no llevaba a Play, pero entonces la ficha
+  no existía y no se investigó. Con Focus PRUEBA instalada, el enlace abre
+  Focus con el hábito elegido y funciona.
 
 ### 7. Versión mínima, solo cuando la nueva se vea en Play
 
