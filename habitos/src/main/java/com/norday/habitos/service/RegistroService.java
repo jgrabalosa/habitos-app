@@ -259,10 +259,19 @@ public class RegistroService {
         // Cada paso cobra su parte en el momento, y pasarse del objetivo no da
         // nada: la regla está en CalculoPremio. El extra por completar la
         // semana va en un movimiento aparte, para poder explicar de dónde sale.
+        // En la semana del paso de veces a minutos (algún día de la semana es
+        // de minutos), un paso de veces también va por el cálculo con tope:
+        // su día vale un día entero (objetivo 1), pero la semana no cobra más
+        // que meta días. En una semana solo de veces, como siempre.
+        boolean semanaConMinutos = !enMinutos && frecuencia == Frecuencia.SEMANAL
+                && algunDiaEnMinutos(historial, periodo);
         CalculoPremio.Premio premio = enMinutos
                 ? CalculoPremio.delPasoEnMinutos(frecuencia, meta, diasDelPeriodo(delPeriodo), fecha,
                         objetivoDelDia.minutosDelDia(), cantidad)
-                : CalculoPremio.delPaso(frecuencia, completadosAntes, meta);
+                : semanaConMinutos
+                        ? CalculoPremio.delPasoEnMinutos(frecuencia, meta, diasDelPeriodo(delPeriodo), fecha,
+                                1, cantidad)
+                        : CalculoPremio.delPaso(frecuencia, completadosAntes, meta);
         if (premio.puntos() > 0) {
             usuarioMonedaService.registrarMovimiento(
                     usuario, premio.puntos(), "HABITO_COMPLETADO",
@@ -432,6 +441,14 @@ public class RegistroService {
                     LimitesMinutos.MINIMO, LimitesMinutos.MAXIMO));
         }
         return minutos;
+    }
+
+    /** ¿Es de minutos algún día del periodo, según la versión vigente cada día? */
+    private static boolean algunDiaEnMinutos(HistorialObjetivos historial, LocalDate[] periodo) {
+        for (LocalDate dia = periodo[0]; !dia.isAfter(periodo[1]); dia = dia.plusDays(1)) {
+            if (historial.objetivoEl(dia).enMinutos()) return true;
+        }
+        return false;
     }
 
     /**

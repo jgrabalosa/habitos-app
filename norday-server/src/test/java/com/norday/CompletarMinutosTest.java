@@ -308,6 +308,26 @@ class CompletarMinutosTest {
     }
 
     @Test
+    void semanaDeTransicion_unPasoDeVecesRespetaElTopeDeLaSemana() {
+        // Semanal de 3 días: de veces hasta el martes, de minutos (60) desde el
+        // miércoles. Lunes, una sesión de veces (25); miércoles y jueves,
+        // 59 de 60 (24 cada uno): 73 de un tope de 75.
+        Habito entrenar = habito(new Objetivo(Frecuencia.SEMANAL, 3, null));
+        em.persist(new HabitoObjetivo(em.find(Habito.class, entrenar.getHabitoId()), MIERCOLES,
+                new Objetivo(Unidad.MINUTOS, Frecuencia.SEMANAL, 3, 60, null)));
+        registro(entrenar, LUNES, 1);
+        registro(entrenar, MIERCOLES, 59);
+        registro(entrenar, JUEVES, 59);
+        // El martes es de veces: su sesión vale un día entero, pero la semana
+        // solo puede cobrar 75 → 2 puntos; XP: 13 de 15 → 2. Sin extra: dos
+        // días hechos de tres.
+        Map<String, Object> martes = paso(entrenar, MARTES, null);
+        assertEquals(2, martes.get("puntosPaso"));
+        assertEquals(2, martes.get("xpGanada"));
+        assertEquals(0, martes.get("puntosExtraSemana"));
+    }
+
+    @Test
     void laVuelta_llegaConElPasoQueCompletaElDia() {
         Habito leer = habito(minutosDiario(30));
         registro(leer, LUNES.minusWeeks(1), 30);
