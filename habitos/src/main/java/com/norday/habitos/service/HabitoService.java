@@ -192,7 +192,7 @@ public class HabitoService {
      * Siempre usuario y después hábito, y siempre por aquí: es el único sitio
      * que bloquea un hábito, así que dos operaciones no pueden pedirlos en
      * orden contrario y abrazarse. Lo usan completar, deshacer, editar,
-     * pausar y reanudar.
+     * pausar, reanudar, borrar y anular un cambio programado.
      *
      * Devuelve el hábito releído tras el bloqueo, y es con ese con el que hay
      * que seguir: el que se leyó antes de esperar puede ser viejo (una pausa
@@ -375,6 +375,16 @@ public class HabitoService {
 
     @Transactional
     public void eliminar(int id) {
+        Habito habito = habitoDAO.findById(id);
+        if (habito == null) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
+        // Como todo lo que cambia un hábito: usuario y hábito bloqueados
+        // antes de tocar nada. Borrar bloquea las filas que borra, y aquí el
+        // hábito va el último: sin bloquearlo antes, con un completado o un
+        // deshacer suyo a medias (que ya tiene el hábito y quiere esas filas)
+        // Postgres abortaría una de las dos por abrazo mortal.
+        bloquear(habito);
         // El libro de hitos cuelga del hábito y de sus registros: va antes
         // que los dos.
         hitoPagadoDAO.deleteByHabito(id);
