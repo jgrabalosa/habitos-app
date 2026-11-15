@@ -347,6 +347,13 @@ es el contador de transacciones de Postgres:
 psql -U postgres -c "SELECT datname, xact_commit FROM pg_stat_database WHERE datname LIKE 'habitos_db%';"
 ```
 
+Los tests de concurrencia (`*ConcurrenteTest`, `ConcesionesEnUnCompletadoTest`,
+`EscriturasConcurrentesTest`) fuerzan la intercalación con dos hilos y
+transacciones confirmadas de verdad, sin `@Transactional`. El hilo en pausa
+espera con `EsperaDeBloqueo` a que el otro termine o se quede esperando un
+bloqueo de su transacción (`pg_blocking_pids`), nunca un tiempo fijo, y los
+hilos se cierran en `@AfterEach`.
+
 Qué cubre la suite y qué no: los tests mockean los DAOs, así que no ven
 proxies de Hibernate ni validan JPQL. Una consulta no está validada porque la
 suite esté verde.
@@ -453,9 +460,20 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
   medio salía gratis. Nunca dentro de `registrarMovimiento`: llegaría
   después de leer el saldo y fuera de orden. La lista está en 03,
   «Bloqueos».
-- **Una lectura que escribe, escribe solo sus columnas.** Poner al día la
-  copia del objetivo se hace desde lecturas sin bloqueo, con una copia del
-  hábito que puede ser vieja; guardarlo entero reactivaba hábitos pausados.
+- **Una lectura que escribe, escribe solo sus columnas, y solo si no han
+  cambiado.** Poner al día la copia del objetivo se hace desde lecturas sin
+  bloqueo, con una copia del hábito que puede ser vieja; guardarlo entero
+  reactivaba hábitos pausados, y escribir sin condición deshacía un `PUT`
+  confirmado entretanto.
+- **Bloquear antes de leer, o escribir solo la columna que cambia.** Leer,
+  bloquear y guardar la entidad entera pisa lo confirmado mientras se
+  esperaba (el perfil pisaba el token de notificaciones; la valoración, la
+  nota). `IUsuarioDAO.bloquearYReleer` para el usuario; un `UPDATE` de una
+  columna (nota, valoración, nombre de la mascota) donde no hay bloqueo.
+- **Toda espera de bloqueo tiene tope** (`norday.bloqueo.espera-maxima`, 10 s
+  por defecto, `lock_timeout` de la transacción) y acaba en 503 traducido.
+  No depender de la configuración de la base de datos: la de producción no
+  está versionada.
 - **Un logro de estado se mira cada vez, no solo en el instante del
   cambio.** `MASCOTA_CRIA` se daba solo al cambiar de fase: si deshacer lo
   retiraba con la mascota todavía en cría, no volvía nunca.
