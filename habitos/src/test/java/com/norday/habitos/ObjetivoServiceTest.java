@@ -94,13 +94,32 @@ class ObjetivoServiceTest {
         when(objetivoDAO.findByHabitos(List.of(habito)))
                 .thenReturn(Map.of(10, List.of(primera, programada)));
 
+        when(habitoDAO.actualizarObjetivo(habito, minutos(40))).thenReturn(true);
+
         objetivoService.ponerAlDia(List.of(habito), SABADO);
 
-        // Solo las columnas del objetivo (el DAO relee después el hábito),
-        // nunca el hábito entero.
-        verify(ritmoService).anclarAntesDeCambiar(any(Habito.class), eq(SABADO));
-        verify(habitoDAO).actualizarObjetivo(habito, minutos(40));
+        // Solo las columnas del objetivo, nunca el hábito entero; se ancla
+        // si se escribió, y después se relee el hábito.
+        org.mockito.InOrder orden = inOrder(habitoDAO, ritmoService);
+        orden.verify(habitoDAO).actualizarObjetivo(habito, minutos(40));
+        orden.verify(ritmoService).anclarAntesDeCambiar(any(Habito.class), eq(SABADO));
+        orden.verify(habitoDAO).releer(habito, minutos(40));
         verify(habitoDAO, never()).update(any());
+    }
+
+    @Test
+    void ponerAlDia_siOtroCambioElObjetivoEntretanto_noAnclaNada() {
+        Habito habito = habito();
+        HabitoObjetivo primera = new HabitoObjetivo(habito, INICIO, minutos(30));
+        HabitoObjetivo programada = new HabitoObjetivo(habito, SABADO, minutos(40));
+        when(objetivoDAO.findByHabitos(List.of(habito)))
+                .thenReturn(Map.of(10, List.of(primera, programada)));
+        when(habitoDAO.actualizarObjetivo(habito, minutos(40))).thenReturn(false);
+
+        objetivoService.ponerAlDia(List.of(habito), SABADO);
+
+        verify(ritmoService, never()).anclarAntesDeCambiar(any(Habito.class), any());
+        verify(habitoDAO).releer(habito, minutos(40));
     }
 
     @Test

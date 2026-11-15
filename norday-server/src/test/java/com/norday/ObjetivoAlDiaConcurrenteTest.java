@@ -66,6 +66,9 @@ class ObjetivoAlDiaConcurrenteTest {
     @Autowired private IProductoDAO productoDAO;
     @Autowired private TransactionTemplate tx;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.norday.habitos.repository.IHabitoObjetivoDAO objetivoDAO;
+
     @PersistenceContext
     private EntityManager em;
 
@@ -81,12 +84,13 @@ class ObjetivoAlDiaConcurrenteTest {
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
-    @Test
-    void unaLecturaVieja_noReactivaUnHabitoPausado_niDevuelveElNombreViejo() throws Exception {
+    /**
+     * Diario de 30 min con un cambio a 45 que empieza hoy y que todavía no
+     * ha llegado a la copia del hábito, y una Pausa en el inventario.
+     */
+    private int unDiarioDe30ConUnCambioA45Hoy() {
         LocalDate hoy = LocalDate.now(MADRID);
-        // Diario de 30 min con un cambio a 45 que empieza hoy y que todavía
-        // no ha llegado a la copia del hábito.
-        int habitoId = tx.execute(estado -> {
+        return tx.execute(estado -> {
             Usuario usuario = new Usuario();
             usuario.setNombre("Test Objetivo al Dia");
             usuario.setUsername("test-aldia-" + System.nanoTime());
@@ -112,6 +116,11 @@ class ObjetivoAlDiaConcurrenteTest {
             token = jwtUtil.generateToken(usuarioId, usuario.getEmail());
             return habito.getHabitoId();
         });
+    }
+
+    @Test
+    void unaLecturaVieja_noReactivaUnHabitoPausado_niDevuelveElNombreViejo() throws Exception {
+        int habitoId = unDiarioDe30ConUnCambioA45Hoy();
 
         CountDownLatch leido = new CountDownLatch(1);
         CountDownLatch cambiado = new CountDownLatch(1);
@@ -144,5 +153,43 @@ class ObjetivoAlDiaConcurrenteTest {
                 () -> assertFalse(despues.isActivo(), "sigue en pausa"),
                 () -> assertEquals("Leer más", despues.getNombre()),
                 () -> assertEquals(45, despues.getMinutosObjetivo(), "el objetivo, al día"));
+    }
+
+    @Test
+    void unaLecturaVieja_noDeshaceUnCambioDeObjetivoConfirmadoEntretanto() throws Exception {
+        int habitoId = unDiarioDe30ConUnCambioA45Hoy();
+
+        // La lectura lee el hábito (30) y su historial (45 desde hoy) y se
+        // detiene; un PUT cambia a 60 desde hoy y confirma; la lectura sigue.
+        CountDownLatch leyoHistorial = new CountDownLatch(1);
+        CountDownLatch cambiado = new CountDownLatch(1);
+        Thread[] hiloLectura = new Thread[1];
+        org.mockito.Mockito.doAnswer(invocacion -> {
+            Object versiones = invocacion.callRealMethod();
+            if (Thread.currentThread() == hiloLectura[0] && leyoHistorial.getCount() > 0) {
+                leyoHistorial.countDown();
+                assertTrue(cambiado.await(30, TimeUnit.SECONDS));
+            }
+            return versiones;
+        }).when(objetivoDAO).findByHabitos(org.mockito.ArgumentMatchers.anyList());
+
+        hilos = Executors.newSingleThreadExecutor();
+        Future<?> lectura = hilos.submit(() -> tx.execute(estado -> {
+            hiloLectura[0] = Thread.currentThread();
+            habitoService.ponerObjetivoAlDia(habitoService.buscarPorId(habitoId));
+            return null;
+        }));
+        assertTrue(leyoHistorial.await(30, TimeUnit.SECONDS));
+        mockMvc.perform(put("/api/habitos/" + habitoId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Leer\",\"frecuencia\":\"DIARIO\",\"meta\":1,\"diasSemana\":null,"
+                                + "\"recordatorioActivo\":true,\"unidad\":\"MINUTOS\",\"minutosObjetivo\":60}"))
+                .andExpect(status().isOk());
+        cambiado.countDown();
+        lectura.get(30, TimeUnit.SECONDS);
+
+        Habito despues = tx.execute(e -> em.find(Habito.class, habitoId));
+        assertEquals(60, despues.getMinutosObjetivo(), "el objetivo del PUT, no el que leyó la lectura");
     }
 }

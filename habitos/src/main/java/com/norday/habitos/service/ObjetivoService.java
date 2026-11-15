@@ -90,15 +90,19 @@ public class ObjetivoService {
             Objetivo actual = Objetivo.de(habito);
             if (nuevo.equals(actual)) continue;
 
+            // Solo las columnas del objetivo, nunca el hábito entero, y solo si
+            // siguen siendo las que se leyeron: esto corre desde lecturas que
+            // no bloquean, con una copia del hábito que puede ser vieja (ver
+            // IHabitoDAO.actualizarObjetivo). Si un PUT las cambió entretanto,
+            // no se escribe ni se ancla nada: manda lo suyo.
+            boolean escrito = habitoDAO.actualizarObjetivo(habito, nuevo);
             // Mismo criterio que HabitoService.actualizar: el ritmo depende
-            // de la frecuencia, la meta, la unidad y los minutos.
-            if (actual.cambiaElCreditoRespectoA(nuevo)) {
+            // de la frecuencia, la meta, la unidad y los minutos. Se ancla
+            // con el hábito tal como estaba: en memoria sigue el de antes.
+            if (escrito && actual.cambiaElCreditoRespectoA(nuevo)) {
                 ritmoService.anclarAntesDeCambiar(habito, vigente.getDesde());
             }
-            // Solo las columnas del objetivo, nunca el hábito entero: esto
-            // corre desde lecturas que no bloquean, con una copia del hábito
-            // que puede ser vieja (ver IHabitoDAO.actualizarObjetivo).
-            habitoDAO.actualizarObjetivo(habito, nuevo);
+            habitoDAO.releer(habito, nuevo);
         }
         return historiales;
     }

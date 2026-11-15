@@ -75,29 +75,48 @@ public class HabitoDAO implements IHabitoDAO {
     // merge (o el flush de una entidad de la sesión) escribe todas las
     // columnas con lo que hay en memoria, y una lectura que leyó el hábito
     // antes de una pausa o de un cambio de nombre lo devolvía activo y con
-    // el nombre viejo. Después se relee: así tampoco queda en memoria nada
+    // el nombre viejo. Condicional a las cinco columnas que tiene en memoria:
+    // si un PUT las ha cambiado entretanto, la lectura vieja no lo deshace.
+    // Los que pueden ser null se comparan aparte (= null nunca casa).
+    @Override
+    public boolean actualizarObjetivo(Habito habito, com.norday.habitos.model.Objetivo nuevo) {
+        int filas = em.createQuery("UPDATE Habito h SET h.unidad = :unidad, h.minutosObjetivo = :minutos, "
+                        + "h.frecuencia = :frecuencia, h.meta = :meta, h.diasSemana = :dias "
+                        + "WHERE h.habitoId = :id AND h.unidad = :unidadAntes AND h.frecuencia = :frecuenciaAntes "
+                        + "AND h.meta = :metaAntes "
+                        + "AND ((:minutosAntesNulo = true AND h.minutosObjetivo IS NULL) "
+                        + "OR h.minutosObjetivo = :minutosAntes) "
+                        + "AND ((:diasAntesNulo = true AND h.diasSemana IS NULL) OR h.diasSemana = :diasAntes)")
+                .setParameter("unidad", nuevo.unidad())
+                .setParameter("minutos", nuevo.minutosObjetivo())
+                .setParameter("frecuencia", nuevo.frecuencia())
+                .setParameter("meta", nuevo.meta())
+                .setParameter("dias", nuevo.diasSemana())
+                .setParameter("id", habito.getHabitoId())
+                .setParameter("unidadAntes", habito.getUnidad())
+                .setParameter("frecuenciaAntes", habito.getFrecuencia())
+                .setParameter("metaAntes", habito.getMeta())
+                .setParameter("minutosAntesNulo", habito.getMinutosObjetivo() == null)
+                .setParameter("minutosAntes", habito.getMinutosObjetivo() != null ? habito.getMinutosObjetivo() : -1)
+                .setParameter("diasAntesNulo", habito.getDiasSemana() == null)
+                .setParameter("diasAntes", habito.getDiasSemana() != null ? habito.getDiasSemana() : "")
+                .executeUpdate();
+        return filas == 1;
+    }
+
+    // Releer y no poner los valores a mano: así tampoco queda en memoria nada
     // viejo que un flush posterior pudiera escribir. Uno que no está en la
     // sesión no se puede releer; se le pone el objetivo en memoria.
     @Override
-    public void actualizarObjetivo(Habito habito, com.norday.habitos.model.Objetivo objetivo) {
-        em.createQuery("UPDATE Habito h SET h.unidad = :unidad, h.minutosObjetivo = :minutos, "
-                        + "h.frecuencia = :frecuencia, h.meta = :meta, h.diasSemana = :dias "
-                        + "WHERE h.habitoId = :id")
-                .setParameter("unidad", objetivo.unidad())
-                .setParameter("minutos", objetivo.minutosObjetivo())
-                .setParameter("frecuencia", objetivo.frecuencia())
-                .setParameter("meta", objetivo.meta())
-                .setParameter("dias", objetivo.diasSemana())
-                .setParameter("id", habito.getHabitoId())
-                .executeUpdate();
+    public void releer(Habito habito, com.norday.habitos.model.Objetivo siNoEstaEnLaSesion) {
         if (em.contains(habito)) {
             em.refresh(habito);
         } else {
-            habito.setUnidad(objetivo.unidad());
-            habito.setMinutosObjetivo(objetivo.minutosObjetivo());
-            habito.setFrecuencia(objetivo.frecuencia());
-            habito.setMeta(objetivo.meta());
-            habito.setDiasSemana(objetivo.diasSemana());
+            habito.setUnidad(siNoEstaEnLaSesion.unidad());
+            habito.setMinutosObjetivo(siNoEstaEnLaSesion.minutosObjetivo());
+            habito.setFrecuencia(siNoEstaEnLaSesion.frecuencia());
+            habito.setMeta(siNoEstaEnLaSesion.meta());
+            habito.setDiasSemana(siNoEstaEnLaSesion.diasSemana());
         }
     }
 
