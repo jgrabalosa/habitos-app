@@ -153,20 +153,24 @@ public class LogrosHabitosService {
 
     // El número de registros lo da RegistroDAO.contarPorUsuario: cada fila en
     // los días de veces y como mucho una por hábito y día en los de minutos.
+    // Al alcanzar o superar cada número, no al caer justo en él: deshacer
+    // retira el logro que dio un completado, y para entonces el contador
+    // puede haber pasado de largo (completar A, completar B, deshacer A). Que
+    // se dé una sola vez ya lo garantiza otorgarSiNoTiene.
     private List<String> comprobarLogrosDeVolumen(Usuario usuario) {
         List<String> otorgados = new ArrayList<>();
         int totalRegistros = registroDAO.contarPorUsuario(usuario.getUsuarioId());
 
-        if (totalRegistros == 1) {
+        if (totalRegistros >= 1) {
             if (logroService.otorgarSiNoTiene(usuario, "PRIMEROS_PASOS")) otorgados.add("PRIMEROS_PASOS");
         }
-        if (totalRegistros == 100) {
+        if (totalRegistros >= 100) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_100")) otorgados.add("REGISTROS_100");
         }
-        if (totalRegistros == 500) {
+        if (totalRegistros >= 500) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_500")) otorgados.add("REGISTROS_500");
         }
-        if (totalRegistros == 1000) {
+        if (totalRegistros >= 1000) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_1000")) otorgados.add("REGISTROS_1000");
         }
         return otorgados;

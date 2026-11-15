@@ -210,6 +210,8 @@ class LogrosHabitosServiceTest {
         when(registroDAO.findByHabito(habito))
                 .thenReturn(hechosHace(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
         when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+        // Con 12 registros, PRIMEROS_PASOS ya lo tenía: el motor lo rechaza.
+        when(logroService.otorgarSiNoTiene(usuario, "PRIMEROS_PASOS")).thenReturn(false);
         when(registroDAO.contarPorUsuario(1)).thenReturn(12);
 
         List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
@@ -243,7 +245,20 @@ class LogrosHabitosServiceTest {
         List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertTrue(otorgados.isEmpty());
-        verify(logroService, never()).otorgarSiNoTiene(any(), anyString());
+        verify(logroService, never()).otorgarSiNoTiene(any(), startsWith("RACHA_"));
+    }
+
+    @Test
+    void volumen_seConcedeAlAlcanzarOSuperarElNumero_noSoloAlCaerJusto() {
+        // Deshacer pudo retirar PRIMEROS_PASOS y REGISTROS_100 con el contador
+        // ya por encima de 1 y de 100: vuelven igual.
+        when(registroDAO.contarPorUsuario(1)).thenReturn(150);
+        when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertTrue(otorgados.containsAll(List.of("PRIMEROS_PASOS", "REGISTROS_100")));
+        assertFalse(otorgados.contains("REGISTROS_500"));
     }
 
     @Test
