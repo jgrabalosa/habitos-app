@@ -32,6 +32,8 @@ El ritmo de hoy no se guarda: se calcula al leer, repasando los registros desde 
 
 Al mover el ancla se guarda también la anterior, para calcular el ritmo de hace siete días.
 
+Cada periodo se juzga con el objetivo que tenía (frecuencia y meta del historial en el primer día del periodo, y lo hecho cada día con el objetivo de ese día), no con el que guarda hoy el hábito. El ritmo de hace siete días se calcula desde el ancla anterior, que puede ser de antes de un cambio de objetivo: con la meta de hoy, los días de antes se volvían a juzgar con la nueva y la tendencia cambiaba sin motivo (un diario de meta 3 hecho 1 de 3 que pasaba a minutos subía de 0,39 a 0,59 hace siete días). Un cambio de frecuencia solo entra en vigor un lunes, así que una semana nunca mezcla dos frecuencias. Al anclar antes de un cambio, los periodos hasta el cambio se juzgan con el hábito tal como estaba (el cambio ya puede estar en el historial: uno de semanal a diario empieza el lunes de esta semana, pero se ancla hoy para no cerrar de lunes a hoy como días sin hacer).
+
 ### Ritmo general
 
 El ritmo general es la media de los ritmos de los hábitos activos, ponderada por el peso de cada hábito. El peso sube desde cero el día que se crea el hábito, un catorceavo por día, hasta contar entero a los 14 días. Si ningún hábito pesa todavía, se hace la media simple: tiene que haber algo que enseñar desde el primer día. Sin hábitos activos no hay ritmo general.
@@ -372,7 +374,7 @@ La mascota tiene dos logros propios del motor, que se tienen con esa fase o una 
 - `MASCOTA_CRIA`: en cría o adulta;
 - `MASCOTA_ADULTO`: adulta.
 
-Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y una sola vez (`otorgarSiNoTiene`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y lo siguiente que dé XP (un paso o una comida) los devuelve. Al perder XP no se miran.
+Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y también en cada paso que no da XP (minutos de más, un día ya hecho), una sola vez (`otorgarSiNoTiene`; `MascotaService.revisarLogrosDeFase`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y el siguiente paso (dé XP o no) o la siguiente comida los devuelve; lo que devuelve un paso entra en su reversión. Al perder XP no se miran.
 
 Poner nombre a la mascota y elegir la fase que se ve escriben solo su columna (`IMascotaDAO.actualizarNombre`, `actualizarFaseElegida`): no bloquean al usuario, y guardar la mascota entera pisaba la XP que se sumaba a la vez.
 
@@ -399,7 +401,7 @@ Hay **39 logros** específicos de Hábitos. Se cuentan las entradas del array `L
 |---|---|---|---:|---|
 | `PRIMER_HABITO` | Tu primer hábito propio | Fácil | 50 | Al crear un hábito, con al menos uno activo |
 | `PRIMERA_CATEGORIA` | Organizado desde el día 1 | Fácil | 50 | Al crear una categoría propia |
-| `PRIMEROS_PASOS` | Primeros pasos | Fácil | 50 | Al completar, el usuario tiene 1 registro o más |
+| `PRIMEROS_PASOS` | Primeros pasos | Fácil | 50 | Al completar, el usuario tiene 1 registro o más (un día de minutos cuenta con cualquier entrada, aunque no llegue a sus minutos) |
 
 #### Constancia
 
@@ -457,7 +459,7 @@ Los logros de ritmo se conceden al leer la pantalla de Hoy (`HoyService`), porqu
 | `REGISTROS_500` | Quinientos y contando | Difícil | 250 | Al completar, el usuario llega a 500 registros o más |
 | `REGISTROS_1000` | Mil pasos | Difícil | 250 | Al completar, el usuario llega a 1000 registros o más |
 
-Los de hábitos activos y categorías se comprueban al crear un hábito; los de registros, al completar. Todos se conceden al **alcanzar o superar** su número, no al caer justo en él, y una sola vez (`otorgarSiNoTiene`): deshacer retira el logro que dio un completado, y para entonces el contador puede haber pasado de largo (completar A, que da `PRIMEROS_PASOS`; completar B; deshacer A; volver a completar A: hay dos registros y el logro vuelve). Reanudar un hábito no evalúa logros, así que los activos y sus categorías también pueden saltar un número (de 2 a 4 activos sin crear el tercero). `PRIMER_HABITO` y `PRIMERA_CATEGORIA` siguen la misma regla. El número de registros (`RegistroDAO.contarPorUsuario`) cuenta las filas del usuario, que son todas completados: el código solo crea registros completados, y deshacer borra la fila. En los días de un hábito de minutos cuenta como mucho un registro por hábito y día (un día con cinco sesiones cuenta uno); en los de veces, cada fila. Cada día se juzga con la unidad de la versión vigente en esa fecha.
+Los de hábitos activos y categorías se comprueban al crear un hábito; los de registros, al completar. Un día de minutos cuenta como registro con cualquier entrada, aunque no llegue a sus minutos, igual que un toque en un hábito de veces de meta 3: es una decisión, no un descuido. La descripción de `PRIMEROS_PASOS` en el catálogo («Completa tu primer hábito») no lo dice así; se deja como está. Todos se conceden al **alcanzar o superar** su número, no al caer justo en él, y una sola vez (`otorgarSiNoTiene`): deshacer retira el logro que dio un completado, y para entonces el contador puede haber pasado de largo (completar A, que da `PRIMEROS_PASOS`; completar B; deshacer A; volver a completar A: hay dos registros y el logro vuelve). Reanudar un hábito no evalúa logros, así que los activos y sus categorías también pueden saltar un número (de 2 a 4 activos sin crear el tercero). `PRIMER_HABITO` y `PRIMERA_CATEGORIA` siguen la misma regla. El número de registros (`RegistroDAO.contarPorUsuario`) cuenta las filas del usuario, que son todas completados: el código solo crea registros completados, y deshacer borra la fila. En los días de un hábito de minutos cuenta como mucho un registro por hábito y día (un día con cinco sesiones cuenta uno); en los de veces, cada fila. Cada día se juzga con la unidad de la versión vigente en esa fecha.
 
 #### Variedad
 

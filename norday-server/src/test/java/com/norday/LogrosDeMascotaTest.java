@@ -122,6 +122,58 @@ class LogrosDeMascotaTest {
         assertTrue(tiene("MASCOTA_CRIA"), "sigue en cría: el siguiente paso lo devuelve");
     }
 
+    private Habito unDiarioDeMinutos(String nombre, int minutos) {
+        Objetivo objetivo = new Objetivo(com.norday.habitos.model.Unidad.MINUTOS, Frecuencia.DIARIO, 1, minutos, null);
+        Habito habito = new Habito(nombre, null, Frecuencia.DIARIO, 1, usuario, null, INICIO);
+        habito.setUnidad(com.norday.habitos.model.Unidad.MINUTOS);
+        habito.setMinutosObjetivo(minutos);
+        em.persist(habito);
+        em.persist(new HabitoObjetivo(habito, INICIO, objetivo));
+        em.persist(new Racha(habito, VIERNES));
+        em.persist(new Ritmo(habito, VIERNES));
+        em.flush();
+        return habito;
+    }
+
+    private Map<String, Object> minutos(Habito habito, int minutos) {
+        em.flush();
+        em.clear();
+        return registroService.completar(em.find(Habito.class, habito.getHabitoId()),
+                new Solicitud(null, VIERNES, String.valueOf(minutos), null, OrigenRegistro.MANUAL));
+    }
+
+    private int xp() {
+        em.flush();
+        em.clear();
+        return mascotaService.obtenerOCrear(usuario.getUsuarioId()).getExperiencia();
+    }
+
+    @Test
+    void unPasoSinXp_tambienDevuelveLaCriaSiLaFaseLaMerece() {
+        unUsuarioConXp(69);
+        Habito a = unDiarioDeMinutos("A", 30);
+        Habito b = unDiarioDeMinutos("B", 30);
+
+        Map<String, Object> pasoA = minutos(a, 15);
+        assertEquals(71, xp());
+        assertTrue(tiene("MASCOTA_CRIA"), "A la lleva a 71: cría");
+        minutos(b, 30);
+        assertEquals(76, xp());
+
+        registroService.deshacerRegistro((Integer) pasoA.get("registroId"));
+        assertEquals(74, xp(), "con la XP de B sigue en cría");
+        assertFalse(tiene("MASCOTA_CRIA"), "deshacer A retira el logro que dio");
+
+        // Minutos de más en B: el día ya estaba hecho, el paso no da XP.
+        Map<String, Object> exceso = minutos(b, 20);
+        assertEquals(0, exceso.get("xpGanada"));
+        assertTrue(tiene("MASCOTA_CRIA"), "sigue en cría: un paso aunque sea sin XP lo devuelve");
+
+        // Y queda en la reversión de ese paso, como cualquier otro logro.
+        registroService.deshacerRegistro((Integer) exceso.get("registroId"));
+        assertFalse(tiene("MASCOTA_CRIA"), "deshacer el paso sin XP retira lo que devolvió");
+    }
+
     @Test
     void deHuevoAAdultaDeUnaVez_daLosDos() {
         unUsuarioConXp(0);
