@@ -367,6 +367,9 @@ public class HabitoService {
      */
     @Transactional
     public void anularObjetivoProgramado(Habito habito) {
+        // Cambia el historial del hábito: de uno en uno con lo demás que lo
+        // cambia (un PUT que programa, un completado que lo lee).
+        habito = bloquear(habito);
         LocalDate hoy = rachaService.hoyDe(habito);
         // Antes, lo que ya haya llegado se aplica: solo se anula lo futuro.
         objetivoService.ponerAlDia(List.of(habito), hoy);

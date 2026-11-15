@@ -95,12 +95,10 @@ public class ObjetivoService {
             if (actual.cambiaElCreditoRespectoA(nuevo)) {
                 ritmoService.anclarAntesDeCambiar(habito, vigente.getDesde());
             }
-            habito.setUnidad(nuevo.unidad());
-            habito.setMinutosObjetivo(nuevo.minutosObjetivo());
-            habito.setFrecuencia(nuevo.frecuencia());
-            habito.setMeta(nuevo.meta());
-            habito.setDiasSemana(nuevo.diasSemana());
-            habitoDAO.update(habito);
+            // Solo las columnas del objetivo, nunca el hábito entero: esto
+            // corre desde lecturas que no bloquean, con una copia del hábito
+            // que puede ser vieja (ver IHabitoDAO.actualizarObjetivo).
+            habitoDAO.actualizarObjetivo(habito, nuevo);
         }
         return historiales;
     }

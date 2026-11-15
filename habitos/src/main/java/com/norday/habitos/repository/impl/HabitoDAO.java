@@ -67,6 +67,36 @@ public class HabitoDAO implements IHabitoDAO {
                 .getResultList();
     }
 
+    // Un UPDATE de las columnas del objetivo y no un merge del hábito: el
+    // merge (o el flush de una entidad de la sesión) escribe todas las
+    // columnas con lo que hay en memoria, y una lectura que leyó el hábito
+    // antes de una pausa o de un cambio de nombre lo devolvía activo y con
+    // el nombre viejo. Después se relee: así tampoco queda en memoria nada
+    // viejo que un flush posterior pudiera escribir. Uno que no está en la
+    // sesión no se puede releer; se le pone el objetivo en memoria.
+    @Override
+    public void actualizarObjetivo(Habito habito, com.norday.habitos.model.Objetivo objetivo) {
+        em.createQuery("UPDATE Habito h SET h.unidad = :unidad, h.minutosObjetivo = :minutos, "
+                        + "h.frecuencia = :frecuencia, h.meta = :meta, h.diasSemana = :dias "
+                        + "WHERE h.habitoId = :id")
+                .setParameter("unidad", objetivo.unidad())
+                .setParameter("minutos", objetivo.minutosObjetivo())
+                .setParameter("frecuencia", objetivo.frecuencia())
+                .setParameter("meta", objetivo.meta())
+                .setParameter("dias", objetivo.diasSemana())
+                .setParameter("id", habito.getHabitoId())
+                .executeUpdate();
+        if (em.contains(habito)) {
+            em.refresh(habito);
+        } else {
+            habito.setUnidad(objetivo.unidad());
+            habito.setMinutosObjetivo(objetivo.minutosObjetivo());
+            habito.setFrecuencia(objetivo.frecuencia());
+            habito.setMeta(objetivo.meta());
+            habito.setDiasSemana(objetivo.diasSemana());
+        }
+    }
+
     // PESSIMISTIC_WRITE es SELECT … FOR UPDATE en Postgres: otra transacción
     // que quiera el mismo bloqueo espera a que esta termine.
     //

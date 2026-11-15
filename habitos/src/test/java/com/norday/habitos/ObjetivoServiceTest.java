@@ -96,10 +96,11 @@ class ObjetivoServiceTest {
 
         objetivoService.ponerAlDia(List.of(habito), SABADO);
 
-        assertEquals(40, habito.getMinutosObjetivo());
-        assertEquals(Unidad.MINUTOS, habito.getUnidad());
+        // Solo las columnas del objetivo (el DAO relee después el hábito),
+        // nunca el hábito entero.
         verify(ritmoService).anclarAntesDeCambiar(any(Habito.class), eq(SABADO));
-        verify(habitoDAO).update(habito);
+        verify(habitoDAO).actualizarObjetivo(habito, minutos(40));
+        verify(habitoDAO, never()).update(any());
     }
 
     @Test

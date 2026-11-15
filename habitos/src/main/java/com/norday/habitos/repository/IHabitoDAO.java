@@ -22,4 +22,14 @@ public interface IHabitoDAO {
      * pausar y reanudar.
      */
     Habito bloquear(int habitoId);
+
+    /**
+     * Escribe en la copia del objetivo del hábito (unidad, minutos,
+     * frecuencia, meta y días) el objetivo dado, y solo eso: un UPDATE de
+     * esas columnas, sin tocar el resto. Para poner al día el objetivo desde
+     * una lectura, que no bloquea y puede traer una copia vieja del hábito
+     * (otro nombre, otro estado de pausa). Después el hábito en memoria queda
+     * releído de la base de datos.
+     */
+    void actualizarObjetivo(Habito habito, com.norday.habitos.model.Objetivo objetivo);
 }
