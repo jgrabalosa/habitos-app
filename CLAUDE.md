@@ -408,6 +408,12 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 - **Nombres de columna, del repositorio, nunca de memoria.** La FK de
   `registro` es `habito_ref`, no `habito_id`.
 - **El nombre real de la base es `habitos_db`**, no `habitas_db`.
+- **`em.find` con bloqueo sobre una entidad que ya está en la sesión no la
+  relee**: pide el bloqueo y deja los valores de antes de esperar. Con
+  open-in-view el controlador ya la ha cargado, así que lo que se decida
+  tras el bloqueo hay que decidirlo con `em.refresh(..., PESSIMISTIC_WRITE)`.
+  Un completado veía activo un hábito pausado en medio, y un `PUT` lo
+  reactivaba al guardar.
 
 ### Servicios y reglas de negocio
 
@@ -427,6 +433,18 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
   y comprobar una a una que siguen aplicándose.
 - **Test en rojo antes del arreglo.** Si el test nuevo pasa contra el código
   sin arreglar, no demuestra nada: parar.
+- **Un «después − antes» solo es tuyo si nadie escribe en medio.** El
+  completado mide sus monedas y sus logros así, y solo bloqueaba el hábito:
+  el paso de otro hábito del mismo usuario se colaba en la cuenta, y
+  deshacer el primero devolvía lo del otro y le retiraba sus logros. Lo que
+  se mide sobre el usuario se protege bloqueando al usuario.
+- **Los bloqueos, siempre en el mismo orden: usuario y después hábito.**
+  Todo lo que cambia un hábito pasa por `HabitoService.bloquear` (completar,
+  deshacer, editar, pausar, reanudar), que bloquea los dos en ese orden y
+  devuelve el hábito releído. No se bloquea un hábito por otro camino. Ojo
+  también con los bloqueos implícitos: borrar filas las bloquea, y la baja
+  de la cuenta borraba los hábitos antes que al usuario; por eso
+  `eliminarCuenta` bloquea al usuario al empezar.
 
 ### Contrato con los clientes
 
