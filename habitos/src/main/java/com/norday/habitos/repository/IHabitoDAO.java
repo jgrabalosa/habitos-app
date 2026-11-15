@@ -16,8 +16,10 @@ public interface IHabitoDAO {
 
     /**
      * Bloquea la fila del hábito hasta el final de la transacción (SELECT …
-     * FOR UPDATE). Para serializar los completados y los deshacer de un
-     * mismo hábito.
+     * FOR UPDATE) y la devuelve releída de la base de datos, ya con el
+     * bloqueo: lo que confirmó quien lo tenía antes. null si ya no existe.
+     * Para serializar lo que cambia un hábito: completar, deshacer, editar,
+     * pausar y reanudar.
      */
-    void bloquear(int habitoId);
+    Habito bloquear(int habitoId);
 }

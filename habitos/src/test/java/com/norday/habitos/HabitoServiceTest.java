@@ -87,6 +87,9 @@ class HabitoServiceTest {
     @Mock
     private IHabitoObjetivoDAO objetivoDAO;
 
+    @Mock
+    private com.norday.core.repository.IUsuarioDAO usuarioDAO;
+
     @InjectMocks
     private HabitoService habitoService;
 
@@ -105,6 +108,8 @@ class HabitoServiceTest {
         existente.setFrecuencia(Frecuencia.DIARIO);
         existente.setMeta(1);
         existente.setPropietario(usuario);
+        // Bloquear devuelve el hábito releído; aquí, el mismo.
+        lenient().when(habitoDAO.bloquear(20)).thenReturn(existente);
 
         racha = new Racha(existente, HOY);
         racha.setRachaActual(5);

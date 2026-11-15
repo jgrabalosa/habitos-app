@@ -191,12 +191,21 @@ public class HabitoService {
      *
      * Siempre usuario y después hábito, y siempre por aquí: es el único sitio
      * que bloquea un hábito, así que dos operaciones no pueden pedirlos en
-     * orden contrario y abrazarse.
+     * orden contrario y abrazarse. Lo usan completar, deshacer, editar,
+     * pausar y reanudar.
+     *
+     * Devuelve el hábito releído tras el bloqueo, y es con ese con el que hay
+     * que seguir: el que se leyó antes de esperar puede ser viejo (una pausa
+     * o un objetivo nuevo confirmados entretanto). Si ya no existe, 404.
      */
     @Transactional
-    public void bloquear(Habito habito) {
+    public Habito bloquear(Habito habito) {
         usuarioDAO.bloquear(habito.getPropietario().getUsuarioId());
-        habitoDAO.bloquear(habito.getHabitoId());
+        Habito releido = habitoDAO.bloquear(habito.getHabitoId());
+        if (releido == null) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
+        return releido;
     }
 
     /**
@@ -271,6 +280,12 @@ public class HabitoService {
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
+        // De uno en uno con completar, deshacer y la pausa, y con el hábito
+        // releído: sin esto, un paso confirmado mientras se decide la fecha
+        // del cambio no se ve (el día se reinterpreta con el objetivo nuevo y
+        // cobra dos veces), y una pausa confirmada después de que el
+        // controlador leyera el hábito se deshace al guardar.
+        existente = bloquear(existente);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
 
         // Primero, el objetivo de hoy: si ha llegado un cambio programado,

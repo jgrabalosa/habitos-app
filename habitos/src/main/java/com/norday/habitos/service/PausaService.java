@@ -40,6 +40,9 @@ public class PausaService {
     @Autowired
     private ObjetivoService objetivoService;
 
+    @Autowired
+    private HabitoService habitoService;
+
     /**
      * Pausa un hábito: gasta una «Pausa» del inventario, ancla su ritmo en
      * hoy con el valor que tiene y lo deja inactivo, con lo que sale de Hoy,
@@ -52,6 +55,10 @@ public class PausaService {
         if (habito == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
+        // Como completar y editar: de uno en uno, con el hábito releído. Sin
+        // esto, dos pausas a la vez gastan dos, y un completado o una edición
+        // que ya habían leído el hábito activo no ven la pausa.
+        habito = habitoService.bloquear(habito);
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito ya está en pausa");
         }
@@ -79,6 +86,8 @@ public class PausaService {
     /** Igual, con el día dado, para que los tests lo fijen. */
     @Transactional
     public void reanudar(Habito habito, LocalDate hoy) {
+        // Como pausar: de uno en uno y con el hábito releído.
+        habito = habitoService.bloquear(habito);
         if (habito.isActivo()) {
             return;
         }

@@ -108,6 +108,8 @@ class RegistroServiceTest {
 
         lenient().when(rachaService.zonaDe(any(Habito.class))).thenReturn(ZONA);
         lenient().when(rachaService.hoyDe(any(Habito.class))).thenReturn(HOY);
+        // Bloquear devuelve el hábito releído; aquí, el mismo.
+        lenient().when(habitoService.bloquear(any(Habito.class))).thenAnswer(i -> i.getArgument(0));
         // La instantánea de deshacer lee el estado previo de la mascota antes
         // de crear el Registro: sin este stub, mascotaPrevia sale null.
         lenient().when(mascotaService.obtenerOCrear(anyInt())).thenReturn(new Mascota(usuario));

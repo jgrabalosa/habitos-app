@@ -141,7 +141,10 @@ public class RegistroService {
         // este los devolvería. Lo que viene después lee ya lo que confirmó el
         // anterior, así que la clave se vuelve a mirar. El orden (usuario,
         // hábito) lo fija habitoService.bloquear, el mismo que en deshacer.
-        habitoService.bloquear(habito);
+        // Se sigue con el hábito releído tras el bloqueo: el que llegó se leyó
+        // antes de esperar, y una pausa o un objetivo nuevo confirmados
+        // entretanto no estarían en él.
+        habito = habitoService.bloquear(habito);
         if (clave != null) {
             Registro previo = registroDAO.findByClave(clave);
             if (previo != null) return repetido(habito, previo, usuario);
@@ -606,8 +609,9 @@ public class RegistroService {
         // Igual que al completar: de uno en uno por usuario y hábito, para que
         // "el último registro" no cambie entre comprobarlo y borrarlo, y para
         // no deshacer en medio de un completado de otro hábito suyo que está
-        // midiendo su saldo y sus logros.
-        habitoService.bloquear(habito);
+        // midiendo su saldo y sus logros. Con el hábito releído, como al
+        // completar.
+        habito = habitoService.bloquear(habito);
         // Un hábito en pausa no se deshace: la pausa lo para todo.
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito está en pausa");

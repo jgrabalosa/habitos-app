@@ -69,8 +69,23 @@ public class HabitoDAO implements IHabitoDAO {
 
     // PESSIMISTIC_WRITE es SELECT … FOR UPDATE en Postgres: otra transacción
     // que quiera el mismo bloqueo espera a que esta termine.
+    //
+    // refresh y no find con bloqueo: si el hábito ya estaba en la sesión (el
+    // controlador lo lee antes, con open-in-view), find solo pide el bloqueo
+    // y deja los valores que se leyeron antes de esperar, viejos si otro los
+    // ha cambiado entretanto (una pausa, un objetivo nuevo). refresh los
+    // vuelve a leer en la misma consulta que bloquea.
     @Override
-    public void bloquear(int habitoId) {
-        em.find(Habito.class, habitoId, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    public Habito bloquear(int habitoId) {
+        Habito habito = em.find(Habito.class, habitoId);
+        if (habito == null) return null;
+        try {
+            em.refresh(habito, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        } catch (jakarta.persistence.EntityNotFoundException e) {
+            // Estaba en la sesión, pero otro lo ha borrado mientras esperaba.
+            em.detach(habito);
+            return null;
+        }
+        return habito;
     }
 }
