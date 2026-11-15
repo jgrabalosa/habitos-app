@@ -3,10 +3,12 @@ package com.norday.habitos;
 import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoAlDia;
 import com.norday.habitos.model.Frecuencia;
+import com.norday.habitos.model.Objetivo;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -156,5 +158,28 @@ class RitmoAlDiaTest {
                 List.of(d(10, 5)), d(10, 7));
 
         assertAlDia(0.792268, 0.8, d(10, 5), alDia);
+    }
+
+    /**
+     * Hoy un cambio de frecuencia solo entra en vigor un lunes o en la fecha
+     * de inicio, pero si alguna vez cayera a mitad de semana, la semana del
+     * cambio no puede volver al lunes y contar otra vez los días que ya
+     * cerró la frecuencia de antes. Diario de meta 1 hasta el miércoles y
+     * semanal de meta 3 desde el jueves; hecho lunes, martes, miércoles y
+     * viernes. La semana del cambio va del jueves al domingo: 1 de 3. Sin la
+     * guarda, del lunes al domingo: 4 de 3, crédito entero.
+     */
+    @Test
+    void cambioDeFrecuenciaAMitadDeSemana_noCuentaDosVecesLosDiasYaCerrados() {
+        Objetivo diario = new Objetivo(Frecuencia.DIARIO, 1, null);
+        Objetivo semanal = new Objetivo(Frecuencia.SEMANAL, 3, null);
+        Map<LocalDate, Double> hechos = Map.of(d(10, 5), 1.0, d(10, 6), 1.0, d(10, 7), 1.0, d(10, 9), 1.0);
+
+        RitmoAlDia real = CalculoRitmo.alDiaPorUnidades(0.5, d(10, 5),
+                dia -> dia.isBefore(d(10, 8)) ? diario : semanal, ANTIGUO, hechos, d(10, 12));
+
+        double tresDiasHechos = CalculoRitmo.cerrarPeriodos(0.5, List.of(1.0, 1.0, 1.0), Frecuencia.DIARIO);
+        double esperado = CalculoRitmo.cerrarPeriodo(tresDiasHechos, 1.0 / 3, Frecuencia.SEMANAL);
+        assertEquals(esperado, real.valor(), D);
     }
 }
