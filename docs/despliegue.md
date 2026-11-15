@@ -153,9 +153,9 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
 
 Decidido por Quim: los hábitos en minutos y Norday Focus salen **juntos**, en
 la misma versión, cuando estén los arreglos pendientes. La línea de
-publicación es `wip-enfoque` en los tres repos que la tienen (este,
-`habitos_app_mobile` y `norday_flutter_core` vía su tag), más
-`enfoque_app_mobile` (`wip`). Hasta entonces no se publica nada.
+publicación es `wip-enfoque`, en este repo y en `habitos_app_mobile`; el core
+sale por su tag `v0.55.0` (desde su `wip`) y `enfoque_app_mobile`, desde su
+`wip`. Hasta entonces no se publica nada.
 
 Lo que entra en el backend: seis migraciones, de V21 a V26 (producción está
 en V20, que es la última de `main`):
