@@ -7,6 +7,7 @@ import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
@@ -69,28 +70,34 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
     @Override
     public Map<String, Object> exportar(Usuario usuario) {
         List<Habito> habitos = habitoDAO.findByPropietario(usuario);
-        // La copia del objetivo de hoy, al día: si ha llegado un cambio
-        // programado, se exporta el objetivo vigente y no el de antes.
-        objetivoService.ponerAlDia(habitos, LocalDate.now(zonaUsuarioService.zonaDe(usuario)));
+        // El objetivo vigente hoy, y no la copia del hábito si ha llegado un
+        // cambio programado que todavía no se ha aplicado. Se calcula con el
+        // historial, sin escribir: la exportación corre en una transacción de
+        // solo lectura (ExportacionDatosService).
+        LocalDate hoy = LocalDate.now(zonaUsuarioService.zonaDe(usuario));
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(habitos);
 
         Map<String, Object> datos = new LinkedHashMap<>();
-        datos.put("habitos", habitos.stream().map(this::datosHabito).collect(Collectors.toList()));
+        datos.put("habitos", habitos.stream()
+                .map(h -> datosHabito(h, HistorialObjetivos.de(historiales, h).vistaEl(hoy)))
+                .collect(Collectors.toList()));
         datos.put("categoriasPropias", categoriaDAO.findByCreador(usuario).stream()
                 .map(this::datosCategoria)
                 .collect(Collectors.toList()));
         return datos;
     }
 
-    private Map<String, Object> datosHabito(Habito habito) {
+    /** {@code deHoy} es la vista del hábito con el objetivo vigente hoy (no se guarda). */
+    private Map<String, Object> datosHabito(Habito habito, Habito deHoy) {
         Map<String, Object> mapa = new LinkedHashMap<>();
         mapa.put("habitoId", habito.getHabitoId());
         mapa.put("nombre", habito.getNombre());
         mapa.put("descripcion", habito.getDescripcion());
-        mapa.put("frecuencia", habito.getFrecuencia().name());
-        mapa.put("meta", habito.getMeta());
-        mapa.put("unidad", habito.getUnidad().name());
-        mapa.put("minutosObjetivo", habito.getMinutosObjetivo());
-        mapa.put("diasSemana", habito.getDiasSemana());
+        mapa.put("frecuencia", deHoy.getFrecuencia().name());
+        mapa.put("meta", deHoy.getMeta());
+        mapa.put("unidad", deHoy.getUnidad().name());
+        mapa.put("minutosObjetivo", deHoy.getMinutosObjetivo());
+        mapa.put("diasSemana", deHoy.getDiasSemana());
         mapa.put("fechaInicio", ExportacionDatosService.texto(habito.getFechaInicio()));
         mapa.put("fechaCreacion", ExportacionDatosService.texto(habito.getFechaCreacion()));
         mapa.put("recordatorioActivo", habito.isRecordatorioActivo());

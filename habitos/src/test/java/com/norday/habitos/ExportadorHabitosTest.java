@@ -73,31 +73,40 @@ class ExportadorHabitosTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void exportar_poneAlDiaLaCopia_yLlevaUnidadMinutosCantidadYOrigen() {
+    void exportar_exportaElObjetivoVigenteHoySinEscribir_yLlevaUnidadMinutosCantidadYOrigen() {
+        // La exportación corre en una transacción de solo lectura: el
+        // objetivo de hoy se calcula con el historial, sin poner al día (sin
+        // escribir) la copia del hábito.
         Usuario usuario = new Usuario();
         usuario.setUsuarioId(1);
         Habito habito = new Habito("Leer", null, Frecuencia.DIARIO, 1,
                 usuario, null, LocalDate.of(2026, 9, 1));
+        habito.setHabitoId(5);
         habito.setUnidad(com.norday.habitos.model.Unidad.MINUTOS);
         habito.setMinutosObjetivo(30);
+        // Un cambio a 45 minutos que ya ha llegado y la copia no tiene aún.
+        HabitoObjetivo primera = new HabitoObjetivo(habito, LocalDate.of(2026, 9, 1),
+                new Objetivo(com.norday.habitos.model.Unidad.MINUTOS, Frecuencia.DIARIO, 1, 30, null));
+        HabitoObjetivo llegada = new HabitoObjetivo(habito, LocalDate.of(2026, 10, 1),
+                new Objetivo(com.norday.habitos.model.Unidad.MINUTOS, Frecuencia.DIARIO, 1, 45, null));
         Registro registro = new Registro(habito, true, null, LocalDate.of(2026, 9, 2));
         registro.setCantidad(25);
         registro.setOrigen(com.norday.habitos.model.OrigenRegistro.ENFOQUE);
         registro.setClaveCliente(java.util.UUID.randomUUID());
 
         when(habitoDAO.findByPropietario(usuario)).thenReturn(List.of(habito));
+        when(objetivoService.historiales(List.of(habito))).thenReturn(Map.of(5,
+                com.norday.habitos.model.HistorialObjetivos.de(habito, List.of(primera, llegada))));
         when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
         when(categoriaDAO.findByCreador(usuario)).thenReturn(List.of());
 
         Map<String, Object> datos = exportador.exportar(usuario);
 
-        org.mockito.InOrder orden = inOrder(objetivoService, registroDAO);
-        orden.verify(objetivoService).ponerAlDia(eq(List.of(habito)),
-                eq(LocalDate.now(java.time.ZoneId.of("Europe/Madrid"))));
-        orden.verify(registroDAO).findByHabito(habito);
+        verify(objetivoService, never()).ponerAlDia(any(), any());
         Map<String, Object> exportado = ((List<Map<String, Object>>) datos.get("habitos")).get(0);
         assertEquals("MINUTOS", exportado.get("unidad"));
-        assertEquals(30, exportado.get("minutosObjetivo"));
+        assertEquals(45, exportado.get("minutosObjetivo"), "el objetivo vigente hoy, no la copia vieja");
+        assertEquals(30, habito.getMinutosObjetivo(), "la copia no se ha tocado");
         Map<String, Object> reg = ((List<Map<String, Object>>) exportado.get("registros")).get(0);
         assertEquals(25, reg.get("cantidad"));
         assertEquals("ENFOQUE", reg.get("origen"));
