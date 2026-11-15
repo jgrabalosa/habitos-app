@@ -16,6 +16,10 @@ public class HabitoDAO implements IHabitoDAO {
     @PersistenceContext
     private EntityManager em;
 
+    /** Tope de espera del bloqueo (ver bloquear). */
+    @org.springframework.beans.factory.annotation.Value("${norday.bloqueo.espera-maxima:10s}")
+    private String esperaMaximaBloqueo;
+
     @Override
     public void save(Habito habito) {
         em.persist(habito);
@@ -109,6 +113,10 @@ public class HabitoDAO implements IHabitoDAO {
     public Habito bloquear(int habitoId) {
         Habito habito = em.find(Habito.class, habitoId);
         if (habito == null) return null;
+        // Con tope, como el bloqueo del usuario (IUsuarioDAO.bloquear).
+        em.createNativeQuery("SELECT set_config('lock_timeout', :espera, true)")
+                .setParameter("espera", esperaMaximaBloqueo)
+                .getSingleResult();
         try {
             em.refresh(habito, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         } catch (jakarta.persistence.EntityNotFoundException e) {

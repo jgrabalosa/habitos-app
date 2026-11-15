@@ -16,6 +16,10 @@ public class UsuarioDAO implements IUsuarioDAO {
     @PersistenceContext
     private EntityManager em;
 
+    /** Tope de espera de los bloqueos (ver bloquear). */
+    @org.springframework.beans.factory.annotation.Value("${norday.bloqueo.espera-maxima:10s}")
+    private String esperaMaximaBloqueo;
+
     @Override
     public void save(Usuario usuario) {
         em.persist(usuario);
@@ -59,6 +63,13 @@ public class UsuarioDAO implements IUsuarioDAO {
 
     @Override
     public void actualizarUltimoAcceso(int usuarioId, LocalDateTime ahora) {
+        // Con el mismo tope que bloquear: este UPDATE espera a quien tenga al
+        // usuario bloqueado, y va en la primera petición del día, antes de
+        // llegar al controlador. Si agota el tope, UltimoAccesoService se lo
+        // traga y la petición sigue.
+        em.createNativeQuery("SELECT set_config('lock_timeout', :espera, true)")
+                .setParameter("espera", esperaMaximaBloqueo)
+                .getSingleResult();
         em.createQuery("UPDATE Usuario u SET u.ultimoAcceso = :ahora WHERE u.usuarioId = :id")
                 .setParameter("ahora", ahora)
                 .setParameter("id", usuarioId)
@@ -72,6 +83,13 @@ public class UsuarioDAO implements IUsuarioDAO {
     // fila o la borren.
     @Override
     public boolean bloquear(int usuarioId) {
+        // Con tope: lock_timeout de esta transacción (set_config local), sin
+        // depender de cómo esté configurada la base de datos. Si salta, la
+        // espera acaba en LockTimeoutException y la API responde 503
+        // (GlobalExceptionHandler). Vale para el resto de la transacción.
+        em.createNativeQuery("SELECT set_config('lock_timeout', :espera, true)")
+                .setParameter("espera", esperaMaximaBloqueo)
+                .getSingleResult();
         return !em.createNativeQuery("SELECT usuario_id FROM usuario WHERE usuario_id = :id FOR NO KEY UPDATE")
                 .setParameter("id", usuarioId)
                 .getResultList()
