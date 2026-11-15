@@ -32,7 +32,7 @@ Entre sus datos y relaciones se encuentran:
 - identidad de usuario y credenciales;
 - preferencias;
 - idioma y zona horaria;
-- token FCM cuando está disponible;
+- tokens de notificaciones, uno por app (`UsuarioDispositivo`);
 - productos/equipamiento;
 - moneda y movimientos de gamificación;
 - logros;
@@ -192,6 +192,20 @@ Mientras está en pausa:
 
 Reanudar es gratis. Si el hábito ya estaba activo, no hace nada. Si estaba en pausa, el ancla pasa al día de la vuelta con el valor que tenía al pausar, el día de cambio pasa a ser ese mismo día, y se borran `valor_previo` y `desde_previo`, para que la tendencia no compare con lo de antes de la pausa. Los días de pausa no se juzgan.
 
+### UsuarioDispositivo
+
+Tabla `usuario_dispositivo`, del módulo `norday-motor` (paquete `core`, migración V24). Guarda el token de notificaciones (FCM) de cada usuario en cada app del ecosistema: FCM genera un token por instancia de app, así que Norday Habits y Norday Focus en el mismo móvil tienen dos tokens distintos.
+
+- `id`: clave primaria.
+- `usuario_ref`: obligatoria, clave ajena a `usuario` (`FK_usuario_dispositivo_usuario`).
+- `app_id`: obligatoria, hasta 30 caracteres. El appId que la app manda en la cabecera `X-Norday-App`: `habitos`, `conocimiento` o `enfoque` (`AppNorday`).
+- `fcm_token`: obligatorio, hasta 4096 caracteres.
+- `actualizado_en`: obligatoria, en UTC. Cuándo registró la app ese token por última vez.
+
+(`usuario_ref`, `app_id`) es único: una fila por usuario y app, que el registro siguiente sustituye. La migración copió cada `usuario.fcm_token` no vacío como `habitos`.
+
+La columna `usuario.fcm_token` sigue existiendo como columna de transición: el backend la escribe con el token de `habitos` para poder volver al jar anterior, pero ya no la lee. Los envíos salen de `usuario_dispositivo`, con el token de la app a la que va el aviso.
+
 ### Versión mínima (VersionApp)
 
 Tabla `version_app`, del módulo `norday-motor` (migración V20). Tiene dos columnas:
@@ -199,7 +213,7 @@ Tabla `version_app`, del módulo `norday-motor` (migración V20). Tiene dos colu
 - `app_id`: clave primaria, texto de hasta 30 caracteres.
 - `version_minima`: obligatoria. El `versionCode` de Android que la app necesita; por debajo, la app se bloquea y pide actualizar.
 
-Una app sin fila tiene mínima 0, así que nunca se bloquea por un dato que falta. La migración deja una fila para `habitos` con mínima 1, que no bloquea a nadie.
+Una app sin fila tiene mínima 0, así que nunca se bloquea por un dato que falta. La migración V20 deja una fila para `habitos` con mínima 1, que no bloquea a nadie, y la V25 otra igual para `enfoque`.
 
 Se cambia a mano con un `UPDATE`, sin compilar ni reiniciar. El orden es siempre el mismo: primero se publica la versión nueva y se ve en Play; después se sube la mínima. La consulta es `GET /api/version/{appId}`.
 
@@ -289,6 +303,7 @@ Usuario
  │           ├── ────── Racha (heredada)
  │           └── 1:1 ── Ritmo
  │
+ ├── 1:N ── UsuarioDispositivo (una por app)
  ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
  ├── 1:N ── UsuarioProducto ── N:1 ── Producto
@@ -337,7 +352,9 @@ La eliminación de una cuenta sigue el patrón de limpieza por responsabilidades
 
 El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, el libro de hitos, las reversiones, los registros, la racha, el ritmo y el historial de objetivos de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo y el historial se borran antes que su hábito porque sus claves ajenas (`FK_ritmo_habito`, `FK_habito_objetivo_habito`) no tienen borrado en cascada; el libro de hitos, antes que los registros, porque también apunta a ellos. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
 
-La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`), su historial de objetivos (`objetivos`: `desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo` y `diasSemana`), los hitos cobrados (`hitosPagados`: `umbral` y `pagadoEn`) y sus registros (con `cantidad` y `origen`; la clave del cliente no se exporta), además de las categorías personalizadas. Cada hábito lleva su `unidad` y sus `minutosObjetivo`. El objetivo de cada hábito (`frecuencia`, `meta`, `unidad`, `minutosObjetivo`, `diasSemana`) es el vigente hoy según su historial, también si ha llegado un cambio programado que la copia todavía no tiene; se calcula sin escribir nada, porque la exportación corre en una transacción de solo lectura.
+Los tokens de notificaciones los borra `LimpiadorDispositivos`, del motor. La tabla solo cuelga de `usuario`, así que su orden respecto a los demás limpiadores da igual.
+
+La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`), su historial de objetivos (`objetivos`: `desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo` y `diasSemana`), los hitos cobrados (`hitosPagados`: `umbral` y `pagadoEn`) y sus registros (con `cantidad` y `origen`; la clave del cliente no se exporta), además de las categorías personalizadas. El exportador de notificaciones (`ExportadorDispositivos`, sección `notificaciones`) dice en qué apps tiene el usuario un token registrado y desde cuándo (`app`, `actualizadoEn`), sin el token, como tampoco sale `usuario.fcm_token`. Cada hábito lleva su `unidad` y sus `minutosObjetivo`. El objetivo de cada hábito (`frecuencia`, `meta`, `unidad`, `minutosObjetivo`, `diasSemana`) es el vigente hoy según su historial, también si ha llegado un cambio programado que la copia todavía no tiene; se calcula sin escribir nada, porque la exportación corre en una transacción de solo lectura.
 
 ---
 
@@ -359,6 +376,7 @@ Esto es especialmente relevante para:
 ## 7. Reglas de integridad relevantes
 
 - Un hábito pertenece a un usuario.
+- Un usuario tiene como mucho un token de notificaciones por app (`usuario_ref`, `app_id` es único en `usuario_dispositivo`).
 - Un registro pertenece a un hábito.
 - Una clave del cliente identifica como mucho un registro (`clave_cliente` es único en `registro`).
 - La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.

@@ -465,7 +465,7 @@ Hoy hay un único envío programado: los **recordatorios** de cada hábito.
 - **Cuándo**: cada 5 minutos. La hora del hábito se redondea hacia arriba al múltiplo de 5 minutos siguiente, y se compara con la ventana de 5 minutos en curso en la hora local del dueño del hábito.
 - **Si toca recordar**: el hábito no está hecho en su día (en un diario) ni cubierto en su semana (en un semanal), y la semana no está ya cumplida. Un hábito de minutos no está hecho hasta que el día llega a sus minutos: un paso a medias no calla el recordatorio.
 - **Un aviso por usuario**: si varios hábitos coinciden a la misma hora, el usuario recibe un solo aviso que los nombra.
-- **Sin token**: si el usuario no tiene token FCM, no se envía nada. Si FCM da el token por inválido, se borra del usuario.
+- **A qué token**: al de Norday Habits del usuario (`usuario_dispositivo` con `app_id = 'habitos'`), nunca al de otra app del ecosistema. Si no tiene, no se envía nada. Si FCM da el token por dado de baja (`UNREGISTERED`), se borra, solo si sigue siendo ese: si la app ya ha registrado otro, se queda el nuevo.
 
 El aviso de racha en peligro (`NotificadorRachaEnPeligro`) existe, pero su programación está comentada: hoy no se envía. Su hora de referencia en el código es las 21:00 de la zona del usuario.
 

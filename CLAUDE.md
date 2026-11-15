@@ -101,7 +101,7 @@ Declara la interfaz `LimpiadorDatosUsuario` (en `core.service`), Spring
 recolecta todas sus implementaciones en un `List<LimpiadorDatosUsuario>`,
 se recorren, y solo después se borra el `Usuario`.
 
-Implementaciones actuales, cuatro:
+Implementaciones actuales, cinco:
 
 - `LimpiadorHabitos` — registros y rachas, luego hábitos, luego categorías
   propias.
@@ -110,6 +110,8 @@ Implementaciones actuales, cuatro:
   cuelgan del email y no del id.
 - `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría y
   valoraciones.
+- `LimpiadorDispositivos` — los tokens de notificaciones de todas las apps
+  (`usuario_dispositivo`).
 
 **Cada módulo nuevo que guarde datos colgando de `Usuario` debe aportar su
 propio limpiador.** Esto sustituye a la regla frágil de "acordarse de
@@ -123,7 +125,9 @@ limpiador sí importa.
 `ExportacionDatosService.exportar(id)` tampoco conoce las tablas de cada
 módulo. La interfaz `ExportadorDatosUsuario` vive en `core.service` y
 Spring recolecta sus implementaciones igual que con los limpiadores:
-`ExportadorGamificacion`, `ExportadorHabitos` y `ExportadorConocimiento`.
+`ExportadorGamificacion`, `ExportadorHabitos`, `ExportadorConocimiento` y
+`ExportadorDispositivos` (en qué apps hay token y desde cuándo; nunca el
+token, como tampoco sale `usuario.fcm_token`).
 
 Lo consume `GET /api/usuarios/{id}/exportar`, que comprueba que el
 autenticado es el dueño y devuelve el JSON con `Content-Disposition`. Es la
@@ -133,6 +137,25 @@ privacidad.
 **Un módulo nuevo que guarde datos del usuario aporta dos cosas: su
 limpiador y su exportador.** Si solo aporta el limpiador, la exportación
 mentirá por omisión.
+
+## Notificaciones: un token por app
+
+FCM da un token por instancia de app: Norday Habits y Norday Focus en el
+mismo móvil tienen dos. Cada usuario tiene una fila por app en
+`usuario_dispositivo` (motor, `core`), y nada más.
+
+- **Cada app registra su token con la cabecera `X-Norday-App`** en
+  `PUT /api/usuarios/{id}/fcm-token`. Sin cabecera, o vacía, es `habitos`:
+  la APK ya instalada no la manda. Una app que no está en `AppNorday` recibe
+  400 y no se guarda nada. **Una app nueva se añade a `AppNorday` antes de
+  publicarse.**
+- **Todo envío push pide el token de la app a la que va**, con
+  `DispositivoService.tokenDe(usuarioId, appId)` (o `tokensDe` para muchos
+  usuarios). Nunca `usuario.getFcmToken()`. Los recordatorios de hábitos van
+  a `habitos`. Si FCM responde `UNREGISTERED`, `olvidarToken`.
+- **`usuario.fcm_token` es columna de transición**: se sigue escribiendo
+  con el token de `habitos` para poder volver al jar anterior a V24, y
+  nadie la lee. No se quita hasta que no haga falta volver atrás.
 
 ## Siembra de catálogos
 
