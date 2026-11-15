@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -65,6 +66,15 @@ public class NotificacionScheduler {
      */
     @Scheduled(cron = "0 0/5 * * * *")
     public void enviarRecordatorios() {
+        enviarRecordatorios(Instant.now());
+    }
+
+    /**
+     * El barrido tal como lo vería el reloj en ese instante. Separado del
+     * programado para que los tests fijen la hora en vez de depender de en
+     * qué ventana de 5 minutos caen.
+     */
+    public void enviarRecordatorios(Instant ahora) {
         List<Habito> activos = habitoDAO.findTodosActivos();
 
         // Candidatos: la hora del recordatorio cae en la ventana actual del
@@ -75,10 +85,10 @@ public class NotificacionScheduler {
                 continue;
             }
             ZoneId zona = zonaUsuarioService.zonaDe(habito.getPropietario());
-            if (!redondearArriba5Min(habito.getRecordatorioHora()).equals(ventanaActual(zona))) {
+            if (!redondearArriba5Min(habito.getRecordatorioHora()).equals(ventanaActual(zona, ahora))) {
                 continue;
             }
-            candidatosPorFecha.computeIfAbsent(LocalDate.now(zona), fecha -> new ArrayList<>()).add(habito);
+            candidatosPorFecha.computeIfAbsent(LocalDate.ofInstant(ahora, zona), fecha -> new ArrayList<>()).add(habito);
         }
 
         if (candidatosPorFecha.isEmpty()) {
@@ -166,9 +176,9 @@ public class NotificacionScheduler {
      * scheduler), comparar el minuto exacto haría perder en silencio todos
      * los recordatorios de esa ventana.
      */
-    private LocalTime ventanaActual(ZoneId zona) {
-        LocalTime ahora = LocalTime.now(zona).withSecond(0).withNano(0);
-        return ahora.withMinute((ahora.getMinute() / 5) * 5);
+    private LocalTime ventanaActual(ZoneId zona, Instant ahora) {
+        LocalTime enSuReloj = LocalTime.ofInstant(ahora, zona).withSecond(0).withNano(0);
+        return enSuReloj.withMinute((enSuReloj.getMinute() / 5) * 5);
     }
 
     /** Redondea hacia ARRIBA al siguiente múltiplo de 5 minutos (nunca antes de la hora elegida). */

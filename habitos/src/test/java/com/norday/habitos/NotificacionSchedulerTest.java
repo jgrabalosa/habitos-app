@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -40,6 +41,13 @@ class NotificacionSchedulerTest {
 
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
+
+    /**
+     * Instante fijo del barrido: martes 10-nov-2026, 10:02 en Madrid y 06:02
+     * en Sao Paulo. Las horas de los recordatorios salen de él, así que el
+     * test no depende de en qué ventana de 5 minutos se ejecute.
+     */
+    private static final Instant AHORA = Instant.parse("2026-11-10T09:02:00Z");
 
     @Mock
     private IHabitoDAO habitoDAO;
@@ -97,7 +105,7 @@ class NotificacionSchedulerTest {
     @Test
     void usuarioEnZonaNoEuropea_recibeElRecordatorioASuHoraLocal() {
         // Hábito cuya hora de recordatorio es justo la ventana actual EN SAO PAULO
-        LocalTime ahoraEnSaoPaulo = LocalTime.now(SAO_PAULO).withSecond(0).withNano(0);
+        LocalTime ahoraEnSaoPaulo = LocalTime.ofInstant(AHORA, SAO_PAULO).withSecond(0).withNano(0);
         LocalTime enVentana = ahoraEnSaoPaulo.withMinute((ahoraEnSaoPaulo.getMinute() / 5) * 5);
 
         Habito habito = habitoCon(SAO_PAULO, enVentana);
@@ -106,7 +114,7 @@ class NotificacionSchedulerTest {
         when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
     }
@@ -115,14 +123,14 @@ class NotificacionSchedulerTest {
     void mismaHoraDeRecordatorio_noSeDisparaSiEnSuRelojNoToca() {
         // La hora del recordatorio corresponde a la ventana de Madrid, pero el
         // usuario está en Sao Paulo: en su reloj aún no es esa hora.
-        LocalTime ahoraEnMadrid = LocalTime.now(MADRID).withSecond(0).withNano(0);
+        LocalTime ahoraEnMadrid = LocalTime.ofInstant(AHORA, MADRID).withSecond(0).withNano(0);
         LocalTime ventanaMadrid = ahoraEnMadrid.withMinute((ahoraEnMadrid.getMinute() / 5) * 5);
 
         Habito habito = habitoCon(SAO_PAULO, ventanaMadrid);
         when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(SAO_PAULO);
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         // Madrid y Sao Paulo no comparten hora local, así que no debe enviarse
         // Ni una llamada, con los textos que sea: anyString() no casa con null.
@@ -133,7 +141,7 @@ class NotificacionSchedulerTest {
     void sinHabitosActivos_noSeConsultaNadaMas() {
         when(habitoDAO.findTodosActivos()).thenReturn(new ArrayList<>());
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(registroDAO, never()).findByFecha(any());
         // Ni una llamada, con los textos que sea: anyString() no casa con null.
@@ -142,7 +150,7 @@ class NotificacionSchedulerTest {
 
     /** La hora de la ventana de 5 minutos en curso en Madrid. */
     private LocalTime ventanaDeMadrid() {
-        LocalTime ahora = LocalTime.now(MADRID).withSecond(0).withNano(0);
+        LocalTime ahora = LocalTime.ofInstant(AHORA, MADRID).withSecond(0).withNano(0);
         return ahora.withMinute((ahora.getMinute() / 5) * 5);
     }
 
@@ -160,7 +168,7 @@ class NotificacionSchedulerTest {
         when(textosService.texto("push.recordatorio.varios.titulo", usuario, 2)).thenReturn("titulo de dos");
         when(textosService.texto("push.recordatorio.varios.cuerpo", usuario, "Leer, Yoga")).thenReturn("los nombres");
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(notificacionService, times(1)).enviarNotificacion("token-fcm", "titulo de dos", "los nombres");
     }
@@ -171,14 +179,14 @@ class NotificacionSchedulerTest {
         Habito llamar = habitoCon(MADRID, ventanaDeMadrid());
         llamar.setFrecuencia(Frecuencia.SEMANAL);
         llamar.setMeta(1);
-        LocalDate lunes = LocalDate.now(MADRID).with(DayOfWeek.MONDAY);
+        LocalDate lunes = LocalDate.ofInstant(AHORA, MADRID).with(DayOfWeek.MONDAY);
 
         when(habitoDAO.findTodosActivos()).thenReturn(List.of(llamar));
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
         when(registroDAO.findByHabitosAndRango(anyList(), any(), any()))
                 .thenReturn(List.of(new Registro(llamar, true, "", lunes)));
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         // Ni una llamada, con los textos que sea: anyString() no casa con null.
         verifyNoInteractions(notificacionService);
@@ -189,7 +197,7 @@ class NotificacionSchedulerTest {
         // Cuatro veces al día y hoy lleva una.
         Habito agua = habitoCon(MADRID, ventanaDeMadrid());
         agua.setMeta(4);
-        LocalDate hoy = LocalDate.now(MADRID);
+        LocalDate hoy = LocalDate.ofInstant(AHORA, MADRID);
 
         when(habitoDAO.findTodosActivos()).thenReturn(List.of(agua));
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
@@ -198,7 +206,7 @@ class NotificacionSchedulerTest {
         when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
     }
@@ -208,7 +216,7 @@ class NotificacionSchedulerTest {
         Habito leer = habitoCon(MADRID, ventanaDeMadrid());
         leer.setUnidad(com.norday.habitos.model.Unidad.MINUTOS);
         leer.setMinutosObjetivo(30);
-        LocalDate hoy = LocalDate.now(MADRID);
+        LocalDate hoy = LocalDate.ofInstant(AHORA, MADRID);
         Registro veinte = new Registro(leer, true, "", hoy);
         veinte.setCantidad(20);
 
@@ -218,14 +226,14 @@ class NotificacionSchedulerTest {
         when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
         verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
 
         Registro diez = new Registro(leer, true, "", hoy);
         diez.setCantidad(10);
         when(registroDAO.findByHabitosAndRango(anyList(), any(), any())).thenReturn(List.of(veinte, diez));
         clearInvocations(notificacionService);
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
         verifyNoInteractions(notificacionService);
     }
 
@@ -237,7 +245,7 @@ class NotificacionSchedulerTest {
         when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(dispositivoService).tokensDe(anyCollection(), eq(AppNorday.HABITOS));
         verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
@@ -251,7 +259,7 @@ class NotificacionSchedulerTest {
         when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
         when(dispositivoService.tokensDe(anyCollection(), eq(AppNorday.HABITOS))).thenReturn(Map.of());
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verifyNoInteractions(notificacionService);
     }
@@ -265,7 +273,7 @@ class NotificacionSchedulerTest {
         when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
         when(notificacionService.enviarNotificacion(eq("token-fcm"), anyString(), anyString())).thenReturn(true);
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(dispositivoService).olvidarToken(1, AppNorday.HABITOS, "token-fcm");
     }

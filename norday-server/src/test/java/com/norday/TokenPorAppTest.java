@@ -11,16 +11,19 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.service.NotificacionScheduler;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -30,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -43,6 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * Contra la aplicación ensamblada, con el endpoint, la base de datos y el
  * barrido de verdad. Solo el envío a Firebase es falso: es lo que se observa.
+ * Se cambia a mano en el barrido, y no con @MockitoBean, para no levantar un
+ * segundo contexto Spring solo para esta clase.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,6 +56,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TokenPorAppTest {
 
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
+
+    /** Instante fijo del barrido: martes 10-nov-2026, 10:02 en Madrid. */
+    private static final Instant AHORA = Instant.parse("2026-11-10T09:02:00Z");
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,8 +75,22 @@ class TokenPorAppTest {
     @Autowired
     private UsuarioService usuarioService;
 
-    @MockitoBean
     private NotificacionService notificacionService;
+
+    private NotificacionService notificacionServiceReal;
+
+    @BeforeEach
+    void envioFalso() {
+        notificacionServiceReal = (NotificacionService) ReflectionTestUtils.getField(
+                notificacionScheduler, "notificacionService");
+        notificacionService = mock(NotificacionService.class);
+        ReflectionTestUtils.setField(notificacionScheduler, "notificacionService", notificacionService);
+    }
+
+    @AfterEach
+    void envioReal() {
+        ReflectionTestUtils.setField(notificacionScheduler, "notificacionService", notificacionServiceReal);
+    }
 
     @PersistenceContext
     private EntityManager em;
@@ -99,6 +122,21 @@ class TokenPorAppTest {
         return peticion;
     }
 
+    /**
+     * Un hábito con el recordatorio en la ventana de 5 minutos de AHORA en
+     * Madrid, empezado ese día y sin hacer: el barrido tiene que avisar.
+     */
+    private void habitoConRecordatorioAhora(Usuario usuario) {
+        LocalTime enSuReloj = LocalTime.ofInstant(AHORA, MADRID).withSecond(0).withNano(0);
+        LocalTime enVentana = enSuReloj.withMinute((enSuReloj.getMinute() / 5) * 5);
+        Habito habito = new Habito("Leer", "Descripción", Frecuencia.DIARIO, 1,
+                em.find(Usuario.class, usuario.getUsuarioId()), null, LocalDate.ofInstant(AHORA, MADRID));
+        habito.setRecordatorioActivo(true);
+        habito.setRecordatorioHora(enVentana);
+        em.persist(habito);
+        em.flush();
+    }
+
     private String tokenEnUsuario(Usuario usuario) {
         em.flush();
         em.clear();
@@ -112,18 +150,9 @@ class TokenPorAppTest {
         mockMvc.perform(registrar(usuario, "habitos", "token-habitos")).andExpect(status().isOk());
         mockMvc.perform(registrar(usuario, "enfoque", "token-enfoque")).andExpect(status().isOk());
 
-        // Un hábito con el recordatorio en la ventana de 5 minutos en curso en
-        // Madrid, sin hacer hoy: el barrido tiene que avisar.
-        LocalTime ahora = LocalTime.now(MADRID).withSecond(0).withNano(0);
-        LocalTime enVentana = ahora.withMinute((ahora.getMinute() / 5) * 5);
-        Habito habito = new Habito("Leer", "Descripción", Frecuencia.DIARIO, 1,
-                em.find(Usuario.class, usuario.getUsuarioId()), null, LocalDate.now(MADRID));
-        habito.setRecordatorioActivo(true);
-        habito.setRecordatorioHora(enVentana);
-        em.persist(habito);
-        em.flush();
+        habitoConRecordatorioAhora(usuario);
 
-        notificacionScheduler.enviarRecordatorios();
+        notificacionScheduler.enviarRecordatorios(AHORA);
 
         verify(notificacionService).enviarNotificacion(eq("token-habitos"), anyString(), anyString());
         verify(notificacionService, never()).enviarNotificacion(eq("token-enfoque"), anyString(), anyString());
