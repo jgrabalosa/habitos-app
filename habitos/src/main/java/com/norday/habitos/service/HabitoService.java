@@ -359,7 +359,8 @@ public class HabitoService {
 
         // Lo hecho de cada día con el objetivo de ese día. En un día de
         // minutos, la celda está completada si el día llegó a sus minutos y
-        // lleva los minutos; en uno de veces, como siempre.
+        // lleva los minutos y los minutos objetivo de ese día; en uno de
+        // veces, como siempre, con los dos a null.
         Hechos hechos = Hechos.de(todosRegistros, historial::objetivoEl);
         List<RegistroDiaDTO> heatmap = new ArrayList<>();
         for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
@@ -367,10 +368,12 @@ public class HabitoService {
             int veces = (int) registrosMes.stream()
                     .filter(r -> r.getFecha().equals(fechaActual) && r.isCompletado())
                     .count();
-            boolean enMinutos = historial.objetivoEl(fechaActual).enMinutos();
-            heatmap.add(enMinutos
+            // Con la versión vigente ese día: un día de veces (por ejemplo,
+            // anterior al paso a minutos) no lleva minutos ni objetivo.
+            Objetivo objetivoDelDia = historial.objetivoEl(fechaActual);
+            heatmap.add(objetivoDelDia.enMinutos()
                     ? new RegistroDiaDTO(fechaActual, hechos.diaHecho(fechaActual), veces,
-                            hechos.cantidadEl(fechaActual))
+                            hechos.cantidadEl(fechaActual), objetivoDelDia.minutosObjetivo())
                     : new RegistroDiaDTO(fechaActual, veces > 0, veces));
         }
 

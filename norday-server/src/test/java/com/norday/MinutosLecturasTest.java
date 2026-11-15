@@ -379,4 +379,49 @@ class MinutosLecturasTest {
                 "en veces una celda con algo sigue marcada, como antes");
         assertEquals(1, habitoService.obtenerResumen(usuario).get(0).getTotalCompletados());
     }
+
+    @Test
+    void detalle_cadaCeldaConLaVersionDeSuDia_deVecesAMinutosYDe30A60() {
+        // El detalle lee el reloj real; las celdas son los días 1, 2 y 3 del
+        // mes en curso. Hasta el día 1, de veces; el 2, 30 min; desde el 3, 60.
+        YearMonth mes = YearMonth.now(MADRID);
+        LocalDate dia1 = mes.atDay(1);
+        LocalDate dia2 = mes.atDay(2);
+        LocalDate dia3 = mes.atDay(3);
+        Usuario usuario = usuario();
+        Habito habito = habito(usuario, new Objetivo(Frecuencia.DIARIO, 1, null), dia1);
+        habito.setUnidad(Unidad.MINUTOS);
+        habito.setMinutosObjetivo(60);
+        em.persist(new HabitoObjetivo(habito, dia2, minutosDiario(30)));
+        em.persist(new HabitoObjetivo(habito, dia3, minutosDiario(60)));
+        registro(habito, dia1, 1);
+        registro(habito, dia2, 45);
+        registro(habito, dia3, 20);
+        registro(habito, dia3, 25);
+        limpiar();
+
+        HabitoDetalleDTO detalle = habitoService.obtenerDetalle(habito.getHabitoId(), mes);
+        RegistroDiaDTO veces = detalle.getHeatmap().get(0);
+        assertTrue(veces.isCompletado(), "un día de veces con su registro, como siempre");
+        assertNull(veces.getMinutos());
+        assertNull(veces.getMinutosObjetivo());
+        assertEquals(1, veces.getVeces());
+
+        RegistroDiaDTO treinta = detalle.getHeatmap().get(1);
+        assertTrue(treinta.isCompletado(), "45 de 30");
+        assertEquals(45, treinta.getMinutos());
+        assertEquals(30, treinta.getMinutosObjetivo());
+
+        RegistroDiaDTO sesenta = detalle.getHeatmap().get(2);
+        assertFalse(sesenta.isCompletado(), "45 de 60");
+        assertEquals(45, sesenta.getMinutos());
+        assertEquals(60, sesenta.getMinutosObjetivo());
+        assertEquals(2, sesenta.getVeces());
+
+        // Un día sin nada de cada tipo: minutos 0 con objetivo en minutos.
+        RegistroDiaDTO vacio = detalle.getHeatmap().get(3);
+        assertFalse(vacio.isCompletado());
+        assertEquals(0, vacio.getMinutos());
+        assertEquals(60, vacio.getMinutosObjetivo());
+    }
 }
