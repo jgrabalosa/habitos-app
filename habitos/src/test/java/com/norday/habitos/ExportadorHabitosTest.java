@@ -54,8 +54,55 @@ class ExportadorHabitosTest {
     @Mock
     private IHitoPagadoDAO hitoPagadoDAO;
 
+    @Mock
+    private com.norday.habitos.service.ObjetivoService objetivoService;
+
+    @Mock
+    private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
+
     @InjectMocks
     private ExportadorHabitos exportador;
+
+    // Desde la Fase 3 el exportador pone al día el objetivo con el "hoy" del
+    // usuario antes de exportar.
+    @org.junit.jupiter.api.BeforeEach
+    void zonaDelUsuario() {
+        lenient().when(zonaUsuarioService.zonaDe(any(Usuario.class)))
+                .thenReturn(java.time.ZoneId.of("Europe/Madrid"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exportar_poneAlDiaLaCopia_yLlevaUnidadMinutosCantidadYOrigen() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(1);
+        Habito habito = new Habito("Leer", null, Frecuencia.DIARIO, 1,
+                usuario, null, LocalDate.of(2026, 9, 1));
+        habito.setUnidad(com.norday.habitos.model.Unidad.MINUTOS);
+        habito.setMinutosObjetivo(30);
+        Registro registro = new Registro(habito, true, null, LocalDate.of(2026, 9, 2));
+        registro.setCantidad(25);
+        registro.setOrigen(com.norday.habitos.model.OrigenRegistro.ENFOQUE);
+        registro.setClaveCliente(java.util.UUID.randomUUID());
+
+        when(habitoDAO.findByPropietario(usuario)).thenReturn(List.of(habito));
+        when(registroDAO.findByHabito(habito)).thenReturn(List.of(registro));
+        when(categoriaDAO.findByCreador(usuario)).thenReturn(List.of());
+
+        Map<String, Object> datos = exportador.exportar(usuario);
+
+        org.mockito.InOrder orden = inOrder(objetivoService, registroDAO);
+        orden.verify(objetivoService).ponerAlDia(eq(List.of(habito)),
+                eq(LocalDate.now(java.time.ZoneId.of("Europe/Madrid"))));
+        orden.verify(registroDAO).findByHabito(habito);
+        Map<String, Object> exportado = ((List<Map<String, Object>>) datos.get("habitos")).get(0);
+        assertEquals("MINUTOS", exportado.get("unidad"));
+        assertEquals(30, exportado.get("minutosObjetivo"));
+        Map<String, Object> reg = ((List<Map<String, Object>>) exportado.get("registros")).get(0);
+        assertEquals(25, reg.get("cantidad"));
+        assertEquals("ENFOQUE", reg.get("origen"));
+        assertFalse(reg.containsKey("claveCliente"));
+    }
 
     @Test
     @SuppressWarnings("unchecked")

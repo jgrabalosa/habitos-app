@@ -1,5 +1,7 @@
 package com.norday.habitos.service;
 
+import com.norday.core.exception.ConflictoException;
+import com.norday.core.service.TextosService;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
 import com.norday.habitos.model.HistorialObjetivos;
@@ -38,6 +40,9 @@ public class ObjetivoService {
 
     @Autowired
     private RitmoService ritmoService;
+
+    @Autowired
+    private TextosService textosService;
 
     /** Al crear un hábito: su primera versión, desde la fecha de inicio. */
     @Transactional
@@ -85,17 +90,30 @@ public class ObjetivoService {
             Objetivo actual = Objetivo.de(habito);
             if (nuevo.equals(actual)) continue;
 
-            // Mismo criterio que HabitoService.actualizar: el ritmo solo
-            // depende de la frecuencia y de la meta.
-            if (actual.frecuencia() != nuevo.frecuencia() || actual.meta() != nuevo.meta()) {
+            // Mismo criterio que HabitoService.actualizar: el ritmo depende
+            // de la frecuencia, la meta, la unidad y los minutos.
+            if (actual.cambiaElCreditoRespectoA(nuevo)) {
                 ritmoService.anclarAntesDeCambiar(habito, vigente.getDesde());
             }
+            habito.setUnidad(nuevo.unidad());
+            habito.setMinutosObjetivo(nuevo.minutosObjetivo());
             habito.setFrecuencia(nuevo.frecuencia());
             habito.setMeta(nuevo.meta());
             habito.setDiasSemana(nuevo.diasSemana());
             habitoDAO.update(habito);
         }
         return historiales;
+    }
+
+    /**
+     * Anula el cambio programado: borra las versiones que empiezan después
+     * de hoy. La copia del objetivo que guarda el hábito no se toca: es la de
+     * hoy, y sigue siéndolo. El ritmo tampoco: un cambio programado no lo
+     * ancla hasta que se aplica.
+     */
+    @Transactional
+    public void anularProgramados(Habito habito, LocalDate hoy) {
+        objetivoDAO.deletePosterioresA(habito, hoy);
     }
 
     /**
@@ -116,7 +134,7 @@ public class ObjetivoService {
         List<HabitoObjetivo> versiones = objetivoDAO.findByHabito(habito);
         if (versiones.isEmpty() && habito.getFechaInicio() != null
                 && habito.getFechaInicio().isBefore(desde)) {
-            objetivoDAO.save(new HabitoObjetivo(habito, habito.getFechaInicio(), Objetivo.de(habito)));
+            insertarOConflicto(new HabitoObjetivo(habito, habito.getFechaInicio(), Objetivo.de(habito)));
         }
 
         // La versión que ya cae en esa fecha se reescribe, en vez de borrarla
@@ -135,7 +153,20 @@ public class ObjetivoService {
             enLaFecha.aplicar(nuevo);
             objetivoDAO.update(enLaFecha);
         } else {
-            objetivoDAO.save(new HabitoObjetivo(habito, desde, nuevo));
+            insertarOConflicto(new HabitoObjetivo(habito, desde, nuevo));
+        }
+    }
+
+    /**
+     * Guarda una versión nueva. Si otra petición acaba de guardar una para
+     * el mismo hábito y la misma fecha (dos PUT a la vez), no se escribe nada
+     * y es un conflicto (409): la restricción única no llega a saltar, así
+     * que no hay 500.
+     */
+    private void insertarOConflicto(HabitoObjetivo version) {
+        if (!objetivoDAO.insertarSiLibre(version)) {
+            throw new ConflictoException(textosService.texto("habito.objetivo.a.la.vez",
+                    version.getHabito().getPropietario()));
         }
     }
 }

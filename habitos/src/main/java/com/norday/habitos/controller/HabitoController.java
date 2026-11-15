@@ -140,7 +140,8 @@ public class HabitoController extends ControladorAutorizado {
         }
         Habito habito = entrada.aHabito();
         habito.setPropietario(autenticado);
-        List<String> logrosOtorgados = habitoService.crearHabito(habito, entrada.getCategoriaId());
+        List<String> logrosOtorgados = habitoService.crearHabito(habito, entrada.getCategoriaId(),
+                entrada.getUnidad(), entrada.getMinutosObjetivo());
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Hábito creado correctamente");
         respuesta.put("logrosOtorgados", logrosOtorgados);
@@ -164,7 +165,8 @@ public class HabitoController extends ControladorAutorizado {
         // Mismo motivo que en crear(): el propietario no se toca desde
         // el body, se conserva el que ya tenía el hábito en BD.
         habito.setPropietario(existente.getPropietario());
-        LocalDate aplicaDesde = habitoService.actualizar(habito, entrada.getCategoriaId());
+        LocalDate aplicaDesde = habitoService.actualizar(habito, entrada.getCategoriaId(),
+                entrada.getUnidad(), entrada.getMinutosObjetivo());
         // Antes era texto plano. La app ya instalada solo mira el código de
         // estado (ApiServiceCore.verificar), así que el cuerpo puede ser JSON.
         // aplicaDesde es hoy, el lunes de esta semana (un cambio semanal sin
@@ -218,6 +220,25 @@ public class HabitoController extends ControladorAutorizado {
         }
         habitoService.eliminar(id);
         return ResponseEntity.ok("Hábito eliminado correctamente");
+    }
+
+    /**
+     * Anula el cambio de objetivo programado: borra las versiones del
+     * historial que aún no han empezado. La copia del objetivo de hoy no se
+     * toca. Sin cambio programado, también 200.
+     */
+    @DeleteMapping("/{id}/objetivo-programado")
+    public ResponseEntity<?> anularObjetivoProgramado(@PathVariable int id, Authentication authentication) {
+        Habito habito = habitoService.buscarPorId(id);
+        if (habito == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Hábito no encontrado");
+        }
+        if (!esElPropietario(habito, authentication)) {
+            return prohibido();
+        }
+        habitoService.anularObjetivoProgramado(habito);
+        return ResponseEntity.ok(Map.of("mensaje", "Cambio de objetivo programado anulado"));
     }
 
     @GetMapping("/{id}/detalle")

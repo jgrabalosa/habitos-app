@@ -83,6 +83,18 @@ public record Objetivo(Unidad unidad, Frecuencia frecuencia, int meta, Integer m
     }
 
     /**
+     * ¿Cambia de uno a otro lo que decide el crédito de un periodo (y por
+     * tanto el ritmo)? La frecuencia, la meta, la unidad y los minutos; los
+     * días fijos sin cambiar cuántos son, no.
+     */
+    public boolean cambiaElCreditoRespectoA(Objetivo otro) {
+        Objetivo a = normalizado();
+        Objetivo b = otro.normalizado();
+        return a.frecuencia != b.frecuencia || a.meta != b.meta || a.unidad != b.unidad
+                || !Objects.equals(a.minutosObjetivo, b.minutosObjetivo);
+    }
+
+    /**
      * La forma con la que se compara: los días fijos solo cuentan en un
      * semanal, y como conjunto ordenado ("4,2" es "2,4"); los minutos solo
      * cuentan en un hábito de minutos; y en un diario de minutos la meta es

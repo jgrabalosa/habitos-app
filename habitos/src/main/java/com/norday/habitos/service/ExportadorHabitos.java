@@ -3,6 +3,7 @@ package com.norday.habitos.service;
 import com.norday.core.model.Usuario;
 import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.ExportadorDatosUsuario;
+import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
@@ -19,6 +20,7 @@ import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,12 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
     @Autowired
     private IHitoPagadoDAO hitoPagadoDAO;
 
+    @Autowired
+    private ObjetivoService objetivoService;
+
+    @Autowired
+    private ZonaUsuarioService zonaUsuarioService;
+
     @Override
     public String seccion() {
         return "habitos";
@@ -61,6 +69,9 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
     @Override
     public Map<String, Object> exportar(Usuario usuario) {
         List<Habito> habitos = habitoDAO.findByPropietario(usuario);
+        // La copia del objetivo de hoy, al día: si ha llegado un cambio
+        // programado, se exporta el objetivo vigente y no el de antes.
+        objetivoService.ponerAlDia(habitos, LocalDate.now(zonaUsuarioService.zonaDe(usuario)));
 
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("habitos", habitos.stream().map(this::datosHabito).collect(Collectors.toList()));
@@ -77,6 +88,8 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("descripcion", habito.getDescripcion());
         mapa.put("frecuencia", habito.getFrecuencia().name());
         mapa.put("meta", habito.getMeta());
+        mapa.put("unidad", habito.getUnidad().name());
+        mapa.put("minutosObjetivo", habito.getMinutosObjetivo());
         mapa.put("diasSemana", habito.getDiasSemana());
         mapa.put("fechaInicio", ExportacionDatosService.texto(habito.getFechaInicio()));
         mapa.put("fechaCreacion", ExportacionDatosService.texto(habito.getFechaCreacion()));
@@ -148,6 +161,8 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         mapa.put("completado", registro.isCompletado());
         mapa.put("nota", registro.getNota());
         mapa.put("valoracion", registro.getValoracion());
+        mapa.put("cantidad", registro.getCantidad());
+        mapa.put("origen", registro.getOrigen().name());
         return mapa;
     }
 

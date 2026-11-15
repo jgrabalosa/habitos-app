@@ -2,6 +2,7 @@ package com.norday.habitos.model.dto;
 
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Unidad;
 import java.time.LocalTime;
 
 /**
@@ -10,6 +11,11 @@ import java.time.LocalTime;
  * Solo lleva lo que decide el usuario. El id, el propietario, activo y
  * fechaInicio los fija el servidor. La categoria llega como id y la resuelve
  * HabitoService, que solo acepta las globales y las del propio usuario.
+ *
+ * {@code unidad} y {@code minutosObjetivo} son de los hábitos en minutos.
+ * La app ya instalada no los manda, y Jackson los deja en null: null es "sin
+ * cambio" en el PUT (se conserva lo que tenía el hábito) y VECES en el POST.
+ * No pasan por {@link #aHabito}: los resuelve HabitoService.
  */
 public class HabitoEntradaDTO {
 
@@ -22,6 +28,8 @@ public class HabitoEntradaDTO {
     private boolean recordatorioActivo = true;
     private LocalTime recordatorioHora;
     private Integer categoriaId;
+    private Unidad unidad;
+    private Integer minutosObjetivo;
 
     /** Un Habito sin id, sin propietario y sin categoria: los pone quien llama. */
     public Habito aHabito() {
@@ -59,4 +67,10 @@ public class HabitoEntradaDTO {
 
     public Integer getCategoriaId() { return categoriaId; }
     public void setCategoriaId(Integer categoriaId) { this.categoriaId = categoriaId; }
+
+    public Unidad getUnidad() { return unidad; }
+    public void setUnidad(Unidad unidad) { this.unidad = unidad; }
+
+    public Integer getMinutosObjetivo() { return minutosObjetivo; }
+    public void setMinutosObjetivo(Integer minutosObjetivo) { this.minutosObjetivo = minutosObjetivo; }
 }

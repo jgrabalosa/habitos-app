@@ -1,6 +1,8 @@
 package com.norday.habitos.service;
 
+import com.norday.core.exception.ConflictoException;
 import com.norday.core.exception.RecursoNoEncontradoException;
+import com.norday.core.service.TextosService;
 import com.norday.core.model.Usuario;
 import com.norday.habitos.model.CalculoObjetivo;
 import com.norday.habitos.model.Categoria;
@@ -9,6 +11,7 @@ import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
 import com.norday.habitos.model.Hechos;
 import com.norday.habitos.model.HistorialObjetivos;
+import com.norday.habitos.model.LimitesMinutos;
 import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
@@ -88,11 +91,18 @@ public class HabitoService {
     @Autowired
     private ICategoriaDAO categoriaDAO;
 
+    @Autowired
+    private TextosService textosService;
+
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
-     *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos. */
+     *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos.
+     *  En un diario de minutos la meta es siempre 1: lo que se pide es un día. */
     private void normalizarPlanificacion(Habito habito) {
         if (habito.getFrecuencia() != Frecuencia.SEMANAL) {
             habito.setDiasSemana(null);
+            if (habito.getUnidad() == Unidad.MINUTOS) {
+                habito.setMeta(1);
+            }
             return;
         }
         String dias = habito.getDiasSemana();
@@ -100,6 +110,19 @@ public class HabitoService {
             habito.setMeta((int) java.util.Arrays.stream(dias.split(","))
                     .filter(d -> !d.isBlank()).count());
         }
+    }
+
+    /**
+     * Pone en el hábito su unidad y sus minutos. De MINUTOS, los minutos por
+     * día tienen que ir de 1 a 600 (400 si no); de VECES, no hay minutos.
+     */
+    private void aplicarUnidad(Habito habito, Unidad unidad, Integer minutosObjetivo) {
+        if (unidad == Unidad.MINUTOS && !LimitesMinutos.valido(minutosObjetivo)) {
+            throw new IllegalArgumentException(textosService.texto("habito.minutos.objetivo.rango",
+                    habito.getPropietario(), LimitesMinutos.MINIMO, LimitesMinutos.MAXIMO));
+        }
+        habito.setUnidad(unidad);
+        habito.setMinutosObjetivo(unidad == Unidad.MINUTOS ? minutosObjetivo : null);
     }
 
     /**
@@ -125,6 +148,17 @@ public class HabitoService {
 
     @Transactional
     public List<String> crearHabito(Habito habito, Integer categoriaId) {
+        return crearHabito(habito, categoriaId, null, null);
+    }
+
+    /**
+     * Crea un hábito. Sin {@code unidad}, de VECES (los minutos se ignoran).
+     * De MINUTOS pide {@code minutosObjetivo} de 1 a 600 (400 si no); en un
+     * diario de minutos la meta es 1, y en un semanal, los días por semana.
+     */
+    @Transactional
+    public List<String> crearHabito(Habito habito, Integer categoriaId, Unidad unidad, Integer minutosObjetivo) {
+        aplicarUnidad(habito, unidad != null ? unidad : Unidad.VECES, minutosObjetivo);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
         normalizarPlanificacion(habito);
         LocalDate hoy = LocalDate.now(rachaService.zonaDe(habito));
@@ -194,6 +228,23 @@ public class HabitoService {
      */
     @Transactional
     public LocalDate actualizar(Habito habito, Integer categoriaId) {
+        return actualizar(habito, categoriaId, null, null);
+    }
+
+    /**
+     * Igual, con la unidad y los minutos que pide el cliente. null en
+     * cualquiera de los dos es "sin cambio": la app ya instalada no los manda,
+     * y un null no puede borrar nada (se conserva lo que tenía el hábito).
+     *
+     * De MINUTOS a VECES no se puede (409). De MINUTOS, los minutos por día
+     * van de 1 a 600 (400 si no). Cambiar los minutos o pasar de veces a
+     * minutos se aplica por días (hoy o mañana); si el mismo cambio toca
+     * también lo semanal, todo va a la fecha de la semana (ver
+     * {@link CalculoObjetivo}).
+     */
+    @Transactional
+    public LocalDate actualizar(Habito habito, Integer categoriaId, Unidad unidadPedida,
+                                Integer minutosPedidos) {
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
@@ -204,6 +255,16 @@ public class HabitoService {
         // es contra ese contra el que se compara.
         LocalDate hoy = rachaService.hoyDe(existente);
         objetivoService.ponerAlDia(List.of(existente), hoy);
+
+        // La unidad y los minutos, con "ausente = sin cambio". Van siempre en
+        // el hábito que se guarda: update hace merge de la entidad entera, y
+        // sin esto un PUT de la app ya instalada la devolvería a VECES.
+        Unidad unidad = unidadPedida != null ? unidadPedida : existente.getUnidad();
+        Integer minutos = minutosPedidos != null ? minutosPedidos : existente.getMinutosObjetivo();
+        if (existente.getUnidad() == Unidad.MINUTOS && unidad != Unidad.MINUTOS) {
+            throw new ConflictoException(textosService.texto("habito.minutos.a.veces", existente.getPropietario()));
+        }
+        aplicarUnidad(habito, unidad, minutos);
 
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
@@ -226,10 +287,12 @@ public class HabitoService {
             if (aplicaDesde.isAfter(hoy)) {
                 // Programado: hasta su fecha, el hábito sigue con el de hoy.
                 // El ritmo se anclará al aplicarlo (ObjetivoService.ponerAlDia).
+                habito.setUnidad(existente.getUnidad());
+                habito.setMinutosObjetivo(existente.getMinutosObjetivo());
                 habito.setFrecuencia(existente.getFrecuencia());
                 habito.setMeta(existente.getMeta());
                 habito.setDiasSemana(existente.getDiasSemana());
-            } else if (actual.frecuencia() != nuevo.frecuencia() || actual.meta() != nuevo.meta()) {
+            } else if (actual.cambiaElCreditoRespectoA(nuevo)) {
                 // El ritmo se ancla ANTES de guardar, con el hábito tal como
                 // estaba: hay que calcularlo con las reglas antiguas. Se
                 // ancla al empezar el periodo de hoy con las reglas nuevas,
@@ -244,6 +307,18 @@ public class HabitoService {
         }
         habitoDAO.update(habito);
         return aplicaDesde;
+    }
+
+    /**
+     * Anula el cambio de objetivo programado del hábito: borra las versiones
+     * que empiezan después de hoy y deja la copia del objetivo como está.
+     */
+    @Transactional
+    public void anularObjetivoProgramado(Habito habito) {
+        LocalDate hoy = rachaService.hoyDe(habito);
+        // Antes, lo que ya haya llegado se aplica: solo se anula lo futuro.
+        objetivoService.ponerAlDia(List.of(habito), hoy);
+        objetivoService.anularProgramados(habito, hoy);
     }
 
     @Transactional
@@ -528,9 +603,10 @@ public class HabitoService {
         Map<Integer, HistorialObjetivos> historiales = objetivoService.ponerAlDia(activos, hoy);
         // Lo que es de toda la semana (si es flexible y su meta), con el
         // objetivo de su último día ya llegado: en la semana en curso, el de
-        // hoy, como antes del historial.
+        // hoy, como antes del historial. En una semana futura, el de su
+        // lunes: el de hoy sería el de otra semana.
         LocalDate domingo = lunes.plusDays(6);
-        LocalDate ultimoDia = domingo.isAfter(hoy) ? hoy : domingo;
+        LocalDate ultimoDia = !domingo.isAfter(hoy) ? domingo : lunes.isAfter(hoy) ? lunes : hoy;
 
         // Una sola consulta para todos los hábitos activos, en vez de una
         // por hábito dentro del bucle.
