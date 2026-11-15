@@ -54,31 +54,62 @@ empaquetado, que es el de producción.
 
 ## El procedimiento
 
-Staging primero, siempre. Y `git pull` **antes** que `mvn`, sin excepción: el
-commit que aísla los tests puede ser justo el que todavía no está en la máquina.
+Staging primero, siempre. Tres reglas sin excepción:
+
+- **El código se trae antes que `mvn`**: el commit que aísla los tests puede
+  ser justo el que todavía no está en la máquina.
+- **El servicio se para antes de empaquetar.** `mvn clean package` con el
+  servicio vivo deja el apagado a medias (`clean` borra el jar que está
+  corriendo), y los tests necesitan conexiones libres en Postgres (ver
+  abajo).
+- **Se anota el commit** que se va a compilar, con `git --no-pager log -1`.
+
+Staging compila una rama concreta sin rama local, con el HEAD suelto en el
+commit del remoto (hoy, `wip-enfoque`):
 
 ```bash
 cd /opt/norday-backend-staging
-git pull
+git fetch origin
+git switch --detach origin/<rama>
+git --no-pager log -1 --oneline
+systemctl stop norday-backend-staging
 mvn clean package
-systemctl restart norday-backend-staging
+systemctl start norday-backend-staging
 ```
 
-Y después producción, con backup por delante:
+Y después producción, siempre desde `main` y con backup por delante:
 
 ```bash
 /root/backup_bd.sh
 cd /opt/norday-backend
 git pull
+git --no-pager log -1 --oneline
+systemctl stop norday-backend
 mvn clean package
-systemctl restart norday-backend
+systemctl start norday-backend
 ```
+
+Producción queda parada lo que tarde el `package`, suite incluida: se elige
+una hora de poco uso. En el VPS se usa `mvn`, no `./mvnw`.
 
 ## `mvn clean package` va SIN `-DskipTests`
 
 No es un descuido: es la regla. Cinco tests estuvieron rotos tres sesiones sin
-que nadie se enterara porque el despliegue se los saltaba. En el servidor los
-tests usan mocks y no necesitan nada especial.
+que nadie se enterara porque el despliegue se los saltaba.
+
+Los tests **no** son solo mocks: los `@SpringBootTest` de `norday-server`
+(los de concurrencia y los de integración) levantan el contexto contra
+Postgres de verdad, en `habitos_db_test`. Para que el `package` pase en el
+VPS hacen falta dos cosas:
+
+- **`habitos_db_test`**, con `norday_test` como dueño (ver `CLAUDE.md`,
+  «Tests»).
+- **Conexiones libres en Postgres.** Cada contexto de test guarda su pool
+  (hasta 5) y la suite levanta varios; con el servicio que se despliega
+  todavía vivo, sus conexiones también cuentan. Si salta «remaining connection
+  slots are reserved», no se reintenta con `-DskipTests`: se mira qué tiene
+  conexiones abiertas (`SELECT datname, count(*) FROM pg_stat_activity GROUP
+  BY datname;`).
 
 ## Cómo se comprueba que arrancó
 
