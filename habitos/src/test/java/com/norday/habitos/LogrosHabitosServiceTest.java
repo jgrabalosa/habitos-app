@@ -169,11 +169,46 @@ class LogrosHabitosServiceTest {
         );
 
         when(habitoDAO.findActivos(usuario)).thenReturn(tresHabitos);
+        // PRIMER_HABITO ya lo tenía: el motor lo rechaza.
+        when(logroService.otorgarSiNoTiene(usuario, "PRIMER_HABITO")).thenReturn(false);
         when(logroService.otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3")).thenReturn(true);
 
         logrosHabitosService.evaluarTrasCrearHabito(usuario);
 
         verify(logroService).otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3");
+    }
+
+    @Test
+    void activosYCategorias_queSaltanElUmbral_tambienLoConceden() {
+        // Reanudar no evalúa logros: con A y B, pausar B, crear C, reanudar
+        // B y crear D, los activos pasan de 2 a 4 sin crear el tercero, y
+        // las categorías distintas pueden saltar igual.
+        List<Habito> cuatro = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            Habito h = crearHabitoSimple(i);
+            com.norday.habitos.model.Categoria categoria = new com.norday.habitos.model.Categoria();
+            categoria.setCategoriaId(100 + i);
+            h.setTipo(categoria);
+            cuatro.add(h);
+        }
+        when(habitoDAO.findActivos(usuario)).thenReturn(cuatro);
+        when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCrearHabito(usuario);
+
+        assertTrue(otorgados.containsAll(List.of("PRIMER_HABITO", "HABITOS_ACTIVOS_3", "CATEGORIAS_3")),
+                "otorgados: " + otorgados);
+        assertFalse(otorgados.contains("HABITOS_ACTIVOS_5"));
+        assertFalse(otorgados.contains("CATEGORIAS_5"));
+    }
+
+    @Test
+    void primeraCategoria_conMasDeUnaCreada_tambienLaConcede() {
+        Usuario creador = usuario;
+        List<com.norday.habitos.model.Categoria> dos = List.of(
+                new com.norday.habitos.model.Categoria(), new com.norday.habitos.model.Categoria());
+        logrosHabitosService.evaluarTrasCrearCategoria(creador, dos);
+        verify(logroService).otorgarSiNoTiene(creador, "PRIMERA_CATEGORIA");
     }
 
     private Habito crearHabitoSimple(int id) {
