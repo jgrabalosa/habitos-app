@@ -296,6 +296,35 @@ class EditarMinutosTest {
                 .andExpect(jsonPath("$.objetivoProgramado.minutosObjetivo").value(40));
     }
 
+    @Test
+    void volverAlObjetivoDeHoyConUnidad_anulaElProgramado_sinUnidad_no() throws Exception {
+        // De veces a minutos con registros hoy: queda programado para mañana.
+        Habito leer = habito(new Objetivo(Frecuencia.DIARIO, 1, null));
+        registro(leer, VIERNES);
+        editar(leer, cuerpo("DIARIO", 1, null, ",\"unidad\":\"MINUTOS\",\"minutosObjetivo\":30"))
+                .andExpect(jsonPath("$.aplicaDesde").value(SABADO.toString()));
+        assertEquals(2, versiones(leer).size());
+
+        // La app ya instalada (sin unidad) solo cambia el nombre: no anula.
+        editar(leer, cuerpo("DIARIO", 1, null, "").replace("\"Leer\"", "\"Leer más\""))
+                .andExpect(status().isOk());
+        assertEquals(2, versiones(leer).size(), "sin unidad, el cambio programado sigue");
+
+        // La app nueva vuelve al objetivo de hoy, con unidad: anula.
+        editar(leer, cuerpo("DIARIO", 1, null, ",\"unidad\":\"VECES\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aplicaDesde").value(VIERNES.toString()));
+        assertEquals(List.of(INICIO + " VECES DIARIO 1 null null"), versiones(leer));
+
+        // Al día siguiente sigue de veces.
+        doReturn(SABADO).when(rachaService).hoyDe(any(Habito.class));
+        Habito manana = leido(leer.getHabitoId());
+        habitoService.ponerObjetivoAlDia(manana);
+        Habito tras = leido(leer.getHabitoId());
+        assertEquals(Unidad.VECES, tras.getUnidad());
+        assertNull(tras.getMinutosObjetivo());
+    }
+
     // ── Anular el cambio programado ──────────────────────────────
 
     @Test

@@ -254,7 +254,8 @@ public class HabitoService {
         // Primero, el objetivo de hoy: si ha llegado un cambio programado,
         // es contra ese contra el que se compara.
         LocalDate hoy = rachaService.hoyDe(existente);
-        objetivoService.ponerAlDia(List.of(existente), hoy);
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.ponerAlDia(List.of(existente), hoy), existente);
 
         // La unidad y los minutos, con "ausente = sin cambio". Van siempre en
         // el hábito que se guarda: update hace merge de la entidad entera, y
@@ -275,7 +276,17 @@ public class HabitoService {
         Objetivo actual = Objetivo.de(existente);
         Objetivo nuevo = Objetivo.de(habito);
         LocalDate aplicaDesde = hoy;
-        if (!nuevo.equals(actual)) {
+        if (nuevo.equals(actual)) {
+            // Volver al objetivo de hoy con un cambio programado pendiente lo
+            // anula, pero solo si la petición trae la unidad. La app nueva
+            // siempre la manda; la ya instalada nunca, y con "ausente = sin
+            // cambio" su formulario entero da siempre el objetivo de hoy: si
+            // anulara, un PUT que solo cambia el nombre borraría el cambio
+            // programado desde otro dispositivo con la app nueva.
+            if (unidadPedida != null && historial.programadaTras(hoy) != null) {
+                objetivoService.anularProgramados(existente, hoy);
+            }
+        } else {
             List<LocalDate> fechasDeLaSemana = registroDAO
                     .findByHabitoAndRango(existente, hoy.with(DayOfWeek.MONDAY), hoy).stream()
                     .map(Registro::getFecha)
