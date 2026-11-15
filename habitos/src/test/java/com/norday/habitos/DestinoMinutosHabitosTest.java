@@ -242,6 +242,22 @@ class DestinoMinutosHabitosTest {
     }
 
     @Test
+    void conUnaTransaccionAbiertaAlEntrar_lanzaSinTocarNada() {
+        // Quien llama no puede tener una transacción abierta: completar
+        // bloquea al usuario en REQUIRES_NEW, con otra conexión, y si la de
+        // fuera ya lo tuviera se esperarían hasta agotar el tope.
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            IllegalStateException fallo = assertThrows(IllegalStateException.class, () -> aportar(10, 25, HOY));
+            assertTrue(fallo.getMessage().contains("transacción"), fallo.getMessage());
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
+        verify(transactionManager, never()).getTransaction(any());
+        verify(registroService, never()).completar(any(), any());
+    }
+
+    @Test
     void rechaza_diaFuturo() {
         rechazado(aportar(10, 25, HOY.plusDays(1)), DestinoMinutosHabitos.MOTIVO_DIA_FUTURO);
         rechazado(aportar(10, 25, null), DestinoMinutosHabitos.MOTIVO_DIA_FUTURO);

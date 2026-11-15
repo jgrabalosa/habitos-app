@@ -52,19 +52,23 @@ import java.util.UUID;
  *   <li>Si completar lanza (una pausa o un choque de clave que llega entre la
  *       validación y el completado), su transacción —solo la suya— se deshace
  *       entera, sin dejar nada a medias, y aquí se traduce a RECHAZADO.</li>
- *   <li>Si quien llama tuviera una transacción abierta, no queda marcada para
- *       deshacer: REQUIRES_NEW «always uses an independent physical
- *       transaction (…) with an outer transaction not affected by an inner
- *       transaction's rollback status» (documentación de Spring sobre
- *       propagación, https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html).
- *       Es la lección de asegurarIdentidad del CLAUDE.md.</li>
+ *   <li>Es la lección de asegurarIdentidad del CLAUDE.md: la excepción de
+ *       completar no puede dejar marcada para deshacer una transacción de
+ *       quien llama.</li>
  *   <li>Capturar dentro no serviría: completar es @Transactional y, al lanzar,
  *       marca para deshacer la transacción en la que participa; si la captura
  *       estuviera dentro de la plantilla, su commit reventaría con
  *       UnexpectedRollbackException.</li>
  * </ul>
- * Sin transacción exterior (que es como llama Norday Focus), REQUIRES_NEW no
- * pide una segunda conexión: no hay nada que suspender.
+ * <b>Quien llama no puede tener una transacción abierta.</b> Completar
+ * bloquea al usuario (y luego al hábito); con REQUIRES_NEW eso va por otra
+ * conexión, y si la transacción de fuera ya tuviera al usuario bloqueado (el
+ * alta de la sesión lo bloquea), las dos se esperarían hasta agotar el tope
+ * de espera (lock_timeout) sin que Postgres lo vea como abrazo: son dos
+ * conexiones del mismo hilo. Por eso {@link #aportar} lanza
+ * IllegalStateException si al entrar hay una transacción activa. Sin
+ * transacción exterior (que es como llama Norday Focus: registrar son tres
+ * transacciones), REQUIRES_NEW no pide una segunda conexión.
  *
  * Un fallo técnico (base de datos caída, abrazo mortal) o un
  * IllegalArgumentException inesperado de completar no se traducen: salen como
@@ -182,9 +186,18 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
         return habito;
     }
 
+    /**
+     * Ver la clase: corre en su propia transacción y quien llama no puede
+     * tener una abierta (IllegalStateException si la tiene).
+     */
     @Override
     public ResultadoAporte aportar(Long usuarioId, Long destinoId, int minutos, UUID clave, LocalDate dia,
                                    String origen) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("DestinoMinutosHabitos.aportar no se puede llamar con una transacción "
+                    + "abierta: completar bloquea al usuario en otra conexión (REQUIRES_NEW) y se quedaría "
+                    + "esperando a la de fuera hasta agotar el tope de espera. Llámalo fuera de la transacción.");
+        }
         TransactionTemplate propia = new TransactionTemplate(transactionManager);
         propia.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         try {

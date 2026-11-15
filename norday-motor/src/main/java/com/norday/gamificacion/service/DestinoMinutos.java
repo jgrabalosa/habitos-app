@@ -26,9 +26,13 @@ import java.util.UUID;
  *       motivo, que es una clave de los textos traducidos.</li>
  *   <li>Es idempotente por {@code clave}: la misma clave otra vez no suma ni
  *       paga nada y vuelve como {@link ResultadoAporte.Estado#REPETIDO}.</li>
- *   <li>Corre en su propia transacción: quien llama no debe tener una abierta
- *       que dependa de su resultado. Un fallo técnico (la base de datos caída)
- *       sí puede salir como excepción, para que quien llama lo reintente.</li>
+ *   <li>Corre en su propia transacción, y <b>quien llama no puede tener una
+ *       abierta</b>: el destino bloquea al usuario en su transacción (otra
+ *       conexión), y si la de fuera ya lo tuviera bloqueado se esperarían
+ *       hasta agotar el tope de espera. Una implementación puede lanzar
+ *       IllegalStateException si al entrar hay una transacción activa. Un
+ *       fallo técnico (la base de datos caída) sí puede salir como excepción,
+ *       para que quien llama lo reintente.</li>
  * </ul>
  */
 public interface DestinoMinutos {

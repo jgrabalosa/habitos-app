@@ -212,6 +212,12 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
 - **El adaptador corre en `REQUIRES_NEW` y captura fuera de la plantilla.**
   Capturar dentro no sirve: completar ya habría marcado la transacción.
   Sin transacción exterior, `REQUIRES_NEW` no pide una segunda conexión.
+- **Quien llama a `aportar` no puede tener una transacción abierta.**
+  Completar bloquea al usuario en su transacción, con otra conexión; si la
+  de fuera ya lo tuviera bloqueado (el alta de la sesión lo bloquea), las
+  dos se esperarían hasta agotar el tope, y Postgres no lo ve como abrazo
+  (son dos conexiones del mismo hilo). `DestinoMinutosHabitos.aportar`
+  lanza `IllegalStateException` si al entrar hay una transacción activa.
 - **La clave de la sesión es la clave del registro.** Un reintento no suma
   ni paga dos veces, ni en `sesion_enfoque` ni en `registro`; una sesión que
   quedó `PENDIENTE` (el proceso murió entre aportar y apuntar) se completa
