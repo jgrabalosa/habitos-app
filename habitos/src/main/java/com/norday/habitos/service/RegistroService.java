@@ -300,14 +300,19 @@ public class RegistroService {
         }
         puntosGanados += premio.puntosTotales();
 
-        // Un paso puede no dar experiencia (el primero de un diario de 6):
-        // entonces no se llama a la mascota.
+        // Un paso puede no dar experiencia (el primero de un diario de 6,
+        // minutos de más en un día ya hecho): entonces no se suma XP, pero sí
+        // se miran los logros de fase de la mascota, que pueden faltar si se
+        // deshizo el paso que los dio. Antes de cerrar la instantánea de
+        // logros, para que lo que devuelva entre en la reversión de este paso.
         int xpOtorgada = premio.xpTotal();
         if (xpOtorgada > 0) {
             ResultadoExperienciaDTO resultadoXp =
                     mascotaService.ganarExperiencia(usuario.getUsuarioId(), xpOtorgada);
             subioNivel = resultadoXp.isSubioNivel();
             nivelNuevo = resultadoXp.getNivelNuevo();
+        } else {
+            mascotaService.revisarLogrosDeFase(usuario.getUsuarioId());
         }
 
         // Hitos: una vez por hábito, al llegar a 3, 7, 30, 100 y 365 días

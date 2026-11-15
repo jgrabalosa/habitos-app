@@ -195,33 +195,45 @@ public class MascotaService {
             mascotaDAO.update(mascota);
         }
 
-        // Los logros de fase se tienen con esa fase o una superior, y se miran
-        // cada vez que gana XP, no solo al cambiar de fase: deshacer puede
-        // retirar MASCOTA_CRIA (va en la reversión de quien lo dio) con la
-        // mascota todavía en cría por otra XP, y entonces la fase ya no
-        // cambia; y un salto de huevo a adulta de una vez pasa por la cría.
-        // otorgarSiNoTiene los da una sola vez. Por índice de FASES, sin
-        // cablear los niveles 3 y 11.
-        //
-        // Al perder XP (restarExperiencia) no se miran: quien deshace no da
-        // logros, y el siguiente que gane XP los devuelve si la fase lo sigue
-        // mereciendo.
-        //
-        // El logro no viaja en ResultadoExperienciaDTO: aparecerá en la
-        // Colección al refrescar. La CelebracionNivel ya salta con subioNivel,
-        // así que el momento no se queda mudo.
-        int indiceFase = FASES.indexOf(faseDespues);
-        if (indiceFase >= FASES.indexOf("CRIA")) {
-            Usuario usuario = usuarioDAO.findById(usuarioId);
-            if (usuario != null) {
-                logroService.otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
-                if (indiceFase >= FASES.indexOf("ADULTO")) {
-                    logroService.otorgarSiNoTiene(usuario, "MASCOTA_ADULTO");
-                }
-            }
-        }
+        // Los logros de fase, cada vez que gana XP (ver revisarLogrosDeFase).
+        // No viajan en ResultadoExperienciaDTO: aparecerán en la Colección al
+        // refrescar. La CelebracionNivel ya salta con subioNivel, así que el
+        // momento no se queda mudo.
+        revisarLogrosDeFase(usuarioId, nivelDespues);
 
         return new ResultadoExperienciaDTO(subioNivel, nivelDespues, construirDTO(mascota));
+    }
+
+    /**
+     * Los logros de fase: se tienen con esa fase o una superior (fase ≥ cría
+     * → MASCOTA_CRIA; adulta → también MASCOTA_ADULTO), y otorgarSiNoTiene
+     * los da una sola vez. Se miran cada vez que la mascota gana XP, no solo
+     * al cambiar de fase: deshacer puede retirar MASCOTA_CRIA (va en la
+     * reversión de quien lo dio) con la mascota todavía en cría por otra XP,
+     * y entonces la fase ya no cambia; y un salto de huevo a adulta de una
+     * vez pasa por la cría. Por índice de FASES, sin cablear los niveles 3 y
+     * 11.
+     *
+     * Público para quien da un paso que no da XP (minutos de más, un día ya
+     * hecho): también debe devolverlos si la fase los merece, y antes de
+     * cerrar lo que mide de ese paso, para que queden en su reversión.
+     *
+     * Al perder XP (restarExperiencia) no se miran: quien deshace no da
+     * logros, y lo siguiente que pase por aquí los devuelve.
+     */
+    public void revisarLogrosDeFase(int usuarioId) {
+        revisarLogrosDeFase(usuarioId, calcularNivel(obtenerOCrear(usuarioId).getExperiencia()));
+    }
+
+    private void revisarLogrosDeFase(int usuarioId, int nivel) {
+        int indiceFase = FASES.indexOf(calcularFase(nivel));
+        if (indiceFase < FASES.indexOf("CRIA")) return;
+        Usuario usuario = usuarioDAO.findById(usuarioId);
+        if (usuario == null) return;
+        logroService.otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
+        if (indiceFase >= FASES.indexOf("ADULTO")) {
+            logroService.otorgarSiNoTiene(usuario, "MASCOTA_ADULTO");
+        }
     }
 
     // Poner nombre y elegir fase escriben solo su columna: no bloquean al
