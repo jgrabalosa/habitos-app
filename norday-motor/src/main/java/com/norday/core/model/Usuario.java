@@ -43,7 +43,10 @@ public class Usuario {
     @Column(name = "proveedor_auth", nullable = false, length = 20)
     private String proveedorAuth = "LOCAL";
 
-    // WRITE_ONLY: el cliente lo envía en actualizarFcmToken pero nunca lo lee.
+    // Columna de transición: el token de Norday Habits, que la sigue
+    // escribiendo DispositivoService para poder volver al jar anterior. La
+    // fuente de verdad es usuario_dispositivo, un token por app; nada la lee.
+    // WRITE_ONLY: nunca sale en una respuesta.
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;

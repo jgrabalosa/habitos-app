@@ -1,7 +1,8 @@
 package com.norday.habitos;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
-import com.norday.core.repository.IUsuarioDAO;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.NotificacionService;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
@@ -12,6 +13,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.NotificacionScheduler;
 import com.norday.habitos.service.ObjetivoService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +26,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -45,7 +48,7 @@ class NotificacionSchedulerTest {
     private IRegistroDAO registroDAO;
 
     @Mock
-    private IUsuarioDAO usuarioDAO;
+    private DispositivoService dispositivoService;
 
     @Mock
     private NotificacionService notificacionService;
@@ -62,11 +65,23 @@ class NotificacionSchedulerTest {
     @InjectMocks
     private NotificacionScheduler notificacionScheduler;
 
+    /**
+     * El usuario 1 tiene token en Habits y otro en Enfoque. Solo el de Habits
+     * es "token-fcm": si el barrido pidiera el de otra app, los tests que
+     * esperan el aviso fallarían.
+     */
+    @BeforeEach
+    void tokensPorApp() {
+        lenient().when(dispositivoService.tokensDe(anyCollection(), eq(AppNorday.HABITOS)))
+                .thenReturn(Map.of(1, "token-fcm"));
+        lenient().when(dispositivoService.tokensDe(anyCollection(), eq(AppNorday.ENFOQUE)))
+                .thenReturn(Map.of(1, "token-enfoque"));
+    }
+
     private Habito habitoCon(ZoneId zona, LocalTime horaRecordatorio) {
         Usuario usuario = new Usuario();
         usuario.setUsuarioId(1);
         usuario.setZonaHoraria(zona.getId());
-        usuario.setFcmToken("token-fcm");
 
         Habito habito = new Habito();
         habito.setHabitoId(10);
@@ -212,5 +227,46 @@ class NotificacionSchedulerTest {
         clearInvocations(notificacionService);
         notificacionScheduler.enviarRecordatorios();
         verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void elRecordatorioVaAlTokenDeHabits_nuncaAlDeOtraApp() {
+        Habito habito = habitoCon(MADRID, ventanaDeMadrid());
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
+        when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
+
+        notificacionScheduler.enviarRecordatorios();
+
+        verify(dispositivoService).tokensDe(anyCollection(), eq(AppNorday.HABITOS));
+        verify(notificacionService).enviarNotificacion(eq("token-fcm"), anyString(), anyString());
+        verify(notificacionService, never()).enviarNotificacion(eq("token-enfoque"), anyString(), anyString());
+    }
+
+    @Test
+    void sinTokenDeHabits_noSeEnviaNada() {
+        Habito habito = habitoCon(MADRID, ventanaDeMadrid());
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(dispositivoService.tokensDe(anyCollection(), eq(AppNorday.HABITOS))).thenReturn(Map.of());
+
+        notificacionScheduler.enviarRecordatorios();
+
+        verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void tokenDadoDeBajaEnFcm_seOlvidaElDeHabits() {
+        Habito habito = habitoCon(MADRID, ventanaDeMadrid());
+        when(habitoDAO.findTodosActivos()).thenReturn(List.of(habito));
+        when(zonaUsuarioService.zonaDe(any(Usuario.class))).thenReturn(MADRID);
+        when(textosService.texto(anyString(), any(Usuario.class), any())).thenReturn("texto");
+        when(textosService.texto(anyString(), any(Usuario.class))).thenReturn("texto");
+        when(notificacionService.enviarNotificacion(eq("token-fcm"), anyString(), anyString())).thenReturn(true);
+
+        notificacionScheduler.enviarRecordatorios();
+
+        verify(dispositivoService).olvidarToken(1, AppNorday.HABITOS, "token-fcm");
     }
 }

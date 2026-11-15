@@ -205,15 +205,6 @@ public class UsuarioService {
         usuarioDAO.update(usuario);
     }
 
-    public void actualizarFcmToken(int id, String fcmToken) {
-        Usuario usuario = usuarioDAO.findById(id);
-        if (usuario == null) {
-            throw new RecursoNoEncontradoException("Usuario no encontrado");
-        }
-        usuario.setFcmToken(fcmToken);
-        usuarioDAO.update(usuario);
-    }
-
     @Transactional
     public void eliminarCuenta(int id) {
         Usuario usuario = usuarioDAO.findById(id);

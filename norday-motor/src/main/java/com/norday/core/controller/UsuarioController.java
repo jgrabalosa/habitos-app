@@ -1,9 +1,11 @@
 package com.norday.core.controller;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
 import com.norday.core.model.dto.ResultadoLoginGoogle;
 import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.JwtUtil;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.OrigenInstalacionService;
 import com.norday.core.service.PreferenciasService;
@@ -46,6 +48,9 @@ public class UsuarioController extends ControladorAutorizado {
 
     @Autowired
     private OrigenInstalacionService origenInstalacionService;
+
+    @Autowired
+    private DispositivoService dispositivoService;
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@Valid @RequestBody Usuario usuario,
@@ -254,15 +259,29 @@ public class UsuarioController extends ControladorAutorizado {
         return ResponseEntity.ok("Contraseña actualizada correctamente");
     }
 
+    /**
+     * Token de notificaciones de la app que llama, según la cabecera
+     * X-Norday-App: cada app tiene el suyo (FCM da uno por instancia de app).
+     * Sin cabecera, o vacía, es Norday Habits: la APK ya instalada no la
+     * manda. Una app que el backend no conoce recibe 400 y no se guarda nada,
+     * para no dejar un token donde no se lee ni pisar el de otra app.
+     * Lo mismo que en los catálogos: cabecera opcional
+     * (@RequestHeader required=false, que da null si falta,
+     * https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/RequestHeader.html#required()).
+     */
     @PutMapping("/{id}/fcm-token")
     public ResponseEntity<?> actualizarFcmToken(@PathVariable int id,
                                                 @RequestBody Map<String, String> body,
+                                                @RequestHeader(value = "X-Norday-App", required = false) String cabeceraApp,
                                                 Authentication authentication) {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        String fcmToken = body.get("fcmToken");
-        usuarioService.actualizarFcmToken(id, fcmToken);
+        String appId = AppNorday.deCabecera(cabeceraApp);
+        if (appId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("App desconocida");
+        }
+        dispositivoService.registrarToken(id, appId, body.get("fcmToken"));
         return ResponseEntity.ok("Token FCM actualizado correctamente");
     }
 

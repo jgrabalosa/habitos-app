@@ -1,7 +1,8 @@
 package com.norday.habitos.service;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
-import com.norday.core.repository.IUsuarioDAO;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.NotificacionService;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
@@ -37,7 +38,7 @@ public class NotificacionScheduler {
     private IRegistroDAO registroDAO;
 
     @Autowired
-    private IUsuarioDAO usuarioDAO;
+    private DispositivoService dispositivoService;
 
     @Autowired
     private NotificacionService notificacionService;
@@ -115,10 +116,17 @@ public class NotificacionScheduler {
             }
         }
 
+        // El token de Norday Habits de cada uno, no el de otra app del
+        // ecosistema: un recordatorio de hábitos solo va a Habits. Una
+        // consulta para todos los usuarios con algo que recordar.
+        Map<Integer, String> tokens = pendientesPorUsuario.isEmpty()
+                ? Map.of()
+                : dispositivoService.tokensDe(pendientesPorUsuario.keySet(), AppNorday.HABITOS);
+
         int enviados = 0;
         for (List<Habito> pendientes : pendientesPorUsuario.values()) {
             Usuario propietario = pendientes.get(0).getPropietario();
-            String fcmToken = propietario.getFcmToken();
+            String fcmToken = tokens.get(propietario.getUsuarioId());
             if (fcmToken == null || fcmToken.isBlank()) {
                 continue;
             }
@@ -139,8 +147,7 @@ public class NotificacionScheduler {
             boolean tokenInvalido = notificacionService.enviarNotificacion(fcmToken, titulo, cuerpo);
             if (tokenInvalido) {
                 // Token dado de baja en FCM: lo borramos para no reintentar indefinidamente.
-                propietario.setFcmToken(null);
-                usuarioDAO.update(propietario);
+                dispositivoService.olvidarToken(propietario.getUsuarioId(), AppNorday.HABITOS, fcmToken);
             } else {
                 enviados++;
             }
