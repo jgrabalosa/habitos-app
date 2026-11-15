@@ -1,7 +1,9 @@
 package com.norday.enfoque.service;
 
 import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
+import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.enfoque.model.EstadoAporte;
@@ -110,6 +112,9 @@ public class SesionEnfoqueService {
     @Autowired
     private ISesionEnfoqueDAO sesionDAO;
 
+    @Autowired
+    private IUsuarioDAO usuarioDAO;
+
     /** Spring recolecta aquí los destinos de todos los dominios. */
     @Autowired
     private List<DestinoMinutos> destinos;
@@ -210,7 +215,14 @@ public class SesionEnfoqueService {
      * días después.
      */
     private Alta guardar(Usuario usuario, Peticion peticion) {
-        sesionDAO.bloquearAltasDe(usuario.getUsuarioId());
+        // Las altas de sesiones del usuario, de una en una, para que dos no
+        // pasen a la vez la comprobación de solape: el bloqueo del usuario del
+        // motor (FOR NO KEY UPDATE, con su tope de espera), el mismo que
+        // completar y todo lo que le da monedas o logros. Si la cuenta se ha
+        // borrado mientras se esperaba, 404: no es un fallo para reintentar.
+        if (!usuarioDAO.bloquear(usuario.getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
         SesionEnfoque existente = sesionDAO.findByClave(peticion.clave());
         if (existente != null) {
             return new Alta(laMisma(existente, usuario, peticion), false);

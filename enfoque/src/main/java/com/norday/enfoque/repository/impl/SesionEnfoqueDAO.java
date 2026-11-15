@@ -24,16 +24,6 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
     @PersistenceContext
     private EntityManager em;
 
-    // FOR NO KEY UPDATE y no FOR UPDATE: no choca con el FOR KEY SHARE que
-    // toma Postgres al insertar filas que apuntan al usuario (monedas,
-    // sesiones), así que solo serializa a quien pide este mismo bloqueo.
-    @Override
-    public void bloquearAltasDe(int usuarioId) {
-        em.createNativeQuery("SELECT usuario_id FROM usuario WHERE usuario_id = :id FOR NO KEY UPDATE")
-                .setParameter("id", usuarioId)
-                .getResultList();
-    }
-
     @Override
     public SesionEnfoque findByClave(UUID clave) {
         return em.createQuery("SELECT s FROM SesionEnfoque s WHERE s.clave = :clave", SesionEnfoque.class)

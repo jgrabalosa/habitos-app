@@ -56,6 +56,7 @@ class SesionEnfoqueServiceTest {
     private static final UUID CLAVE = UUID.fromString("3f1c6a52-6a0e-4c43-9a59-0b4f3c7c2b11");
 
     @Mock private ISesionEnfoqueDAO sesionDAO;
+    @Mock private com.norday.core.repository.IUsuarioDAO usuarioDAO;
     @Mock private DestinoMinutos destinoHabito;
     @Mock private ZonaUsuarioService zonaUsuarioService;
     @Mock private TextosService textosService;
@@ -69,6 +70,7 @@ class SesionEnfoqueServiceTest {
     void setUp() {
         servicio = new SesionEnfoqueService();
         ReflectionTestUtils.setField(servicio, "sesionDAO", sesionDAO);
+        ReflectionTestUtils.setField(servicio, "usuarioDAO", usuarioDAO);
         ReflectionTestUtils.setField(servicio, "destinos", List.of(destinoHabito));
         ReflectionTestUtils.setField(servicio, "zonaUsuarioService", zonaUsuarioService);
         ReflectionTestUtils.setField(servicio, "textosService", textosService);
@@ -76,6 +78,7 @@ class SesionEnfoqueServiceTest {
         ReflectionTestUtils.setField(servicio, "transactionManager", transactionManager);
         usuario = new Usuario();
         usuario.setUsuarioId(7);
+        when(usuarioDAO.bloquear(7)).thenReturn(true);
         when(zonaUsuarioService.zonaDe(usuario)).thenReturn(MADRID);
         when(reloj.ahora()).thenReturn(AHORA);
         when(textosService.texto(anyString(), eq(usuario), any(Object[].class)))
@@ -343,6 +346,14 @@ class SesionEnfoqueServiceTest {
     }
 
     @Test
+    void siLaCuentaYaNoExisteAlBloquear_404SinGuardarNada() {
+        when(usuarioDAO.bloquear(7)).thenReturn(false);
+        assertThrows(com.norday.core.exception.RecursoNoEncontradoException.class,
+                () -> servicio.registrar(usuario, peticion25(null)));
+        verify(sesionDAO, never()).insertarSiClaveLibre(any());
+    }
+
+    @Test
     void laClaveDeOtraCuenta_es409() {
         SesionEnfoque ajena = yaGuardada(EstadoAporte.ACEPTADO);
         Usuario otro = new Usuario();
@@ -354,10 +365,10 @@ class SesionEnfoqueServiceTest {
     }
 
     @Test
-    void elAltaBloqueaLasAltasDelUsuario_antesDeBuscarLaClave() {
+    void elAltaBloqueaAlUsuario_antesDeBuscarLaClave() {
         servicio.registrar(usuario, peticion25(null));
-        var orden = inOrder(sesionDAO);
-        orden.verify(sesionDAO).bloquearAltasDe(7);
+        var orden = inOrder(usuarioDAO, sesionDAO);
+        orden.verify(usuarioDAO).bloquear(7);
         orden.verify(sesionDAO).findByClave(CLAVE);
         orden.verify(sesionDAO).haySolape(eq(7), any(), any());
         orden.verify(sesionDAO).insertarSiClaveLibre(any());

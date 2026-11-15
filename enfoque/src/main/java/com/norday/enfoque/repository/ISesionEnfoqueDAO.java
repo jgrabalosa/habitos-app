@@ -10,13 +10,6 @@ import java.util.UUID;
 
 public interface ISesionEnfoqueDAO {
 
-    /**
-     * Bloquea hasta el final de la transacción el alta de sesiones del
-     * usuario (su fila de usuario, SELECT … FOR NO KEY UPDATE), para que dos
-     * sesiones del mismo usuario no pasen a la vez la comprobación de solape.
-     */
-    void bloquearAltasDe(int usuarioId);
-
     SesionEnfoque findByClave(UUID clave);
 
     SesionEnfoque findById(int id);
