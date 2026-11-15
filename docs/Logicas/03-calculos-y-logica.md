@@ -1,6 +1,6 @@
 # Norday Habits — Cálculos y Lógica de Negocio
 
-*Última actualización: octubre de 2026*
+*Última actualización: noviembre de 2026*
 
 > Este documento describe la lógica funcional actualmente implementada. Los valores indicados aquí se basan en el código actual del backend y no deben interpretarse como promesas de producto distintas de lo que esté disponible en la aplicación.
 
@@ -14,7 +14,7 @@ El ritmo es la medida de constancia que la aplicación muestra a cada hábito. V
 
 Un periodo es un día en un hábito diario y una semana natural (de lunes a domingo) en un hábito semanal.
 
-- **Crédito de un periodo**: lo que se hizo del objetivo, de 0 a 1. Es `min(1, hechos / meta)`. Lo parcial cuenta en proporción (3 de 4 vale 0,75) y pasarse del objetivo no suma más. Un objetivo menor que 1 se trata como 1.
+- **Crédito de un periodo**: lo que se hizo del objetivo, de 0 a 1. Es `min(1, hechos / meta)`. Lo parcial cuenta en proporción (3 de 4 vale 0,75) y pasarse del objetivo no suma más. Un objetivo menor que 1 se trata como 1. En un hábito de minutos, cada día aporta `min(1, minutos del día / minutos objetivo)` (ver «Hábitos en minutos»).
 - **Cierre de un periodo**: el ritmo se acerca al crédito del periodo. La distancia que recorre depende de los días del periodo (7 en un semanal, 1 en un diario) y de la semivida: `ritmo + (1 − 0,5^(días / semivida)) × (crédito − ritmo)`.
 - **Semivida**: corta cuando el periodo sube el ritmo (crédito igual o mayor que el ritmo) y larga cuando lo baja. Así el ritmo sube deprisa y baja despacio.
 - **Periodo abierto**: el periodo que contiene hoy no mueve el ritmo. Solo se cierran los periodos que ya han terminado.
@@ -74,7 +74,7 @@ El ritmo se ancla el día en que el cambio entra en vigor (ver «Historial de ob
 
 - **Cambio que se aplica ya**: se ancla antes de guardar, al empezar el periodo de hoy con las reglas nuevas y sin pasar de la fecha de efecto. Un semanal que empieza el lunes de esta semana se ancla ese lunes: no se cierra nada de esta semana con las reglas antiguas y la semana entera es su primer periodo, que solo puede subir. Un diario (meta de un diario, o de semanal a diario) se ancla hoy, para no cerrar como días sin hacer los de esta semana anteriores al cambio. Si el ancla ya estaba más allá (un cambio anterior de esta misma semana, o el día en que se creó el hábito), se queda donde está y el cambio pasa a su día.
 - **Cambio programado** (mañana o el lunes siguiente): se ancla al aplicarlo, en su fecha de efecto aunque se lea días después. Se aplica antes de cualquier lectura del ritmo, así que el ancla nunca ha pasado de esa fecha; si la hubiera pasado, no se toca.
-- Solo cuentan la frecuencia y la meta: cambiar los días fijos sin cambiar cuántos son no ancla el ritmo.
+- Cuentan la frecuencia, la meta, la unidad y los minutos por día (`Objetivo.cambiaElCreditoRespectoA`): cambiar los días fijos sin cambiar cuántos son no ancla el ritmo.
 
 La racha no se toca en ninguno de los dos cambios.
 
@@ -118,11 +118,13 @@ Cada completado cobra la parte que le toca en el momento. Un día de hábito bie
 - **Hábito diario**: los 25 puntos y las 5 XP del día se reparten entre las veces que hay que hacerlo, de forma que la suma de todos los pasos es siempre el total. Con meta 3, los puntos son 8, 8 y 9 (y la XP 1, 2 y 2). Pasarse de la meta no da nada: el código lo rechaza.
 - **Hábito semanal**: cada sesión vale un día entero, 25 puntos y 5 XP. La sesión que completa la semana (la que llega a la meta) añade además un 20 % de lo ganado esa semana con ese hábito, en puntos y en XP. Con meta 3, esa sesión suma 15 puntos y 3 XP extra. Las sesiones por encima de la meta se registran, pero no dan nada.
 
+- **Hábito de minutos**: cada paso cobra en proporción a sus minutos dentro del objetivo del día (ver «Hábitos en minutos»).
+
 La experiencia va a la mascota en el mismo paso. Si un paso no da XP (el primero de un diario de meta 6, por ejemplo), la mascota no se llama.
 
 ### Reglas del completado
 
-- Un hábito semanal admite como mucho un completado por día.
+- Un hábito semanal de veces admite como mucho un completado por día, y uno diario de veces no deja pasar de su meta del día. Los de minutos admiten varias sesiones el mismo día (ver «Hábitos en minutos»).
 - No se puede completar una fecha futura, ni una fecha anterior al lunes de la semana en curso.
 - Un hábito en pausa no se puede completar: responde con un conflicto («El hábito está en pausa»).
 - **Semanal sin días fijos** (sin `diasSemana`): cuenta como un hábito flexible. Toca cualquier día y su meta es el número de sesiones de la semana.
@@ -132,11 +134,11 @@ La experiencia va a la mascota en el mismo paso. Si un paso no da XP (el primero
 
 ## Historial de objetivos y cambios
 
-Cada hábito guarda las versiones de su objetivo en la tabla `habito_objetivo`: frecuencia, meta, días fijos y desde qué día vale cada una. Hoy todas son de unidad `VECES`.
+Cada hábito guarda las versiones de su objetivo en la tabla `habito_objetivo`: unidad (`VECES` o `MINUTOS`), frecuencia, meta, minutos por día, días fijos y desde qué día vale cada una.
 
 - **Versión vigente** en una fecha: la de mayor `desde` que no la pasa. Una fecha anterior a la primera versión se juzga con la primera; un hábito sin versiones, con el objetivo que guarda `habito`.
 - **Qué se juzga con ella**: los días hechos (hitos y logros de constancia), el completado (la meta del periodo, el límite de un registro por día del semanal, el tope del diario, los puntos del paso, si es una vuelta y cuándo sale la valoración), Hoy (cada fila en la fecha que se mira y cada día de la tira), el día completo, el ánimo de la mascota, los recordatorios y la semana de la app ya instalada (`/semana`). En un completado retroactivo de esta semana, la meta es la de su fecha.
-- **La copia en `habito`**: `frecuencia`, `meta` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
+- **La copia en `habito`**: `unidad`, `frecuencia`, `meta`, `minutos_objetivo` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
 - **Al crear** un hábito se guarda su primera versión, desde la fecha de inicio. V22 dio una a cada hábito existente, con su objetivo de entonces.
 
 ### Regla de cambios
@@ -148,21 +150,86 @@ Un cambio nunca reinterpreta un periodo en el que ya hay registros. «Con regist
 | Meta de un diario que sigue diario (veces al día) | el día | se aplica desde hoy | se aplica desde mañana |
 | Días por semana o días fijos de un semanal | la semana (lunes a domingo) | se aplica desde el lunes de esta semana | se aplica desde el lunes siguiente |
 | Frecuencia (diario ↔ semanal) | la semana | se aplica desde el lunes de esta semana | se aplica desde el lunes siguiente |
+| Minutos por día (subir o bajar) | el día | se aplica desde hoy | se aplica desde mañana |
+| De veces a minutos | el día | se aplica desde hoy | se aplica desde mañana |
+| De minutos a veces | — | no se permite (409) | no se permite (409) |
 
 - Un cambio semanal sin registros esta semana empieza el lunes para que la semana entera se juzgue con una sola regla: un completado retroactivo de esta semana usa ya el objetivo nuevo. Nada empieza antes de la fecha de inicio del hábito: uno creado a mitad de semana cambia desde ese día. Las versiones que hubiera entre ese lunes y hoy desaparecen (solo cubrían días sin registros), y una que ya empezara ese lunes se reescribe.
-- Un cambio que mezcla las dos cosas va entero a una sola fecha, la de la semana.
+- Un cambio que mezcla las dos cosas va entero a una sola fecha, la de la semana. Por ejemplo, pasar un semanal de veces de 3 días a uno de minutos de 4 días × 60 min con registros esta semana va entero al lunes siguiente; pasarlo a 3 días × 60 min (sin tocar los días) va a mañana.
 - Un hábito sin ningún registro aplica cualquier cambio al momento: la meta de un diario desde hoy, lo semanal desde el lunes de esta semana (o desde su fecha de inicio).
 - Con fecha futura, el objetivo nuevo queda programado y `habito` conserva el de hoy hasta entonces. El nombre, la descripción, la categoría y el recordatorio se guardan al momento.
 - **Nunca hay más de una versión futura**: si llega otro cambio antes de su fecha, la reemplaza. Un formulario que trae el objetivo vigente hoy no es un cambio: no crea versión ni anula la programada.
-- La regla está en `CalculoObjetivo`.
+- La regla está en `CalculoObjetivo`. Dos objetivos se comparan normalizados (`Objetivo.equals`): los días fijos solo cuentan en un semanal y como conjunto (`"4,2"` es `"2,4"`), los minutos solo en un hábito de minutos y, en un diario de minutos, la meta es siempre 1. Así editar solo el nombre de un hábito con datos heredados escritos de otra forma no crea una versión.
+- **Dos cambios a la vez**: si dos `PUT` del mismo hábito crean a la vez una versión con la misma fecha, el segundo no la escribe (`INSERT … ON CONFLICT DO NOTHING`) y responde con un conflicto (409), en vez de un error interno.
+- **Anular el cambio programado**: `DELETE /api/habitos/{id}/objetivo-programado` (solo el dueño) borra las versiones con `desde` posterior a hoy y responde 200 `{mensaje}`, haya o no cambio programado. La copia en `habito` no se toca, ni el ritmo: un cambio programado no ancla el ritmo hasta que se aplica.
+- **La semana de la app ya instalada** (`/semana`): lo que es de toda la semana se juzga con el objetivo de su último día ya llegado; en una semana futura, con el de su lunes.
 
 El `PUT /api/habitos/{id}` responde `{mensaje, aplicaDesde}`: hoy, el lunes de esta semana (un cambio semanal ya en vigor), o la fecha futura del cambio programado. El detalle (`GET /api/habitos/{id}/detalle`) trae `objetivoProgramado` (`desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo`, `diasSemana`), o null si no hay ninguno.
 
 ---
 
+## Hábitos en minutos
+
+Un hábito puede medirse en **veces** (`VECES`, lo de siempre) o en **minutos** (`MINUTOS`). Uno de minutos tiene dos números: los días por periodo (la `meta`) y los minutos por día (`minutosObjetivo`, de 1 a 600). Un día está hecho cuando la **suma** de los minutos registrados ese día llega a los minutos objetivo vigentes ese día.
+
+- **Diario de minutos**: la meta es siempre 1 (el servidor la fuerza).
+- **Semanal de minutos**: «Entrenar · 3 días · 60 min» pide tres días que lleguen cada uno a 60 minutos. No son 180 minutos acumulados.
+- Los hábitos de veces se comportan exactamente igual que antes; el test `PremioVecesDoradoTest` fija sus cifras.
+
+### El registro
+
+Cada completado de un hábito de minutos crea un registro con sus minutos en `cantidad` (en veces, `cantidad` vale 1). Los «hechos» de un día son la suma de `cantidad`.
+
+- `POST /api/registros/completar/{id}` acepta, además de `nota` y `fecha`, `minutos`, `clave` y `origen`.
+- **`minutos`**: obligatorio si la versión vigente en esa fecha es de minutos. Si falta, 409 con un texto del bundle que pide actualizar la app (nunca se registra 1 minuto por defecto). Si no es un número de 1 a 600, 400. En un día de veces se ignora.
+- **Varias sesiones el mismo día** se suman, también en un semanal. El límite de un completado por día del semanal y el rechazo de meta alcanzada del diario son solo de veces.
+- **Minutos de más**: se guardan y suman al total, pero no dan puntos ni XP y el crédito de ritmo del día se queda en 1.
+- **`origen`**: `MANUAL` por defecto o `ENFOQUE`; otro valor, 400. Hoy solo se guarda.
+- La respuesta añade `minutosDia` (los minutos del día tras el paso), `minutosObjetivo` (los del día) y `diaHecho`. `minutosDia` y `minutosObjetivo` son null en un día de veces, y `diaHecho` dice si el día cuenta como hecho con sus reglas.
+- La valoración (`mostrarValoracion`) sale con el paso que hace que el día llegue a sus minutos, si es de hoy.
+
+### Clave del cliente (idempotencia)
+
+Con cada completado la app puede mandar una `clave` (UUID; si no lo es, 400). Se guarda en `registro.clave_cliente`, que es única.
+
+- Si la clave ya existe en ese hábito, no se crea ni se paga nada: responde **200** (en vez de 201) con el mismo formato, el `registroId` del registro original, los premios a cero, `logrosOtorgados` vacío y los minutos del día y `diaHecho` tal como están ahora.
+- Si la clave existe en otro hábito, 409.
+- Dos completados con la misma clave a la vez: el registro se guarda con `INSERT … ON CONFLICT (clave_cliente) DO NOTHING`. El segundo espera a que termine el primero, no escribe nada y responde como un reintento; no choca con la restricción única, así que la transacción no queda marcada para deshacer.
+
+### Premio
+
+Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premio de un paso de minutos está en `CalculoPremio.delPasoEnMinutos`.
+
+- **Reparto dentro del día**: lo cobrado del día al llevar k de n minutos es `25 · min(k, n) / n` en enteros (5 para la XP), y el paso cobra lo que sube eso. Es el mismo reparto que en veces: con pasos de un minuto da las mismas cifras que un diario de veces con meta n, y la suma del día es siempre 25 y 5.
+- **Diario de 30 min**: 15 + 15 minutos cobran 12 y 13 puntos (2 y 3 XP); 10 + 10 + 10, 8, 8 y 9 (1, 2 y 2 XP); 45 de una vez, 25 y 5; los minutos de más, 0. Con objetivo 600, un paso de 1 minuto no da nada.
+- **Semanal**: cada día vale un día entero repartido igual dentro del día, y la semana no cobra más que `meta` días enteros. El paso que hace que los días hechos de la semana lleguen a la meta añade el extra del 20 % de `meta` días, como en veces (con meta 3, 15 puntos y 3 XP). Con 3 días × 60 min: lunes 60 → 25; martes 30 → 12; miércoles 60 → 25; jueves 60 → 13 (la semana llega al tope de 75) más el extra de 15; terminar después el martes → 0.
+- **Días a medias**: con 59 de 60 minutos los siete días de un semanal de 3 días, los pasos cobran 24, 24, 24, 3, 0, 0 y 0 (75 en total, sin extra): unos días a medias no pueden cobrar más que la semana cumplida.
+- Hitos, logros y deshacer funcionan igual que en veces: el hito y los logros de constancia cuentan días hechos, y la reversión guarda lo que dio cada paso (monedas, XP, logros e hito), así que deshacer un paso de minutos devuelve exactamente lo suyo.
+
+### Crédito, días hechos y Hoy
+
+- **Crédito de ritmo**: un día de minutos aporta `min(1, minutos / objetivo)`. En un diario, ese es el crédito del periodo; en un semanal, `min(1, suma de créditos diarios / meta)`. En veces, igual que antes.
+- **Días hechos** (hitos, logros de constancia): los días que llegan a sus minutos, cada uno con el objetivo vigente ese día.
+- **Vuelta** (`RACHA_RECUPERADA`): en un hábito de minutos llega con el paso que completa el día, mirando los días hechos anteriores; un paso a medias todavía no es volver.
+- **Día completo y ánimo de la mascota**: un diario de minutos está hecho cuando llega a sus minutos. Un paso a medias cuenta como «empezado», no como «completo».
+- **Hoy** (`FilaHoyDTO`): añade `unidad`, `minutosHechos` (los del día que se mira) y `minutosObjetivo` (los de ese día); los dos últimos, null en veces. `completados` y `meta` conservan su significado para la app ya instalada: en un hábito de minutos cuentan días (0 o 1 en un diario; días hechos de la semana en un semanal), y `hecho`, `completadoEnFecha` y `fechasCompletadas` miran los días hechos. La tira da crédito parcial a los diarios de minutos.
+- **`/dashboard`, `/semana` y `/resumen`**: en minutos cuentan días hechos. `GET /api/registros/habito/{id}/hoy` también, y añade `minutosHoy` y `minutosObjetivo` (null en veces).
+- **Detalle**: añade `unidad`, `minutosObjetivo` y `totalMinutos` (la suma de los minutos de todos sus registros de minutos, también los de más). En un hábito de veces, `minutosObjetivo` y `totalMinutos` son null. En el mapa de calor, una celda de un día de minutos está completada si el día llegó a sus minutos y lleva sus `minutos`; `totalCompletados` y `completadosMesActual` cuentan días hechos en los días de minutos. Los últimos registros llevan `cantidad` y `origen`.
+- `HabitoDTO` (listas, resumen, `GET /api/habitos/{id}`) añade `unidad` y `minutosObjetivo`. `GET /api/registros/habito/{id}` devuelve en cada registro `cantidad` y `origen` (nunca la clave del cliente).
+
+### Crear y editar
+
+`POST /api/habitos` y `PUT /api/habitos/{id}` aceptan `unidad` y `minutosObjetivo`.
+
+- **Ausente = sin cambio** en el `PUT`: la app ya instalada no los manda, y un null nunca borra nada; se conserva lo que tenía el hábito. En el `POST`, sin `unidad` el hábito es de veces y los minutos se ignoran.
+- De minutos exige `minutosObjetivo` de 1 a 600 (si no, 400). En un diario, la meta pasa a 1; en un semanal, la meta son los días por semana (o el número de días fijos, como siempre).
+- Cambiar los minutos por día o pasar de veces a minutos se aplica por días (ver la tabla de «Regla de cambios»); de minutos a veces responde 409 con un texto del bundle.
+
+---
+
 ## Hitos por días hechos
 
-Los hitos premian la constancia acumulada de un hábito, no la racha. Se miden en **días hechos**: en un diario, los días en que se alcanzó la meta; en un semanal, los días distintos con alguna sesión.
+Los hitos premian la constancia acumulada de un hábito, no la racha. Se miden en **días hechos**: en un diario, los días en que se alcanzó la meta; en un semanal, los días distintos con alguna sesión; en un hábito de minutos, los días cuya suma de minutos llegó a los minutos objetivo de ese día (los días a medias no cuentan).
 
 | Días hechos | Puntos |
 |---:|---:|
@@ -317,7 +384,7 @@ Los logros de ritmo se conceden al leer la pantalla de Hoy (`HoyService`), porqu
 | `REGISTROS_500` | Quinientos y contando | Difícil | 250 | Al completar, el usuario llega a 500 registros |
 | `REGISTROS_1000` | Mil pasos | Difícil | 250 | Al completar, el usuario llega a 1000 registros |
 
-Los de hábitos activos y categorías se comprueban al crear un hábito, con el número exacto. Los de registros, al completar, también con el número exacto. El número de registros cuenta todas las filas del usuario, que son todas completados: el código solo crea registros completados, y deshacer borra la fila.
+Los de hábitos activos y categorías se comprueban al crear un hábito, con el número exacto. Los de registros, al completar, también con el número exacto. El número de registros (`RegistroDAO.contarPorUsuario`) cuenta las filas del usuario, que son todas completados: el código solo crea registros completados, y deshacer borra la fila. En los días de un hábito de minutos cuenta como mucho un registro por hábito y día (un día con cinco sesiones cuenta uno); en los de veces, cada fila. Cada día se juzga con la unidad de la versión vigente en esa fecha.
 
 #### Variedad
 
@@ -394,7 +461,7 @@ Hoy hay un único envío programado: los **recordatorios** de cada hábito.
 
 - **Qué hábitos**: solo los activos (no los que están en pausa) con recordatorio activado y una hora elegida.
 - **Cuándo**: cada 5 minutos. La hora del hábito se redondea hacia arriba al múltiplo de 5 minutos siguiente, y se compara con la ventana de 5 minutos en curso en la hora local del dueño del hábito.
-- **Si toca recordar**: el hábito no está hecho en su día (en un diario) ni cubierto en su semana (en un semanal), y la semana no está ya cumplida.
+- **Si toca recordar**: el hábito no está hecho en su día (en un diario) ni cubierto en su semana (en un semanal), y la semana no está ya cumplida. Un hábito de minutos no está hecho hasta que el día llega a sus minutos: un paso a medias no calla el recordatorio.
 - **Un aviso por usuario**: si varios hábitos coinciden a la misma hora, el usuario recibe un solo aviso que los nombra.
 - **Sin token**: si el usuario no tiene token FCM, no se envía nada. Si FCM da el token por inválido, se borra del usuario.
 
