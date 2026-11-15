@@ -118,21 +118,39 @@ public final class CalculoRitmo {
     public static RitmoAlDia alDiaPorUnidades(double valor, LocalDate desde, Frecuencia frecuencia, int objetivo,
                                               LocalDate fechaInicio, Map<LocalDate, Double> unidadesPorDia,
                                               LocalDate hoy) {
-        Map<LocalDate, Double> hechosPorPeriodo = new HashMap<>();
-        for (Map.Entry<LocalDate, Double> dia : unidadesPorDia.entrySet()) {
-            hechosPorPeriodo.merge(frecuencia.rangoPeriodo(dia.getKey())[0], dia.getValue(), Double::sum);
-        }
+        Objetivo siempre = new Objetivo(frecuencia, objetivo, null);
+        return alDiaPorUnidades(valor, desde, dia -> siempre, fechaInicio, unidadesPorDia, hoy);
+    }
+
+    /**
+     * Igual, con el objetivo de cada periodo: la frecuencia y la meta las
+     * da {@code objetivoEl} en el primer día del periodo, no el objetivo de
+     * hoy. Tras un cambio de objetivo, los periodos de antes se siguen
+     * juzgando con el que tenían (el ritmo de hace siete días no cambia por
+     * cambiar hoy la meta). Un cambio de frecuencia solo entra en vigor un
+     * lunes, así que una semana nunca mezcla dos frecuencias.
+     */
+    public static RitmoAlDia alDiaPorUnidades(double valor, LocalDate desde,
+                                              java.util.function.Function<LocalDate, Objetivo> objetivoEl,
+                                              LocalDate fechaInicio, Map<LocalDate, Double> unidadesPorDia,
+                                              LocalDate hoy) {
         LocalDate lunesDeEstaSemana = hoy.with(DayOfWeek.MONDAY);
 
         double actual = valor;
         double valorAncla = valor;
         LocalDate desdeAncla = desde;
-        LocalDate cursor = frecuencia.rangoPeriodo(desde)[0];
+        LocalDate cursor = objetivoEl.apply(desde).frecuencia().rangoPeriodo(desde)[0];
         while (true) {
+            Objetivo objetivo = objetivoEl.apply(cursor);
+            Frecuencia frecuencia = objetivo.frecuencia();
             LocalDate[] periodo = frecuencia.rangoPeriodo(cursor);
             if (!periodo[1].isBefore(hoy)) break; // sigue abierto: no mueve el ritmo
 
-            double credito = credito(hechosPorPeriodo.getOrDefault(periodo[0], 0.0), objetivo);
+            double hechos = 0.0;
+            for (LocalDate dia = periodo[0]; !dia.isAfter(periodo[1]); dia = dia.plusDays(1)) {
+                hechos += unidadesPorDia.getOrDefault(dia, 0.0);
+            }
+            double credito = credito(hechos, objetivo.meta());
             double siguiente = cerrarPeriodo(actual, credito, frecuencia);
             boolean esElPrimero = fechaInicio != null
                     && !fechaInicio.isBefore(periodo[0]) && !fechaInicio.isAfter(periodo[1]);
