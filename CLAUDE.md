@@ -10,8 +10,10 @@ de arquitectura se toma pensando en esa reutilización.
 - **Motor** = genérico, reutilizable por cualquier app futura del
   ecosistema: auth/JWT, usuarios, sistema de puntos (UsuarioMoneda),
   logros, tienda (Producto/UsuarioProducto), mascota, email, FCM.
-- **Disparadores** = específico del dominio "hábitos": Habito, Registro,
-  Frecuencia, Categoria, sus schedulers y controllers.
+- **Disparadores** = lo específico de cada dominio, cada uno en su
+  módulo: `habitos` (Habito, Registro, Frecuencia, Categoria, sus
+  schedulers y controllers), `conocimiento` (píldoras) y `enfoque`
+  (sesiones de Norday Focus).
 
 **Ningún servicio genérico puede conocer conceptos de dominio como
 "hábito", "registro" o "categoría".** El motor recibe códigos/eventos
@@ -84,8 +86,8 @@ agregador (`packaging=pom`, sin dependencias propias) que hereda de
   `com.norday.gamificacion`. Es una librería (sin
   `spring-boot-maven-plugin`) y concentra **todas** las dependencias
   técnicas: JPA, web, security, JWT, validación, bucket4j, mail, OAuth2,
-  Google/Firebase, Flyway, PostgreSQL. Es el módulo que se extraerá tal
-  cual cuando exista la segunda app del ecosistema.
+  Google/Firebase, Flyway, PostgreSQL. Es el módulo que comparten los tres
+  dominios.
 - **`habitos/`** — el dominio de Norday Habits: `com.norday.habitos`.
   Librería también. Su única dependencia de producción es `norday-motor`,
   y las hereda todas por transitividad.
@@ -115,8 +117,11 @@ se recorren, y solo después se borra el `Usuario`.
 
 Implementaciones actuales, seis:
 
-- `LimpiadorHabitos` — registros y rachas, luego hábitos, luego categorías
-  propias.
+- `LimpiadorHabitos` — por cada hábito, el libro de hitos (`hito_pagado`),
+  las reversiones, los registros, las rachas, los ritmos y el historial de
+  objetivos (`habito_objetivo`); luego los hábitos; luego las categorías
+  propias. El libro de hitos va antes que los registros porque también
+  apunta a ellos.
 - `LimpiadorGamificacion` — logros, monedas, productos, mascota.
 - `LimpiadorRecuperacion` — códigos de recuperación de contraseña, que
   cuelgan del email y no del id.
@@ -243,8 +248,10 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
 ## Siembra de catálogos
 
 Cada módulo siembra lo suyo con su propio `CommandLineRunner`:
-`CategoriasInitializer` y `LogrosHabitosInitializer` (habitos),
-`CatalogoGamificacionInitializer` (gamificacion).
+`CategoriasInitializer`, `LogrosHabitosInitializer` y
+`ProductosHabitosInitializer` (habitos; este último, la `PAUSA_HABITO` de la
+tienda, con `origenApp = habitos`), y `CatalogoGamificacionInitializer`
+(gamificacion).
 
 La comprobación de idempotencia de logros y productos es **por código,
 fila a fila** (`findByCodigo(...) != null` → saltar), no una guarda
@@ -379,8 +386,12 @@ conceptualmente su módulo. En ejecución da igual: el jar los une en un
 único classpath.
 
 De ahí que `BundlesMensajesTest` viva en `norday-server` y no en
-`norday-motor`: compara el bundle de `core` contra el de `habitos`, y
-`norday-server` es el único módulo que ve los dos. Un test que cruce
+`norday-motor`: comprueba los bundles de `core`, `habitos` y `enfoque` (que
+cada idioma traduzca exactamente las claves del base, y que el motor no
+lleve textos de una app), y que cada motivo de rechazo de un aporte
+(`DestinoMinutosHabitos.MOTIVOS` y los de `MotivosEnfoque`) tenga texto en
+el bundle de quien lo pone y quepa en `sesion_enfoque.aporte_motivo` (40).
+`norday-server` es el único módulo que ve todos. Un test que cruce
 módulos pertenece al módulo que los reúne.
 
 El fichero base (sin sufijo de idioma) va en español, que es la caída
@@ -465,8 +476,12 @@ espera con `EsperaDeBloqueo` a que el otro termine o se quede esperando un
 bloqueo de su transacción (`pg_blocking_pids`), nunca un tiempo fijo, y los
 hilos se cierran en `@AfterEach`.
 
-Qué cubre la suite y qué no: los tests mockean los DAOs, así que no ven
-proxies de Hibernate ni validan JPQL. Una consulta no está validada porque la
+Qué cubre la suite y qué no: los tests unitarios de `norday-motor`,
+`habitos`, `conocimiento` y `enfoque` mockean los DAOs, así que no ven
+proxies de Hibernate ni validan JPQL. Los de `norday-server` (42 clases con
+`@SpringBootTest`: los de concurrencia y los de integración) sí tocan
+Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
+pasan. Una consulta que ninguno de ellos recorre no está validada porque la
 suite esté verde.
 
 ## Documentación
@@ -614,12 +629,12 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 - **`mvnw` ya es ejecutable (`100755`)**: la lección antigua de que
   «`./mvnw` no ejecuta en Linux» ya no aplica tal cual.
 
-### Método de trabajo (vale para los cuatro repos)
+### Método de trabajo (vale para los cinco repos)
 
-- **La primera línea de un prompt se comprueba, no se recuerda.** Tres repos
-  están en `C:\Dev\Norday\` (`habitos-app`, `habitos_app_mobile`,
-  `norday_flutter_core`) y `conocimiento_app_mobile` está en
-  `C:\Dev\Conocimiento\`.
+- **La primera línea de un prompt se comprueba, no se recuerda.** Cuatro
+  repos están en `C:\Dev\Norday\` (`habitos-app`, `habitos_app_mobile`,
+  `norday_flutter_core`, `enfoque_app_mobile`) y `conocimiento_app_mobile`
+  está en `C:\Dev\Conocimiento\`.
 - **Un solo agente por repo a la vez.** Codex hizo `dart format` y mergeó a
   `main` sin revisión aunque el prompt lo prohibía. Todo lo que haga otro
   agente se revisa en el remoto antes de mergear.
