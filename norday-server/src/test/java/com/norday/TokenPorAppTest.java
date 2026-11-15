@@ -302,4 +302,41 @@ class TokenPorAppTest {
 
         assertEquals("token-fila", dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
     }
+
+    /**
+     * A cierra sesión y B entra en el mismo móvil: la app manda el mismo
+     * token, ahora para B. Los avisos de A no pueden seguir llegando a ese
+     * móvil, que ya es de B.
+     */
+    @Test
+    void elMismoTokenEnOtroUsuario_dejaDeSerDelAnterior_yNoLeLleganSusAvisos() throws Exception {
+        Usuario a = usuarioDePrueba();
+        Usuario b = usuarioDePrueba();
+        mockMvc.perform(registrar(a, "habitos", "token-movil")).andExpect(status().isOk());
+        mockMvc.perform(registrar(b, "habitos", "token-movil")).andExpect(status().isOk());
+        habitoConRecordatorioAhora(a);
+
+        notificacionScheduler.enviarRecordatorios(AHORA);
+
+        verify(notificacionService, never()).enviarNotificacion(eq("token-movil"), anyString(), anyString());
+        assertNull(dispositivoService.tokenDe(a.getUsuarioId(), AppNorday.HABITOS));
+        assertNull(tokenEnUsuario(a));
+        assertEquals("token-movil", dispositivoService.tokenDe(b.getUsuarioId(), AppNorday.HABITOS));
+        assertEquals("token-movil", tokenEnUsuario(b));
+    }
+
+    @Test
+    void elMismoTokenDeEnfoqueEnOtroUsuario_soloQuitaElDeEnfoqueDelAnterior() throws Exception {
+        Usuario a = usuarioDePrueba();
+        Usuario b = usuarioDePrueba();
+        mockMvc.perform(registrar(a, "habitos", "token-habits-a")).andExpect(status().isOk());
+        mockMvc.perform(registrar(a, "enfoque", "token-focus")).andExpect(status().isOk());
+
+        mockMvc.perform(registrar(b, "enfoque", "token-focus")).andExpect(status().isOk());
+
+        assertNull(dispositivoService.tokenDe(a.getUsuarioId(), AppNorday.ENFOQUE));
+        assertEquals("token-habits-a", dispositivoService.tokenDe(a.getUsuarioId(), AppNorday.HABITOS));
+        assertEquals("token-habits-a", tokenEnUsuario(a));
+        assertEquals("token-focus", dispositivoService.tokenDe(b.getUsuarioId(), AppNorday.ENFOQUE));
+    }
 }

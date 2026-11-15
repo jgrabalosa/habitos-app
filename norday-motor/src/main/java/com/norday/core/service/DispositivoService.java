@@ -42,6 +42,11 @@ public class DispositivoService {
     /**
      * Guarda el token que manda una app. Un token vacío o ausente deja a esa
      * app sin token, que es lo que hacía antes guardar un null en el usuario.
+     *
+     * El token deja de ser de cualquier otro usuario en esa app (cerró sesión
+     * y entró otro en el mismo móvil): en la tabla lo hace el DAO, y para
+     * {@link AppNorday#HABITOS} también en la columna de transición, que si no
+     * lo devolvería la reserva de {@link #tokenDe}.
      */
     @Transactional
     public void registrarToken(int usuarioId, String appId, String fcmToken) {
@@ -57,6 +62,9 @@ public class DispositivoService {
             dispositivoDAO.borrar(usuarioId, appId);
         } else {
             dispositivoDAO.guardar(usuarioId, appId, fcmToken);
+            if (AppNorday.HABITOS.equals(appId)) {
+                usuarioDAO.quitarFcmTokenDeOtros(usuarioId, fcmToken);
+            }
         }
 
         if (AppNorday.HABITOS.equals(appId)) {
@@ -74,8 +82,10 @@ public class DispositivoService {
         if (token != null || !AppNorday.HABITOS.equals(appId)) {
             return token;
         }
-        Usuario usuario = usuarioDAO.findById(usuarioId);
-        return usuario != null ? usuario.getFcmToken() : null;
+        // Consulta, no findById: un Usuario ya cargado en el contexto no ve el
+        // UPDATE masivo de quitarFcmTokenDeOtros y devolvería un token que ya
+        // es de otro usuario.
+        return usuarioDAO.fcmTokensDe(List.of(usuarioId)).get(usuarioId);
     }
 
     /**

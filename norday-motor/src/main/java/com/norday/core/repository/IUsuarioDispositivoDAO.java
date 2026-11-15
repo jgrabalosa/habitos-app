@@ -7,7 +7,10 @@ import java.util.Map;
 
 public interface IUsuarioDispositivoDAO {
 
-    /** Crea o sustituye el token de ese usuario en esa app. */
+    /**
+     * Crea o sustituye el token de ese usuario en esa app, y se lo quita a
+     * cualquier otro usuario que lo tuviera en esa misma app.
+     */
     void guardar(int usuarioId, String appId, String fcmToken);
 
     /** El token de ese usuario en esa app, o null si no tiene. */

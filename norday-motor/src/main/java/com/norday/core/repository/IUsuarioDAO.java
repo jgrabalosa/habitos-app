@@ -24,4 +24,7 @@ public interface IUsuarioDAO {
      * quien la tiene a null no aparece.
      */
     Map<Integer, String> fcmTokensDe(Collection<Integer> usuarioIds);
+
+    /** Pone a null usuario.fcm_token de todo usuario que no sea ese y tenga ese token. */
+    void quitarFcmTokenDeOtros(int usuarioId, String fcmToken);
 }

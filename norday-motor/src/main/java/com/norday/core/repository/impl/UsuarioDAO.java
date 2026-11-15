@@ -86,6 +86,15 @@ public class UsuarioDAO implements IUsuarioDAO {
     }
 
     @Override
+    public void quitarFcmTokenDeOtros(int usuarioId, String fcmToken) {
+        em.createQuery("UPDATE Usuario u SET u.fcmToken = null "
+                        + "WHERE u.fcmToken = :token AND u.usuarioId <> :id")
+                .setParameter("token", fcmToken)
+                .setParameter("id", usuarioId)
+                .executeUpdate();
+    }
+
+    @Override
     public void delete(int id) {
         Usuario usuario = findById(id);
         if (usuario != null) {

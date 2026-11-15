@@ -26,8 +26,20 @@ public class UsuarioDispositivoDAO implements IUsuarioDispositivoDAO {
     // casi a la vez del mismo usuario y app chocarían con la restricción única
     // si se hiciera buscar-y-después-insertar. Así el segundo espera al primero
     // y escribe encima.
+    //
+    // Antes, el mismo token de esa app deja de ser de cualquier otro usuario:
+    // un token es una instalación, y si llega para otro usuario es que en ese
+    // móvil se cerró sesión y entró otra persona. Si siguiera en el anterior,
+    // sus avisos llegarían al móvil de quien ha entrado.
     @Override
     public void guardar(int usuarioId, String appId, String fcmToken) {
+        em.createNativeQuery(
+                        "DELETE FROM usuario_dispositivo "
+                                + "WHERE app_id = :app AND fcm_token = :token AND usuario_ref <> :usuario")
+                .setParameter("usuario", usuarioId)
+                .setParameter("app", appId)
+                .setParameter("token", fcmToken)
+                .executeUpdate();
         em.createNativeQuery(
                         "INSERT INTO usuario_dispositivo (usuario_ref, app_id, fcm_token, actualizado_en) "
                                 + "VALUES (:usuario, :app, :token, :ahora) "

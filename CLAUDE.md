@@ -149,6 +149,10 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
   la APK ya instalada no la manda. Una app que no está en `AppNorday` recibe
   400 y no se guarda nada. **Una app nueva se añade a `AppNorday` antes de
   publicarse.**
+- **Un token es de un solo usuario por app.** Si llega para otro (cerró
+  sesión y entró otra persona en el mismo móvil), se le quita al anterior:
+  su fila de esa app y, para `habitos`, su `usuario.fcm_token`. Si no, los
+  avisos del anterior llegarían al móvil del nuevo.
 - **Todo envío push pide el token de la app a la que va**, con
   `DispositivoService.tokenDe(usuarioId, appId)` (o `tokensDe` para muchos
   usuarios). Nunca `usuario.getFcmToken()`. Los recordatorios de hábitos van

@@ -202,7 +202,7 @@ Tabla `usuario_dispositivo`, del módulo `norday-motor` (paquete `core`, migraci
 - `fcm_token`: obligatorio, hasta 4096 caracteres.
 - `actualizado_en`: obligatoria, en UTC. Cuándo registró la app ese token por última vez.
 
-(`usuario_ref`, `app_id`) es único: una fila por usuario y app, que el registro siguiente sustituye. La migración copió cada `usuario.fcm_token` no vacío como `habitos`.
+(`usuario_ref`, `app_id`) es único: una fila por usuario y app, que el registro siguiente sustituye. Registrar un token para un usuario se lo quita a cualquier otro que lo tuviera en la misma app (en `habitos`, también de su `usuario.fcm_token`): es el mismo móvil con otra sesión, y los avisos del anterior no deben llegarle. La migración copió cada `usuario.fcm_token` no vacío como `habitos`.
 
 La columna `usuario.fcm_token` sigue existiendo como columna de transición: el backend la escribe con el token de `habitos` para poder volver al jar anterior, y la usa como reserva para `habitos` cuando el usuario no tiene fila (quien registró su token mientras corría el jar anterior). Los envíos salen de `DispositivoService`, con el token de la app a la que va el aviso.
 
