@@ -50,6 +50,12 @@ class RitmoServiceTest {
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
 
+    // Desde la Fase 3 el ritmo convierte cada día con el objetivo de ese día.
+    // Sin versiones (lo que devuelve el mock), es el del hábito, como antes.
+    @Mock
+    private com.norday.habitos.repository.IHabitoObjetivoDAO objetivoDAO;
+
+
     @InjectMocks
     private RitmoService ritmoService;
 

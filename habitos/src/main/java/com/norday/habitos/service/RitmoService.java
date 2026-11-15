@@ -8,10 +8,13 @@ import com.norday.habitos.model.CalculoRitmo.RitmoConPeso;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Function;
 
 /**
  * Única puerta de lectura del ritmo de un hábito.
@@ -44,8 +48,9 @@ import java.util.OptionalDouble;
  *
  * Aquí se lee siempre el objetivo que guarda el hábito. Vale porque desde
  * el ancla no ha cambiado: un cambio programado se aplica, y ancla el
- * ritmo, antes de cualquier lectura (ObjetivoService.ponerAlDia). En un
- * hábito de minutos, el crédito de cada día es min(1, minutos / objetivo).
+ * ritmo, antes de cualquier lectura (ObjetivoService.ponerAlDia). Lo hecho
+ * cada día se convierte a unidades con el objetivo vigente ese día: en un
+ * día de minutos, min(1, minutos / objetivo); en uno de veces, las veces.
  */
 @Service
 public class RitmoService {
@@ -61,6 +66,10 @@ public class RitmoService {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    // El repositorio y no ObjetivoService, que depende de este servicio.
+    @Autowired
+    private IHabitoObjetivoDAO objetivoDAO;
 
     /** El ritmo de hoy de un hábito, de 0 a 1, en el "hoy" de su dueño. */
     @Transactional
@@ -87,7 +96,7 @@ public class RitmoService {
         if (!habito.isActivo()) {
             return congelado(ritmo);
         }
-        return ponerAlDia(ritmo, habito, hechosPorDia(ritmo, habito, hoy), hoy);
+        return ponerAlDia(ritmo, habito, hechosPorDia(ritmo, habito, hoy), historialDe(habito)::objetivoEl, hoy);
     }
 
     /**
@@ -135,14 +144,20 @@ public class RitmoService {
             }
         }
 
+        // Las versiones del objetivo de todos, en una sola consulta: cada día
+        // se convierte a unidades con el objetivo que tenía.
+        Map<Integer, List<HabitoObjetivo>> versiones = objetivoDAO.findByHabitos(habitos);
         for (Habito habito : habitos) {
             Ritmo ritmo = anclas.get(habito.getHabitoId());
+            HistorialObjetivos historial = HistorialObjetivos.de(habito,
+                    versiones.getOrDefault(habito.getHabitoId(), List.of()));
             RitmoLeido leido = ritmo == null
                     ? empezarHoy(habito, hoy)
                     : !habito.isActivo()
                             ? congelado(ritmo)
                             : ponerAlDia(ritmo, habito,
-                                    hechosPorHabito.getOrDefault(habito.getHabitoId(), Map.of()), hoy);
+                                    hechosPorHabito.getOrDefault(habito.getHabitoId(), Map.of()),
+                                    historial::objetivoEl, hoy);
             leidos.put(habito.getHabitoId(), leido);
         }
         return leidos;
@@ -252,7 +267,7 @@ public class RitmoService {
         // cambio pasa a su día, cuyo periodo solo podrá subir.
         LocalDate dia = ritmo.getDesde().isAfter(hoy) ? ritmo.getDesde() : hoy;
         double vigente = ponerAlDia(ritmo, habitoComoEstaba,
-                hechosPorDia(ritmo, habitoComoEstaba, dia), dia).valor();
+                hechosPorDia(ritmo, habitoComoEstaba, dia), historialDe(habitoComoEstaba)::objetivoEl, dia).valor();
         ritmo.setValor(vigente);
         ritmo.setDesde(dia);
         ritmo.setCambio(dia);
@@ -295,6 +310,11 @@ public class RitmoService {
         return habito.getFrecuencia().rangoPeriodo(ancla)[0];
     }
 
+    /** El historial de objetivos de un hábito, sin poner nada al día. */
+    private HistorialObjetivos historialDe(Habito habito) {
+        return HistorialObjetivos.de(habito, objetivoDAO.findByHabito(habito));
+    }
+
     /**
      * Lo hecho cada día (la suma de {@code cantidad}: las veces o los
      * minutos) que hace falta para poner al día un hábito. Hoy no se lee: su
@@ -335,15 +355,17 @@ public class RitmoService {
      * atrás. Devuelve el ritmo de hoy y el de hace siete días.
      */
     private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
-                                  LocalDate hoy) {
+                                  Function<LocalDate, Objetivo> objetivoEl, LocalDate hoy) {
         Frecuencia frecuencia = habito.getFrecuencia();
         int objetivo = habito.getMeta();
-        // Lo hecho cada día en unidades de la meta: en un hábito de veces,
-        // las veces; en uno de minutos, min(1, minutos / objetivo), así que
-        // un día a medias cuenta en proporción y pasarse no suma más.
-        Objetivo delHabito = Objetivo.de(habito);
+        // Lo hecho cada día en unidades de la meta, con el objetivo vigente
+        // ESE día: en un día de veces, las veces; en uno de minutos,
+        // min(1, minutos / objetivo), así que un día a medias cuenta en
+        // proporción y pasarse no suma más. En la semana del paso de veces a
+        // minutos, los días de veces cuentan sus sesiones y no 1 minuto cada una.
         Map<LocalDate, Double> unidades = new HashMap<>();
-        hechosPorDia.forEach((dia, hechos) -> unidades.put(dia, delHabito.unidadesParcialesDelDia(hechos)));
+        hechosPorDia.forEach((dia, hechos) ->
+                unidades.put(dia, objetivoEl.apply(dia).unidadesParcialesDelDia(hechos)));
         // El periodo que solo puede subir: el del último cambio de frecuencia
         // u objetivo y, si no ha habido ninguno, el primero del hábito.
         LocalDate soloSube = ritmo.getCambio() != null ? ritmo.getCambio() : habito.getFechaInicio();

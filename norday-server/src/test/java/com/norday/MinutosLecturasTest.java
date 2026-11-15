@@ -241,6 +241,32 @@ class MinutosLecturasTest {
                 LUNES.plusWeeks(1).plusDays(1)), 1e-12);
     }
 
+    @Test
+    void ritmo_semanaDeTransicion_cadaDiaConSuObjetivo() {
+        // Semanal de 3 días: de veces hasta el martes, de minutos (60) desde el
+        // miércoles. El ritmo se ancló el miércoles, al cambiar.
+        Usuario usuario = usuario();
+        Habito semanal = habito(usuario, new Objetivo(Frecuencia.SEMANAL, 3, null), LUNES);
+        semanal.setUnidad(Unidad.MINUTOS);
+        semanal.setMinutosObjetivo(60);
+        em.persist(new HabitoObjetivo(semanal, MIERCOLES,
+                new Objetivo(Unidad.MINUTOS, Frecuencia.SEMANAL, 3, 60, null)));
+        Ritmo ritmo = em.createQuery("SELECT r FROM Ritmo r WHERE r.habito = :h", Ritmo.class)
+                .setParameter("h", semanal).getSingleResult();
+        ritmo.setDesde(MIERCOLES);
+        ritmo.setCambio(MIERCOLES);
+        registro(semanal, LUNES, 1);
+        registro(semanal, MARTES, 1);
+        registro(semanal, MIERCOLES, 30);
+        registro(semanal, JUEVES, 60);
+        limpiar();
+        // Lunes y martes, una sesión de veces cada uno (1 + 1); miércoles,
+        // 30 de 60 (0,5); jueves, 60 (1): 3,5 de 3, el crédito es 1.
+        double esperado = CalculoRitmo.cerrarPeriodo(0.5, 1.0, Frecuencia.SEMANAL);
+        assertEquals(esperado, ritmoService.ritmoVigente(em.find(Habito.class, semanal.getHabitoId()),
+                LUNES.plusWeeks(1).plusDays(1)), 1e-12);
+    }
+
     // ── Logros de constancia ─────────────────────────────────────
 
     @Test

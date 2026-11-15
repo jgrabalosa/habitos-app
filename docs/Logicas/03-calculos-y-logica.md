@@ -209,7 +209,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 
 ### Crédito, días hechos y Hoy
 
-- **Crédito de ritmo**: un día de minutos aporta `min(1, minutos / objetivo)`. En un diario, ese es el crédito del periodo; en un semanal, `min(1, suma de créditos diarios / meta)`. En veces, igual que antes.
+- **Crédito de ritmo**: un día de minutos aporta `min(1, minutos / objetivo)`. En un diario, ese es el crédito del periodo; en un semanal, `min(1, suma de créditos diarios / meta)`. En veces, igual que antes. Cada día se convierte con el objetivo vigente ese día: en la semana del paso de veces a minutos, los días de veces aportan sus sesiones (1 cada una) y los de minutos su proporción.
 - **Días hechos** (hitos, logros de constancia): los días que llegan a sus minutos, cada uno con el objetivo vigente ese día.
 - **Vuelta** (`RACHA_RECUPERADA`): en un hábito de minutos llega con el paso que completa el día, mirando los días hechos anteriores; un paso a medias todavía no es volver.
 - **Día completo y ánimo de la mascota**: un diario de minutos está hecho cuando llega a sus minutos. Un paso a medias cuenta como «empezado», no como «completo».
