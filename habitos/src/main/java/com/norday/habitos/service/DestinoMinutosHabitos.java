@@ -1,0 +1,248 @@
+package com.norday.habitos.service;
+
+import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.RecursoNoEncontradoException;
+import com.norday.core.model.Usuario;
+import com.norday.core.repository.IUsuarioDAO;
+import com.norday.gamificacion.model.DestinoDisponible;
+import com.norday.gamificacion.model.ResultadoAporte;
+import com.norday.gamificacion.service.DestinoMinutos;
+import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
+import com.norday.habitos.model.HistorialObjetivos;
+import com.norday.habitos.model.LimitesMinutos;
+import com.norday.habitos.model.Objetivo;
+import com.norday.habitos.model.OrigenRegistro;
+import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IRegistroDAO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Los hábitos de minutos como destino de los minutos de otra app (Norday
+ * Focus): el adaptador de este dominio al puerto {@link DestinoMinutos} del
+ * motor. Quien manda los minutos no conoce los hábitos, y este dominio no
+ * conoce a quien los manda.
+ *
+ * {@link #aportar} valida antes de completar (dueño, que exista, que no esté
+ * en pausa, que el día sea de minutos en la versión vigente ese día, que sea
+ * de la semana en curso y no futuro, y de 1 a 600 minutos) y responde
+ * RECHAZADO con un código de motivo, que es una clave del bundle de habitos.
+ * Si pasa, completa con {@link RegistroService#completar} igual que el panel
+ * de minutos de la app (mismos minutos, misma clave, mismo premio), con origen
+ * ENFOQUE.
+ *
+ * <h2>Transacción</h2>
+ *
+ * Todo {@link #aportar} corre dentro de una TransactionTemplate con
+ * PROPAGATION_REQUIRES_NEW, y la excepción de negocio se captura <b>fuera</b>
+ * de ella. Así:
+ * <ul>
+ *   <li>Si completar lanza (una pausa o un choque de clave que llega entre la
+ *       validación y el completado), su transacción —solo la suya— se deshace
+ *       entera, sin dejar nada a medias, y aquí se traduce a RECHAZADO.</li>
+ *   <li>Si quien llama tuviera una transacción abierta, no queda marcada para
+ *       deshacer: REQUIRES_NEW «always uses an independent physical
+ *       transaction (…) with an outer transaction not affected by an inner
+ *       transaction's rollback status» (documentación de Spring sobre
+ *       propagación, https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html).
+ *       Es la lección de asegurarIdentidad del CLAUDE.md.</li>
+ *   <li>Capturar dentro no serviría: completar es @Transactional y, al lanzar,
+ *       marca para deshacer la transacción en la que participa; si la captura
+ *       estuviera dentro de la plantilla, su commit reventaría con
+ *       UnexpectedRollbackException.</li>
+ * </ul>
+ * Sin transacción exterior (que es como llama Norday Focus), REQUIRES_NEW no
+ * pide una segunda conexión: no hay nada que suspender.
+ *
+ * Un fallo técnico (base de datos caída, abrazo mortal) no se traduce: sale
+ * como excepción para que quien llama lo reintente, en vez de dejar apuntado
+ * para siempre un rechazo que no lo era.
+ */
+@Service
+public class DestinoMinutosHabitos implements DestinoMinutos {
+
+    public static final String TIPO = "habito";
+
+    // Los códigos de motivo: claves de mensajes/habitos, de 40 caracteres como
+    // mucho (sesion_enfoque.aporte_motivo).
+    public static final String MOTIVO_NO_ENCONTRADO = "aporte.habito.no.encontrado";
+    public static final String MOTIVO_PAUSADO = "aporte.habito.pausado";
+    public static final String MOTIVO_NO_MINUTOS = "aporte.habito.no.minutos";
+    public static final String MOTIVO_DIA_FUTURO = "aporte.habito.dia.futuro";
+    public static final String MOTIVO_SEMANA_PASADA = "aporte.habito.semana.pasada";
+    public static final String MOTIVO_MINUTOS_RANGO = "aporte.habito.minutos.rango";
+    public static final String MOTIVO_ORIGEN = "aporte.habito.origen";
+    public static final String MOTIVO_CONFLICTO = "aporte.habito.conflicto";
+    public static final String MOTIVO_INVALIDO = "aporte.habito.invalido";
+
+    public static final List<String> MOTIVOS = List.of(MOTIVO_NO_ENCONTRADO, MOTIVO_PAUSADO, MOTIVO_NO_MINUTOS,
+            MOTIVO_DIA_FUTURO, MOTIVO_SEMANA_PASADA, MOTIVO_MINUTOS_RANGO, MOTIVO_ORIGEN, MOTIVO_CONFLICTO,
+            MOTIVO_INVALIDO);
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DestinoMinutosHabitos.class);
+
+    @Autowired
+    private IHabitoDAO habitoDAO;
+
+    @Autowired
+    private IRegistroDAO registroDAO;
+
+    @Autowired
+    private IUsuarioDAO usuarioDAO;
+
+    @Autowired
+    private RegistroService registroService;
+
+    @Autowired
+    private ObjetivoService objetivoService;
+
+    @Autowired
+    private RachaService rachaService;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    @Override
+    public String tipo() {
+        return TIPO;
+    }
+
+    /**
+     * Los hábitos de minutos activos (no en pausa) del usuario, con los
+     * minutos que lleva hoy y los que pide hoy. "De minutos" según la versión
+     * vigente hoy; hoy, en la zona del usuario. Solo lee: no pone al día la
+     * copia del objetivo.
+     */
+    @Override
+    public List<DestinoDisponible> disponibles(Long usuarioId) {
+        TransactionTemplate lectura = new TransactionTemplate(transactionManager);
+        lectura.setReadOnly(true);
+        return lectura.execute(estado -> {
+            Usuario usuario = usuarioId == null ? null : usuarioDAO.findById(usuarioId.intValue());
+            if (usuario == null) return List.of();
+            List<Habito> activos = habitoDAO.findActivos(usuario);
+            if (activos.isEmpty()) return List.of();
+            Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(activos);
+            List<DestinoDisponible> disponibles = new ArrayList<>();
+            for (Habito habito : activos) {
+                LocalDate hoy = rachaService.hoyDe(habito);
+                HistorialObjetivos historial = HistorialObjetivos.de(historiales, habito);
+                Objetivo objetivo = historial.objetivoEl(hoy);
+                if (!objetivo.enMinutos()) continue;
+                Hechos hechos = Hechos.de(registroDAO.findByHabitoAndRango(habito, hoy, hoy), historial::objetivoEl);
+                disponibles.add(new DestinoDisponible(TIPO, (long) habito.getHabitoId(), habito.getNombre(),
+                        hechos.cantidadEl(hoy), objetivo.minutosDelDia()));
+            }
+            return disponibles;
+        });
+    }
+
+    @Override
+    public ResultadoAporte aportar(Long usuarioId, Long destinoId, int minutos, UUID clave, LocalDate dia,
+                                   String origen) {
+        TransactionTemplate propia = new TransactionTemplate(transactionManager);
+        propia.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        try {
+            return propia.execute(estado -> aportarEnSuTransaccion(usuarioId, destinoId, minutos, clave, dia, origen));
+        } catch (ConflictoException e) {
+            log.info("Aporte de {} min al hábito {} rechazado al completar: {}", minutos, destinoId, e.getMessage());
+            return ResultadoAporte.rechazado(MOTIVO_CONFLICTO);
+        } catch (RecursoNoEncontradoException e) {
+            return ResultadoAporte.rechazado(MOTIVO_NO_ENCONTRADO);
+        } catch (IllegalArgumentException e) {
+            log.info("Aporte de {} min al hábito {} rechazado al completar: {}", minutos, destinoId, e.getMessage());
+            return ResultadoAporte.rechazado(MOTIVO_INVALIDO);
+        }
+    }
+
+    private ResultadoAporte aportarEnSuTransaccion(Long usuarioId, Long destinoId, int minutos, UUID clave,
+                                                   LocalDate dia, String origenTexto) {
+        // El dueño primero, y lo mismo si no existe que si es de otro: no se
+        // dice qué ids hay.
+        Habito habito = destinoId == null || destinoId <= 0 || destinoId > Integer.MAX_VALUE
+                ? null : habitoDAO.findById(destinoId.intValue());
+        if (habito == null || usuarioId == null || habito.getPropietario() == null
+                || habito.getPropietario().getUsuarioId() != usuarioId) {
+            return ResultadoAporte.rechazado(MOTIVO_NO_ENCONTRADO);
+        }
+        OrigenRegistro origen;
+        try {
+            origen = OrigenRegistro.valueOf(origenTexto);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return ResultadoAporte.rechazado(MOTIVO_ORIGEN);
+        }
+        if (!LimitesMinutos.valido(minutos)) {
+            return ResultadoAporte.rechazado(MOTIVO_MINUTOS_RANGO);
+        }
+
+        // Como en completar: primero la clave. Si ya se usó, un reintento
+        // responde lo mismo aunque desde entonces haya cambiado algo (una
+        // pausa, el día): completar contesta REPETIDO sin crear ni pagar nada.
+        boolean claveUsada = clave != null && registroDAO.findByClave(clave) != null;
+        if (!claveUsada) {
+            String motivo = motivoDeRechazo(habito, dia);
+            if (motivo != null) {
+                return ResultadoAporte.rechazado(motivo);
+            }
+        }
+
+        Map<String, Object> resultado = registroService.completar(habito,
+                new RegistroService.Solicitud(null, dia, String.valueOf(minutos), clave, origen));
+        return traducir(resultado);
+    }
+
+    /**
+     * Las reglas que completar haría cumplir lanzando, miradas antes para
+     * responder con su propio motivo. null si se puede completar.
+     */
+    private String motivoDeRechazo(Habito habito, LocalDate dia) {
+        if (!habito.isActivo()) {
+            return MOTIVO_PAUSADO;
+        }
+        LocalDate hoy = rachaService.hoyDe(habito);
+        if (dia == null || dia.isAfter(hoy)) {
+            return MOTIVO_DIA_FUTURO;
+        }
+        // El mismo suelo que completar: el lunes de la semana en curso.
+        LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
+        if (dia.isBefore(lunesDeEstaSemana)) {
+            return MOTIVO_SEMANA_PASADA;
+        }
+        // De minutos según la versión vigente ESE día, no la de hoy: en veces,
+        // completar no rechazaría, contaría una vez e ignoraría los minutos.
+        HistorialObjetivos historial = HistorialObjetivos.de(objetivoService.historiales(List.of(habito)), habito);
+        if (!historial.objetivoEl(dia).enMinutos()) {
+            return MOTIVO_NO_MINUTOS;
+        }
+        return null;
+    }
+
+    /** La respuesta de completar, en el idioma del puerto. */
+    @SuppressWarnings("unchecked")
+    private static ResultadoAporte traducir(Map<String, Object> resultado) {
+        boolean repetido = Boolean.TRUE.equals(resultado.get("repetido"));
+        return new ResultadoAporte(
+                repetido ? ResultadoAporte.Estado.REPETIDO : ResultadoAporte.Estado.ACEPTADO,
+                null,
+                entero(resultado.get("puntosGanados")),
+                entero(resultado.get("xpGanada")),
+                (Integer) resultado.get("minutosDia"),
+                (Integer) resultado.get("minutosObjetivo"),
+                (Boolean) resultado.get("diaHecho"),
+                (List<String>) resultado.get("logros"));
+    }
+
+    private static int entero(Object valor) {
+        return valor instanceof Number numero ? numero.intValue() : 0;
+    }
+}
