@@ -260,4 +260,46 @@ class TokenPorAppTest {
                 .setParameter("id", usuario.getUsuarioId())
                 .getSingleResult();
     }
+
+    /**
+     * Lo que deja el jar anterior a V24 si se vuelve a él: el token en
+     * usuario.fcm_token y ninguna fila en usuario_dispositivo.
+     */
+    private void tokenSoloEnLaColumna(Usuario usuario, String token) {
+        Usuario gestionado = em.find(Usuario.class, usuario.getUsuarioId());
+        gestionado.setFcmToken(token);
+        em.flush();
+        em.clear();
+    }
+
+    @Test
+    void sinFilaDeHabits_elRecordatorioUsaLaColumnaDeTransicion() {
+        Usuario usuario = usuarioDePrueba();
+        tokenSoloEnLaColumna(usuario, "token-columna");
+        habitoConRecordatorioAhora(usuario);
+
+        notificacionScheduler.enviarRecordatorios(AHORA);
+
+        verify(notificacionService).enviarNotificacion(eq("token-columna"), anyString(), anyString());
+        assertEquals("token-columna", dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+    }
+
+    @Test
+    void laColumnaDeTransicion_soloValeParaHabits() {
+        Usuario usuario = usuarioDePrueba();
+        tokenSoloEnLaColumna(usuario, "token-columna");
+
+        assertNull(dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.ENFOQUE));
+        assertEquals(java.util.Map.of(), dispositivoService.tokensDe(
+                java.util.List.of(usuario.getUsuarioId()), AppNorday.ENFOQUE));
+    }
+
+    @Test
+    void conFilaDeHabits_mandaLaFila() {
+        Usuario usuario = usuarioDePrueba();
+        dispositivoService.registrarToken(usuario.getUsuarioId(), AppNorday.HABITOS, "token-fila");
+        tokenSoloEnLaColumna(usuario, "token-otro");
+
+        assertEquals("token-fila", dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+    }
 }

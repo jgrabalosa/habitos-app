@@ -2,7 +2,9 @@ package com.norday.core.repository;
 
 import com.norday.core.model.Usuario;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface IUsuarioDAO {
 
@@ -16,4 +18,10 @@ public interface IUsuarioDAO {
     /** Actualiza solo la columna ultimo_acceso, sin cargar la entidad. */
     void actualizarUltimoAcceso(int usuarioId, LocalDateTime ahora);
     void delete(int id);
+
+    /**
+     * La columna de transición usuario.fcm_token de esos usuarios, por id;
+     * quien la tiene a null no aparece.
+     */
+    Map<Integer, String> fcmTokensDe(Collection<Integer> usuarioIds);
 }

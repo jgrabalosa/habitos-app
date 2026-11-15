@@ -118,6 +118,42 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
   desde el 25-sep-2026; antes era 403. El 403 queda para pedir datos de otro
   usuario.
 
+## Volver al jar anterior a V24 (tokens de notificaciones)
+
+Desde V24 cada app guarda su token en `usuario_dispositivo`. El jar
+anterior no conoce esa tabla: lee y escribe solo `usuario.fcm_token`, que el
+jar nuevo sigue escribiendo para `habitos`. Volver atrás arranca y los
+recordatorios siguen saliendo, pero:
+
+- **Solo es seguro mientras Norday Focus no esté publicada.** El jar
+  anterior no distingue apps: el token de Enfoque pisaría la columna, igual
+  que antes de V24.
+- **Al volver a avanzar, la tabla está obsoleta** para quien cambió de token
+  durante la vuelta atrás: la fila de `habitos` conserva el token viejo y
+  manda sobre la columna. El jar nuevo usa la columna solo cuando no hay fila.
+  Hay que resincronizar `habitos` desde la columna justo después de arrancar
+  el jar nuevo:
+
+```sql
+BEGIN;
+-- La columna manda: quien tiene token en usuario.fcm_token, a la tabla.
+INSERT INTO usuario_dispositivo (usuario_ref, app_id, fcm_token, actualizado_en)
+SELECT usuario_id, 'habitos', fcm_token, (NOW() AT TIME ZONE 'UTC')
+FROM usuario
+WHERE fcm_token IS NOT NULL AND BTRIM(fcm_token) <> ''
+ON CONFLICT (usuario_ref, app_id) DO UPDATE
+SET fcm_token = EXCLUDED.fcm_token, actualizado_en = EXCLUDED.actualizado_en
+WHERE usuario_dispositivo.fcm_token IS DISTINCT FROM EXCLUDED.fcm_token;
+-- Quien se quedó sin token en la columna, también sin fila de habitos.
+DELETE FROM usuario_dispositivo d
+USING usuario u
+WHERE d.usuario_ref = u.usuario_id AND d.app_id = 'habitos'
+  AND (u.fcm_token IS NULL OR BTRIM(u.fcm_token) = '');
+COMMIT;
+```
+
+Las filas de otras apps no se tocan: el jar anterior no las escribe.
+
 ## Backups
 
 Documentados aparte, en [`backups.md`](backups.md). Antes de desplegar en

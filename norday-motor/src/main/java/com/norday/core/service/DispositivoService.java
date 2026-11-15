@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -20,8 +22,13 @@ import java.util.Objects;
  * a la que va dirigido: un aviso de una app nunca debe acabar en otra.
  *
  * Transición: la columna usuario.fcm_token sigue escribiéndose con el token
- * de {@link AppNorday#HABITOS}, porque es la que lee el jar anterior. Así se
- * puede volver a él sin perder los recordatorios. Este código ya no la lee.
+ * de {@link AppNorday#HABITOS}, porque es la que lee el jar anterior a V24.
+ * Y se lee como reserva, solo para esa app y solo si no hay fila: un usuario
+ * que registró su token mientras corría el jar anterior lo tiene en la
+ * columna y no en la tabla. Un token que cambió durante esa vuelta atrás deja
+ * la fila obsoleta, y eso no lo arregla la reserva: hace falta la
+ * resincronización de docs/despliegue.md. Por eso volver al jar anterior solo
+ * es seguro mientras Norday Focus no esté publicada.
  */
 @Service
 public class DispositivoService {
@@ -58,14 +65,30 @@ public class DispositivoService {
         }
     }
 
-    /** El token de ese usuario en esa app, o null si no tiene. */
+    /**
+     * El token de ese usuario en esa app, o null si no tiene. Para
+     * {@link AppNorday#HABITOS} sin fila, el de la columna de transición.
+     */
     public String tokenDe(int usuarioId, String appId) {
-        return dispositivoDAO.tokenDe(usuarioId, appId);
+        String token = dispositivoDAO.tokenDe(usuarioId, appId);
+        if (token != null || !AppNorday.HABITOS.equals(appId)) {
+            return token;
+        }
+        Usuario usuario = usuarioDAO.findById(usuarioId);
+        return usuario != null ? usuario.getFcmToken() : null;
     }
 
-    /** Los tokens de varios usuarios en una app, en una sola consulta. */
+    /**
+     * Los tokens de varios usuarios en una app, en una consulta (dos para
+     * {@link AppNorday#HABITOS}, con la misma reserva que {@link #tokenDe}).
+     */
     public Map<Integer, String> tokensDe(Collection<Integer> usuarioIds, String appId) {
-        return dispositivoDAO.tokensDe(usuarioIds, appId);
+        Map<Integer, String> tokens = new HashMap<>(dispositivoDAO.tokensDe(usuarioIds, appId));
+        if (AppNorday.HABITOS.equals(appId)) {
+            List<Integer> sinFila = usuarioIds.stream().filter(id -> !tokens.containsKey(id)).toList();
+            usuarioDAO.fcmTokensDe(sinFila).forEach(tokens::putIfAbsent);
+        }
+        return tokens;
     }
 
     /**

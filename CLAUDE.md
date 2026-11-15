@@ -155,7 +155,11 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
   a `habitos`. Si FCM responde `UNREGISTERED`, `olvidarToken`.
 - **`usuario.fcm_token` es columna de transición**: se sigue escribiendo
   con el token de `habitos` para poder volver al jar anterior a V24, y
-  nadie la lee. No se quita hasta que no haga falta volver atrás.
+  `DispositivoService` la lee como reserva para `habitos` cuando no hay
+  fila. Ningún envío la lee directamente. Volver al jar anterior solo es
+  seguro mientras Norday Focus no esté publicada, y al volver a avanzar hay
+  que resincronizar (SQL en `docs/despliegue.md`). No se quita hasta que no
+  haga falta volver atrás.
 
 ## Siembra de catálogos
 

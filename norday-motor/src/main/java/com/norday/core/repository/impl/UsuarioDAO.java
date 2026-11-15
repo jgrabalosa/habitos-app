@@ -7,7 +7,10 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @Transactional
@@ -63,6 +66,23 @@ public class UsuarioDAO implements IUsuarioDAO {
                 .setParameter("ahora", ahora)
                 .setParameter("id", usuarioId)
                 .executeUpdate();
+    }
+
+    @Override
+    public Map<Integer, String> fcmTokensDe(Collection<Integer> usuarioIds) {
+        Map<Integer, String> tokens = new HashMap<>();
+        if (usuarioIds.isEmpty()) {
+            return tokens;
+        }
+        List<Object[]> filas = em.createQuery(
+                        "SELECT u.usuarioId, u.fcmToken FROM Usuario u "
+                                + "WHERE u.usuarioId IN :ids AND u.fcmToken IS NOT NULL", Object[].class)
+                .setParameter("ids", usuarioIds)
+                .getResultList();
+        for (Object[] fila : filas) {
+            tokens.put((Integer) fila[0], (String) fila[1]);
+        }
+        return tokens;
     }
 
     @Override

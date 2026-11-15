@@ -45,7 +45,8 @@ public class Usuario {
 
     // Columna de transición: el token de Norday Habits, que la sigue
     // escribiendo DispositivoService para poder volver al jar anterior. La
-    // fuente de verdad es usuario_dispositivo, un token por app; nada la lee.
+    // fuente de verdad es usuario_dispositivo, un token por app; esta solo
+    // se lee como reserva de Habits cuando no hay fila (DispositivoService).
     // WRITE_ONLY: nunca sale en una respuesta.
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "fcm_token", length = 255)
