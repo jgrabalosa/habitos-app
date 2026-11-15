@@ -94,6 +94,9 @@ public class HabitoService {
     @Autowired
     private TextosService textosService;
 
+    @Autowired
+    private com.norday.core.repository.IUsuarioDAO usuarioDAO;
+
     /** Normaliza la relación frecuencia/díasSemana/meta antes de guardar:
      *  los días solo aplican a SEMANAL, y si hay días la meta se deriva de ellos.
      *  En un diario de minutos la meta es siempre 1: lo que se pide es un día. */
@@ -158,6 +161,9 @@ public class HabitoService {
      */
     @Transactional
     public List<String> crearHabito(Habito habito, Integer categoriaId, Unidad unidad, Integer minutosObjetivo) {
+        // Crear un hábito concede logros (activos, categorías): el usuario,
+        // bloqueado antes que nada (ver bloquearUsuario).
+        bloquearUsuario(habito.getPropietario());
         aplicarUnidad(habito, unidad != null ? unidad : Unidad.VECES, minutosObjetivo);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
         normalizarPlanificacion(habito);
@@ -178,13 +184,51 @@ public class HabitoService {
     }
 
     /**
-     * Bloquea el hábito hasta el final de la transacción en curso: dos
-     * completados (o un completado y un deshacer) del mismo hábito se
-     * hacen uno detrás de otro, y el segundo ve lo que hizo el primero.
+     * Bloquea a su propietario y al hábito, en ese orden, hasta el final de
+     * la transacción en curso. Dos completados (o un completado y un
+     * deshacer) del mismo hábito se hacen uno detrás de otro, y el segundo ve
+     * lo que hizo el primero. El usuario también: lo que dio un completado se
+     * mide como saldo y logros después menos antes, y un completado de otro
+     * hábito del mismo usuario confirmado en medio se colaba en la cuenta (y
+     * deshacer el primero lo devolvía y retiraba sus logros).
+     *
+     * Siempre usuario y después hábito, y siempre por aquí: es el único sitio
+     * que bloquea un hábito, así que dos operaciones no pueden pedirlos en
+     * orden contrario y abrazarse. Lo usan completar, deshacer, editar,
+     * pausar, reanudar, borrar y anular un cambio programado.
+     *
+     * Devuelve el hábito releído tras el bloqueo, y es con ese con el que hay
+     * que seguir: el que se leyó antes de esperar puede ser viejo (una pausa
+     * o un objetivo nuevo confirmados entretanto). Si ya no existe, 404.
      */
     @Transactional
-    public void bloquear(Habito habito) {
-        habitoDAO.bloquear(habito.getHabitoId());
+    public Habito bloquear(Habito habito) {
+        // Sin usuario (su baja ha confirmado mientras se esperaba), tampoco
+        // hay hábito.
+        if (!usuarioDAO.bloquear(habito.getPropietario().getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
+        Habito releido = habitoDAO.bloquear(habito.getHabitoId());
+        if (releido == null) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
+        return releido;
+    }
+
+    /**
+     * Bloquea solo al usuario (ver IUsuarioDAO.bloquear) hasta el final de
+     * la transacción; 404 si ya no existe. Para lo que concede logros o
+     * monedas sin cambiar un hábito concreto (abrir Hoy, crear un hábito o
+     * una categoría, poner una nota): sin él, lo concedido se cuela en el
+     * «saldo después − saldo antes» de un completado del mismo usuario que
+     * esté a medias. Va antes de cualquier escritura de la transacción, para
+     * que el orden siga siendo usuario y después lo demás.
+     */
+    @Transactional
+    public void bloquearUsuario(Usuario usuario) {
+        if (!usuarioDAO.bloquear(usuario.getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
     }
 
     /**
@@ -259,6 +303,12 @@ public class HabitoService {
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
+        // De uno en uno con completar, deshacer y la pausa, y con el hábito
+        // releído: sin esto, un paso confirmado mientras se decide la fecha
+        // del cambio no se ve (el día se reinterpreta con el objetivo nuevo y
+        // cobra dos veces), y una pausa confirmada después de que el
+        // controlador leyera el hábito se deshace al guardar.
+        existente = bloquear(existente);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
 
         // Primero, el objetivo de hoy: si ha llegado un cambio programado,
@@ -336,6 +386,9 @@ public class HabitoService {
      */
     @Transactional
     public void anularObjetivoProgramado(Habito habito) {
+        // Cambia el historial del hábito: de uno en uno con lo demás que lo
+        // cambia (un PUT que programa, un completado que lo lee).
+        habito = bloquear(habito);
         LocalDate hoy = rachaService.hoyDe(habito);
         // Antes, lo que ya haya llegado se aplica: solo se anula lo futuro.
         objetivoService.ponerAlDia(List.of(habito), hoy);
@@ -344,6 +397,16 @@ public class HabitoService {
 
     @Transactional
     public void eliminar(int id) {
+        Habito habito = habitoDAO.findById(id);
+        if (habito == null) {
+            throw new RecursoNoEncontradoException("Hábito no encontrado");
+        }
+        // Como todo lo que cambia un hábito: usuario y hábito bloqueados
+        // antes de tocar nada. Borrar bloquea las filas que borra, y aquí el
+        // hábito va el último: sin bloquearlo antes, con un completado o un
+        // deshacer suyo a medias (que ya tiene el hábito y quiere esas filas)
+        // Postgres abortaría una de las dos por abrazo mortal.
+        bloquear(habito);
         // El libro de hitos cuelga del hábito y de sus registros: va antes
         // que los dos.
         hitoPagadoDAO.deleteByHabito(id);

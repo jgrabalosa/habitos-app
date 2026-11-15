@@ -26,6 +26,10 @@ class CategoriaServiceTest {
     @Mock
     private LogrosHabitosService logrosHabitosService;
 
+    // Bloquear al usuario antes de conceder logros: aquí no hace nada.
+    @Mock
+    private com.norday.habitos.service.HabitoService habitoService;
+
     @InjectMocks
     private CategoriaService categoriaService;
 

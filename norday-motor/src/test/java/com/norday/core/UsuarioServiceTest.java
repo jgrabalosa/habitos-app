@@ -1,5 +1,6 @@
 package com.norday.core;
 
+import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.LimpiadorDatosUsuario;
@@ -42,6 +43,8 @@ class UsuarioServiceTest {
     void setUp() {
         usuario = new Usuario();
         usuario.setUsuarioId(1);
+        // La fila existe al bloquearla, salvo en el test que dice lo contrario.
+        lenient().when(usuarioDAO.bloquear(1)).thenReturn(true);
         // @InjectMocks no sabe rellenar un List<LimpiadorDatosUsuario>: se
         // inyecta a mano, igual que hace Spring al recolectar las
         // implementaciones registradas.
@@ -66,9 +69,21 @@ class UsuarioServiceTest {
         usuarioService.eliminarCuenta(1);
 
         InOrder orden = inOrder(limpiadorA, limpiadorB, usuarioDAO);
+        orden.verify(usuarioDAO).bloquear(1);
         orden.verify(limpiadorA).limpiar(usuario);
         orden.verify(limpiadorB).limpiar(usuario);
         orden.verify(usuarioDAO).delete(1);
+    }
+
+    @Test
+    void siOtraBajaSeAdelantaMientrasEspera_404SinLimpiarNiBorrar() {
+        when(usuarioDAO.findById(1)).thenReturn(usuario);
+        when(usuarioDAO.bloquear(1)).thenReturn(false);
+
+        assertThrows(RecursoNoEncontradoException.class, () -> usuarioService.eliminarCuenta(1));
+
+        verify(limpiadorA, never()).limpiar(any());
+        verify(usuarioDAO, never()).delete(anyInt());
     }
 
     @Test

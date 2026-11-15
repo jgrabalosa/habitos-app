@@ -29,6 +29,16 @@ public interface IRegistroDAO {
     List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta);
     List<Registro> findByHabitosAndRango(List<Habito> habitos, LocalDate desde, LocalDate hasta);
     void update(Registro registro);
+
+    /**
+     * Escribe solo la nota del registro (un UPDATE de esa columna) y relee el
+     * registro si está en la sesión. Devuelve cuántas filas cambió: 0 si el
+     * registro ya no existe (deshecho entretanto).
+     */
+    int actualizarNota(int registroId, String nota);
+
+    /** Igual, con la valoración. */
+    int actualizarValoracion(int registroId, Integer valoracion);
     /**
      * Los registros del usuario para los logros de volumen: cada fila en los
      * días de un hábito de veces, y como mucho una por hábito y día en los de

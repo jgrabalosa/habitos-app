@@ -21,6 +21,25 @@ public class MascotaDAO implements IMascotaDAO {
     }
 
     @Override
+    public void actualizarNombre(int mascotaId, String nombre) {
+        actualizarColumna(mascotaId, "nombre", nombre);
+    }
+
+    @Override
+    public void actualizarFaseElegida(int mascotaId, String faseElegida) {
+        actualizarColumna(mascotaId, "faseElegida", faseElegida);
+    }
+
+    private void actualizarColumna(int mascotaId, String campo, String valor) {
+        em.createQuery("UPDATE Mascota m SET m." + campo + " = :valor WHERE m.mascotaId = :id")
+                .setParameter("valor", valor)
+                .setParameter("id", mascotaId)
+                .executeUpdate();
+        Mascota enSesion = em.find(Mascota.class, mascotaId);
+        if (enSesion != null) em.refresh(enSesion);
+    }
+
+    @Override
     public void update(Mascota mascota) {
         em.merge(mascota);
     }

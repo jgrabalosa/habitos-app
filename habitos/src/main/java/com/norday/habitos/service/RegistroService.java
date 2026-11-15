@@ -132,13 +132,19 @@ public class RegistroService {
             if (previo != null) return repetido(habito, previo, usuario);
         }
 
-        // Los completados de un mismo hábito van de uno en uno: se bloquea su
-        // fila hasta el final de la transacción. Sin esto, dos pasos a la vez
-        // leen el mismo "antes" y cobran los dos la misma parte del día (o el
-        // extra de la semana). Lo que viene después lee ya lo que confirmó el
-        // anterior, así que la clave se vuelve a mirar. Mismo orden de
-        // bloqueo que deshacer (primero el hábito), para no abrazarse.
-        habitoService.bloquear(habito);
+        // Los completados de un mismo usuario van de uno en uno: se bloquean
+        // su fila y la del hábito hasta el final de la transacción. Sin el
+        // hábito, dos pasos a la vez leen el mismo "antes" y cobran los dos la
+        // misma parte del día (o el extra de la semana). Sin el usuario, el
+        // paso de otro hábito suyo que confirme en medio entra en el "saldo
+        // después − saldo antes" y en los logros nuevos de este, y deshacer
+        // este los devolvería. Lo que viene después lee ya lo que confirmó el
+        // anterior, así que la clave se vuelve a mirar. El orden (usuario,
+        // hábito) lo fija habitoService.bloquear, el mismo que en deshacer.
+        // Se sigue con el hábito releído tras el bloqueo: el que llegó se leyó
+        // antes de esperar, y una pausa o un objetivo nuevo confirmados
+        // entretanto no estarían en él.
+        habito = habitoService.bloquear(habito);
         if (clave != null) {
             Registro previo = registroDAO.findByClave(clave);
             if (previo != null) return repetido(habito, previo, usuario);
@@ -160,6 +166,14 @@ public class RegistroService {
         LocalDate lunesDeEstaSemana = hoy.minusDays(hoy.getDayOfWeek().getValue() - 1L);
         if (fecha.isBefore(lunesDeEstaSemana)) {
             throw new ConflictoException("Solo se puede completar una fecha de la semana en curso");
+        }
+        // Ni un día anterior al alta del hábito: uno creado el viernes no
+        // existía de lunes a jueves, y marcarlos el mismo viernes cobraba los
+        // pasos, el hito de 3 días y el logro de constancia el día del alta.
+        // Deshacer no lleva esta regla: si quedó algún registro así de antes,
+        // se puede quitar.
+        if (habito.getFechaInicio() != null && fecha.isBefore(habito.getFechaInicio())) {
+            throw new ConflictoException(textosService.texto("registro.fecha.antes.alta", usuario));
         }
 
         // El objetivo de hoy al día, y el día se juzga con el que tenía esa
@@ -347,6 +361,11 @@ public class RegistroService {
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
         // saldo recoge de una vez el completado, el hito de racha y los logros.
+        // El usuario está bloqueado desde antes de leer el saldo de antes, y
+        // todo lo que escribe en su saldo o en sus logros (otro completado,
+        // deshacer, la tienda, los logros al abrir Hoy, crear un hábito...)
+        // lo bloquea también antes de escribir: nada se cuela en medio. La
+        // lista está en docs/Logicas/03, «Bloqueos».
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
         ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
                 periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, xpOtorgada,
@@ -550,18 +569,28 @@ public class RegistroService {
         return registroDAO.findById(registroId);
     }
 
+    @Transactional
     public void actualizarNota(int registroId, String nota) {
         Registro registro = registroDAO.findById(registroId);
         if (registro == null) {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
-        registro.setNota(nota);
-        registroDAO.update(registro);
-
+        // La primera nota concede un logro: el usuario, bloqueado antes de
+        // escribir nada (ver HabitoService.bloquearUsuario). Transaccional
+        // para que la nota y el logro vayan juntos bajo ese bloqueo.
         Usuario usuario = registro.getHabito().getPropietario();
+        habitoService.bloquearUsuario(usuario);
+        // Solo la columna de la nota, y tras el bloqueo: el registro leído
+        // arriba puede ser viejo (una valoración confirmada entretanto) o ya
+        // no existir (deshecho mientras se esperaba): entonces 404.
+        if (registroDAO.actualizarNota(registroId, nota) == 0) {
+            throw new RecursoNoEncontradoException("Registro no encontrado");
+        }
+
         logrosHabitosService.evaluarTrasAnadirNota(usuario);
     }
 
+    @Transactional
     public void actualizarValoracion(int registroId, Integer valoracion) {
         if (valoracion == null || valoracion < 1 || valoracion > 5) {
             throw new IllegalArgumentException("La valoración debe estar entre 1 y 5");
@@ -570,8 +599,11 @@ public class RegistroService {
         if (registro == null) {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
-        registro.setValoracion(valoracion);
-        registroDAO.update(registro);
+        // Como la nota: bajo el bloqueo del usuario y solo su columna.
+        habitoService.bloquearUsuario(registro.getHabito().getPropietario());
+        if (registroDAO.actualizarValoracion(registroId, valoracion) == 0) {
+            throw new RecursoNoEncontradoException("Registro no encontrado");
+        }
     }
 
     /**
@@ -588,9 +620,12 @@ public class RegistroService {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         Habito habito = registro.getHabito();
-        // Igual que al completar: de uno en uno por hábito, para que "el
-        // último registro" no cambie entre comprobarlo y borrarlo.
-        habitoService.bloquear(habito);
+        // Igual que al completar: de uno en uno por usuario y hábito, para que
+        // "el último registro" no cambie entre comprobarlo y borrarlo, y para
+        // no deshacer en medio de un completado de otro hábito suyo que está
+        // midiendo su saldo y sus logros. Con el hábito releído, como al
+        // completar.
+        habito = habitoService.bloquear(habito);
         // Un hábito en pausa no se deshace: la pausa lo para todo.
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito está en pausa");

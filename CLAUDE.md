@@ -409,6 +409,11 @@ Reglas al tocar esa configuración:
 - **Los initializers siguen corriendo bajo test**, y es deliberado: sobre una
   BD desechable son inofensivos y siembran el catálogo. No hay guardas
   `@Profile` y no hacen falta.
+- **El pool de conexiones de test es pequeño y se encoge** (5 como mucho, 1
+  ociosa, 10 s). Spring guarda un contexto por cada combinación de
+  `@MockitoSpyBean`/`@TestPropertySource`, y cada uno conserva su pool: con el
+  de por defecto (10 fijas) la suite agotaba las 100 conexiones de Postgres
+  («remaining connection slots are reserved»).
 - **Usuario y contraseña salen del entorno** si existe:
   `${TEST_DB_USER:norday_test}`. Una máquina con otras credenciales las pone
   por variable, sin tocar el fichero.
@@ -442,6 +447,13 @@ es el contador de transacciones de Postgres:
 ```bash
 psql -U postgres -c "SELECT datname, xact_commit FROM pg_stat_database WHERE datname LIKE 'habitos_db%';"
 ```
+
+Los tests de concurrencia (`*ConcurrenteTest`, `ConcesionesEnUnCompletadoTest`,
+`EscriturasConcurrentesTest`) fuerzan la intercalación con dos hilos y
+transacciones confirmadas de verdad, sin `@Transactional`. El hilo en pausa
+espera con `EsperaDeBloqueo` a que el otro termine o se quede esperando un
+bloqueo de su transacción (`pg_blocking_pids`), nunca un tiempo fijo, y los
+hilos se cierran en `@AfterEach`.
 
 Qué cubre la suite y qué no: los tests mockean los DAOs, así que no ven
 proxies de Hibernate ni validan JPQL. Una consulta no está validada porque la
@@ -504,6 +516,12 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 - **Nombres de columna, del repositorio, nunca de memoria.** La FK de
   `registro` es `habito_ref`, no `habito_id`.
 - **El nombre real de la base es `habitos_db`**, no `habitas_db`.
+- **`em.find` con bloqueo sobre una entidad que ya está en la sesión no la
+  relee**: pide el bloqueo y deja los valores de antes de esperar. Con
+  open-in-view el controlador ya la ha cargado, así que lo que se decida
+  tras el bloqueo hay que decidirlo con `em.refresh(..., PESSIMISTIC_WRITE)`.
+  Un completado veía activo un hábito pausado en medio, y un `PUT` lo
+  reactivaba al guardar.
 
 ### Servicios y reglas de negocio
 
@@ -523,6 +541,43 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
   y comprobar una a una que siguen aplicándose.
 - **Test en rojo antes del arreglo.** Si el test nuevo pasa contra el código
   sin arreglar, no demuestra nada: parar.
+- **Un «después − antes» solo es tuyo si nadie escribe en medio.** El
+  completado mide sus monedas y sus logros así, y solo bloqueaba el hábito:
+  el paso de otro hábito del mismo usuario se colaba en la cuenta, y
+  deshacer el primero devolvía lo del otro y le retiraba sus logros. Lo que
+  se mide sobre el usuario se protege bloqueando al usuario.
+- **Los bloqueos, siempre en el mismo orden: usuario y después hábito.**
+  Todo lo que cambia un hábito pasa por `HabitoService.bloquear` (completar,
+  deshacer, editar, pausar, reanudar, borrar, anular un cambio programado),
+  que bloquea los dos en ese orden y devuelve el hábito releído. No se
+  bloquea un hábito por otro camino. Ojo también con los bloqueos
+  implícitos: borrar o actualizar filas las bloquea. La baja de la cuenta y
+  el borrado de un hábito borraban las hijas antes que al usuario o al
+  hábito; por eso bloquean al empezar.
+- **Todo lo que concede logros, monedas o XP bloquea al usuario como
+  primera escritura** (Hoy, crear hábito o categoría, notas, perfil, login
+  con Google, toda la tienda). Si no, se cuela en el «después − antes» de
+  un completado a medias, y deshacerlo lo devuelve: una compra hecha en
+  medio salía gratis. Nunca dentro de `registrarMovimiento`: llegaría
+  después de leer el saldo y fuera de orden. La lista está en 03,
+  «Bloqueos».
+- **Una lectura que escribe, escribe solo sus columnas, y solo si no han
+  cambiado.** Poner al día la copia del objetivo se hace desde lecturas sin
+  bloqueo, con una copia del hábito que puede ser vieja; guardarlo entero
+  reactivaba hábitos pausados, y escribir sin condición deshacía un `PUT`
+  confirmado entretanto.
+- **Bloquear antes de leer, o escribir solo la columna que cambia.** Leer,
+  bloquear y guardar la entidad entera pisa lo confirmado mientras se
+  esperaba (el perfil pisaba las preferencias; la valoración, la
+  nota). `IUsuarioDAO.bloquearYReleer` para el usuario; un `UPDATE` de una
+  columna (nota, valoración, nombre de la mascota) donde no hay bloqueo.
+- **Toda espera de bloqueo tiene tope** (`norday.bloqueo.espera-maxima`, 10 s
+  por defecto, `lock_timeout` de la transacción) y acaba en 503 traducido.
+  No depender de la configuración de la base de datos: la de producción no
+  está versionada.
+- **Un logro de estado se mira cada vez, no solo en el instante del
+  cambio.** `MASCOTA_CRIA` se daba solo al cambiar de fase: si deshacer lo
+  retiraba con la mascota todavía en cría, no volvía nunca.
 
 ### Contrato con los clientes
 

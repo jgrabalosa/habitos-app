@@ -82,6 +82,8 @@ class CompletarConClaveTest {
         habito = new Habito();
         habito.setActivo(true);
         habito.setHabitoId(10);
+        // Bloquear devuelve el hábito releído; aquí, el mismo.
+        lenient().when(habitoService.bloquear(any(Habito.class))).thenAnswer(i -> i.getArgument(0));
         habito.setNombre("Leer");
         habito.setFrecuencia(Frecuencia.DIARIO);
         habito.setMeta(1);

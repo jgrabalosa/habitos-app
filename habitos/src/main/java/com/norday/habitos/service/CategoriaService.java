@@ -17,8 +17,16 @@ public class CategoriaService {
     @Autowired
     private LogrosHabitosService logrosHabitosService;
 
+    @Autowired
+    private HabitoService habitoService;
+
     @Transactional
     public void crearCategoria(Categoria categoria) {
+        // La primera categoría concede un logro: el usuario, bloqueado antes
+        // que nada (ver HabitoService.bloquearUsuario).
+        if (categoria.getCreador() != null) {
+            habitoService.bloquearUsuario(categoria.getCreador());
+        }
         // El código pertenece al catálogo global: lo pone la siembra, nunca el
         // cliente. Una categoría del usuario no se traduce, se muestra tal cual.
         categoria.setCodigo(null);
