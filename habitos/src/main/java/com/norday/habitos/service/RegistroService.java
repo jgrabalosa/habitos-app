@@ -361,10 +361,11 @@ public class RegistroService {
 
         // Cierra la instantánea con lo que efectivamente ocurrió: el delta de
         // saldo recoge de una vez el completado, el hito de racha y los logros.
-        // El usuario está bloqueado desde antes de leer el saldo de antes:
-        // ningún completado ni deshacer suyo se cuela en medio. Lo que escriba
-        // en su saldo o sus logros una operación que no lo bloquea (la tienda,
-        // los logros de ritmo al abrir Hoy) todavía podría.
+        // El usuario está bloqueado desde antes de leer el saldo de antes, y
+        // todo lo que escribe en su saldo o en sus logros (otro completado,
+        // deshacer, la tienda, los logros al abrir Hoy, crear un hábito...)
+        // lo bloquea también antes de escribir: nada se cuela en medio. La
+        // lista está en docs/Logicas/03, «Bloqueos».
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
         ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
                 periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, xpOtorgada,
