@@ -224,10 +224,13 @@ public class MascotaService {
         return new ResultadoExperienciaDTO(subioNivel, nivelDespues, construirDTO(mascota));
     }
 
+    // Poner nombre y elegir fase escriben solo su columna: no bloquean al
+    // usuario, y guardar la mascota entera pisaba la XP que se sumaba a la
+    // vez (un completado, una comida).
     public void ponerNombre(int usuarioId, String nuevoNombre) {
         Mascota mascota = obtenerOCrear(usuarioId);
+        mascotaDAO.actualizarNombre(mascota.getMascotaId(), nuevoNombre);
         mascota.setNombre(nuevoNombre);
-        mascotaDAO.update(mascota);
     }
 
     /**
@@ -240,8 +243,8 @@ public class MascotaService {
         if (!faseDesbloqueada(fase, calcularNivel(mascota.getExperiencia()))) {
             throw new IllegalArgumentException("Fase no válida o no desbloqueada");
         }
+        mascotaDAO.actualizarFaseElegida(mascota.getMascotaId(), fase);
         mascota.setFaseElegida(fase);
-        mascotaDAO.update(mascota);
     }
 
     /**

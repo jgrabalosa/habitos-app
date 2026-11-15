@@ -330,7 +330,9 @@ La mascota tiene dos logros propios del motor, que se tienen con esa fase o una 
 - `MASCOTA_CRIA`: en cría o adulta;
 - `MASCOTA_ADULTO`: adulta.
 
-Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y una sola vez (`otorgarSiNoTiene`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y el siguiente paso que dé XP los devuelve. Al perder XP no se miran.
+Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y una sola vez (`otorgarSiNoTiene`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y lo siguiente que dé XP (un paso o una comida) los devuelve. Al perder XP no se miran.
+
+Poner nombre a la mascota y elegir la fase que se ve escriben solo su columna (`IMascotaDAO.actualizarNombre`, `actualizarFaseElegida`): no bloquean al usuario, y guardar la mascota entera pisaba la XP que se sumaba a la vez.
 
 Estos logros son independientes de los logros específicos del dominio de hábitos.
 
