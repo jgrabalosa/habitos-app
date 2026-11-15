@@ -67,6 +67,9 @@ public class HoyService {
     @Autowired
     private ObjetivoService objetivoService;
 
+    @Autowired
+    private HabitoService habitoService;
+
     /** Hoy tal como lo ve el usuario; con {@code fechaPedida}, otro día de la tira. */
     @Transactional
     public HoyDTO obtenerHoy(Usuario usuario, LocalDate fechaPedida) {
@@ -77,6 +80,12 @@ public class HoyService {
     /** Igual, con el día de hoy dado, para que los tests lo fijen. */
     @Transactional
     public HoyDTO obtenerHoy(Usuario usuario, LocalDate fecha, LocalDate hoy) {
+        // Abrir Hoy concede los logros de ritmo (con sus monedas). El usuario
+        // se bloquea lo primero, antes de las escrituras de la lectura (poner
+        // al día el objetivo escribe en los hábitos, el ritmo en sus anclas):
+        // así el orden sigue siendo usuario y después lo demás, y lo concedido
+        // no se cuela en un completado a medias (ver bloquearUsuario).
+        habitoService.bloquearUsuario(usuario);
         LocalDate lunes = fecha.with(DayOfWeek.MONDAY);
         List<Habito> activos = habitoDAO.findActivos(usuario);
         // Antes que el ritmo: si ha llegado un cambio programado, se aplica

@@ -127,6 +127,10 @@ public class UsuarioService {
         Usuario usuario = usuarioDAO.findByEmail(email);
 
         if (usuario != null) {
+            // Entrar con Google concede LOGIN_GOOGLE: el usuario, bloqueado
+            // antes de escribir nada (ver IUsuarioDAO.bloquear). No lanza: un
+            // fallo aquí dejaría el login entero marcado para deshacer.
+            usuarioDAO.bloquear(usuario.getUsuarioId());
             if (!"GOOGLE".equals(usuario.getProveedorAuth())) {
                 usuario.setProveedorAuth("GOOGLE");
                 usuarioDAO.update(usuario);
@@ -154,9 +158,16 @@ public class UsuarioService {
         return usuarioDAO.findById(id);
     }
 
+    @Transactional
     public void actualizarPerfil(Usuario usuario) {
         Usuario existente = usuarioDAO.findById(usuario.getUsuarioId());
         if (existente == null) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
+        // Editar el perfil concede BIENVENIDO: el usuario, bloqueado antes de
+        // escribir nada (ver IUsuarioDAO.bloquear), y todo en una transacción,
+        // para que el logro no se cuele en lo que mide otra operación suya.
+        if (!usuarioDAO.bloquear(existente.getUsuarioId())) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 

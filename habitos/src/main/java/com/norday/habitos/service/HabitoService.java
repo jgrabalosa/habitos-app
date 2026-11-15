@@ -161,6 +161,9 @@ public class HabitoService {
      */
     @Transactional
     public List<String> crearHabito(Habito habito, Integer categoriaId, Unidad unidad, Integer minutosObjetivo) {
+        // Crear un hábito concede logros (activos, categorías): el usuario,
+        // bloqueado antes que nada (ver bloquearUsuario).
+        bloquearUsuario(habito.getPropietario());
         aplicarUnidad(habito, unidad != null ? unidad : Unidad.VECES, minutosObjetivo);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
         normalizarPlanificacion(habito);
@@ -210,6 +213,22 @@ public class HabitoService {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
         }
         return releido;
+    }
+
+    /**
+     * Bloquea solo al usuario (ver IUsuarioDAO.bloquear) hasta el final de
+     * la transacción; 404 si ya no existe. Para lo que concede logros o
+     * monedas sin cambiar un hábito concreto (abrir Hoy, crear un hábito o
+     * una categoría, poner una nota): sin él, lo concedido se cuela en el
+     * «saldo después − saldo antes» de un completado del mismo usuario que
+     * esté a medias. Va antes de cualquier escritura de la transacción, para
+     * que el orden siga siendo usuario y después lo demás.
+     */
+    @Transactional
+    public void bloquearUsuario(Usuario usuario) {
+        if (!usuarioDAO.bloquear(usuario.getUsuarioId())) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
     }
 
     /**

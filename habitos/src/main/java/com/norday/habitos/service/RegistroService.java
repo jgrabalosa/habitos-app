@@ -568,15 +568,20 @@ public class RegistroService {
         return registroDAO.findById(registroId);
     }
 
+    @Transactional
     public void actualizarNota(int registroId, String nota) {
         Registro registro = registroDAO.findById(registroId);
         if (registro == null) {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
+        // La primera nota concede un logro: el usuario, bloqueado antes de
+        // escribir nada (ver HabitoService.bloquearUsuario). Transaccional
+        // para que la nota y el logro vayan juntos bajo ese bloqueo.
+        Usuario usuario = registro.getHabito().getPropietario();
+        habitoService.bloquearUsuario(usuario);
         registro.setNota(nota);
         registroDAO.update(registro);
 
-        Usuario usuario = registro.getHabito().getPropietario();
         logrosHabitosService.evaluarTrasAnadirNota(usuario);
     }
 
