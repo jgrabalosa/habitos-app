@@ -36,6 +36,10 @@ porque no declara dependencias hacia ellos.
 
 - [`habitos_app_mobile`](https://github.com/jgrabalosa/habitos_app_mobile) — la app Android de Norday Habits (Flutter)
 - [`norday_flutter_core`](https://github.com/jgrabalosa/norday_flutter_core) — el paquete Flutter común a las apps de Norday
+- [`conocimiento_app_mobile`](https://github.com/jgrabalosa/conocimiento_app_mobile) — la app de Norday Conocimiento (Flutter)
+- `enfoque_app_mobile` — la app Android de Norday Focus (Flutter). Su repo de
+  GitHub se crea antes del primer despliegue conjunto (ver
+  [`docs/despliegue.md`](docs/despliegue.md))
 
 ## Compilar
 
