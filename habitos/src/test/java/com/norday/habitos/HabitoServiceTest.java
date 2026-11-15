@@ -119,6 +119,29 @@ class HabitoServiceTest {
     }
 
     @Test
+    void bloquear_primeroAlUsuarioYDespuesAlHabito_yDevuelveElReleido() {
+        Habito releido = habitoService.bloquear(existente);
+
+        assertSame(existente, releido);
+        org.mockito.InOrder orden = inOrder(usuarioDAO, habitoDAO);
+        orden.verify(usuarioDAO).bloquear(1);
+        orden.verify(habitoDAO).bloquear(20);
+    }
+
+    @Test
+    void bloquear_sinUsuarioOSinHabito_es404() {
+        when(usuarioDAO.bloquear(1)).thenReturn(false);
+        assertThrows(com.norday.core.exception.RecursoNoEncontradoException.class,
+                () -> habitoService.bloquear(existente));
+        verify(habitoDAO, never()).bloquear(anyInt());
+
+        when(usuarioDAO.bloquear(1)).thenReturn(true);
+        when(habitoDAO.bloquear(20)).thenReturn(null);
+        assertThrows(com.norday.core.exception.RecursoNoEncontradoException.class,
+                () -> habitoService.bloquear(existente));
+    }
+
+    @Test
     void alCambiarLaFrecuencia_laRachaNoSeToca() {
         // Arrange: llega un hábito con la MISMA id pero frecuencia distinta (SEMANAL)
         Habito habitoEditado = new Habito();

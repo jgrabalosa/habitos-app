@@ -274,7 +274,7 @@ Todo o nada: si no quedan unidades, responde con un conflicto («No te quedan un
 - su ritmo se queda congelado donde se pausó;
 - no se puede completar ni deshacer: los dos responden con un conflicto («El hábito está en pausa»).
 
-Pausar y reanudar bloquean al usuario y al hábito, como completar, y deciden con el hábito releído tras el bloqueo (ver «Bloqueos»): dos pausas a la vez no gastan dos, y un completado o una edición que ya habían leído el hábito activo ven la pausa.
+Pausar y reanudar bloquean al usuario y al hábito, como completar, y deciden con el hábito releído tras el bloqueo (ver «Bloqueos»). Dos pausas a la vez del mismo usuario van una detrás de otra: la segunda del mismo hábito lo ve ya en pausa (409, sin gastar nada), y la de otro hábito lee la cantidad que dejó la primera (409 si no queda ninguna). Antes, las dos podían leer la misma cantidad y salir bien gastando una sola unidad. Un completado o una edición que ya habían leído el hábito activo ven la pausa.
 
 **Reanudar** (`PausaService.reanudar`): es gratis. Si el hábito ya estaba activo, no hace nada. Si estaba en pausa, pasa a activo y su ritmo pasa al día de la vuelta con el valor que tenía al pausar. La vuelta cuenta como cambio, así que el periodo en curso solo puede subir, y la tendencia no compara con lo de antes de la pausa.
 
