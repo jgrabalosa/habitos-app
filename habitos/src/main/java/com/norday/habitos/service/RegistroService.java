@@ -132,6 +132,18 @@ public class RegistroService {
             if (previo != null) return repetido(habito, previo, usuario);
         }
 
+        // Los completados de un mismo hábito van de uno en uno: se bloquea su
+        // fila hasta el final de la transacción. Sin esto, dos pasos a la vez
+        // leen el mismo "antes" y cobran los dos la misma parte del día (o el
+        // extra de la semana). Lo que viene después lee ya lo que confirmó el
+        // anterior, así que la clave se vuelve a mirar. Mismo orden de
+        // bloqueo que deshacer (primero el hábito), para no abrazarse.
+        habitoService.bloquear(habito);
+        if (clave != null) {
+            Registro previo = registroDAO.findByClave(clave);
+            if (previo != null) return repetido(habito, previo, usuario);
+        }
+
         // Un hábito en pausa no se marca: la pausa lo para todo.
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito está en pausa");
@@ -559,6 +571,9 @@ public class RegistroService {
             throw new RecursoNoEncontradoException("Registro no encontrado");
         }
         Habito habito = registro.getHabito();
+        // Igual que al completar: de uno en uno por hábito, para que "el
+        // último registro" no cambie entre comprobarlo y borrarlo.
+        habitoService.bloquear(habito);
         // Un hábito en pausa no se deshace: la pausa lo para todo.
         if (!habito.isActivo()) {
             throw new ConflictoException("El hábito está en pausa");

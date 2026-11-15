@@ -178,6 +178,16 @@ public class HabitoService {
     }
 
     /**
+     * Bloquea el hábito hasta el final de la transacción en curso: dos
+     * completados (o un completado y un deshacer) del mismo hábito se
+     * hacen uno detrás de otro, y el segundo ve lo que hizo el primero.
+     */
+    @Transactional
+    public void bloquear(Habito habito) {
+        habitoDAO.bloquear(habito.getHabitoId());
+    }
+
+    /**
      * Pone al día el objetivo que guarda el hábito, por si ha llegado la
      * fecha de un cambio programado (ver {@link ObjetivoService#ponerAlDia}).
      * Para las lecturas de un hábito suelto que devuelven su objetivo.

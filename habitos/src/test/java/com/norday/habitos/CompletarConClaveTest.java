@@ -133,6 +133,27 @@ class CompletarConClaveTest {
         assertEquals(false, r.get("diaHecho"));
         verify(registroDAO, never()).save(any());
         verify(registroDAO, never()).guardarSiClaveLibre(any());
+        verify(habitoService, never()).bloquear(any());
+        sinNadaPagado();
+    }
+
+    @Test
+    void laClaveSeVuelveAMirarTrasElBloqueo() {
+        // Antes del bloqueo no estaba; tras él, el otro completado ya la ha
+        // confirmado: se responde como un reintento, sin intentar guardar.
+        Registro original = original(20);
+        when(registroDAO.findByClave(CLAVE)).thenReturn(null, original);
+        when(registroDAO.findByHabitoAndRango(eq(habito), eq(HOY), eq(HOY))).thenReturn(List.of(original));
+
+        Map<String, Object> r = registroService.completar(habito,
+                new Solicitud(null, null, "20", CLAVE, OrigenRegistro.MANUAL));
+
+        org.mockito.InOrder orden = inOrder(registroDAO, habitoService);
+        orden.verify(registroDAO).findByClave(CLAVE);
+        orden.verify(habitoService).bloquear(habito);
+        orden.verify(registroDAO).findByClave(CLAVE);
+        assertEquals(true, r.get("repetido"));
+        verify(registroDAO, never()).guardarSiClaveLibre(any());
         sinNadaPagado();
     }
 
@@ -141,7 +162,8 @@ class CompletarConClaveTest {
         // Cuando este mira, la clave aún no existe; al guardar, el otro ya la
         // ha escrito: ON CONFLICT no escribe nada y devuelve null.
         Registro original = original(20);
-        when(registroDAO.findByClave(CLAVE)).thenReturn(null, original);
+        // Tres miradas: antes del bloqueo, tras el bloqueo y tras chocar.
+        when(registroDAO.findByClave(CLAVE)).thenReturn(null, null, original);
         when(registroDAO.guardarSiClaveLibre(any(Registro.class))).thenReturn(null);
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any())).thenReturn(new ArrayList<>(),
                 List.of(original));

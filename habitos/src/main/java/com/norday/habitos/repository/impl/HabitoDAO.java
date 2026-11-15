@@ -66,4 +66,11 @@ public class HabitoDAO implements IHabitoDAO {
                         "SELECT h FROM Habito h JOIN FETCH h.propietario WHERE h.activo = true", Habito.class)
                 .getResultList();
     }
+
+    // PESSIMISTIC_WRITE es SELECT … FOR UPDATE en Postgres: otra transacción
+    // que quiera el mismo bloqueo espera a que esta termine.
+    @Override
+    public void bloquear(int habitoId) {
+        em.find(Habito.class, habitoId, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
 }

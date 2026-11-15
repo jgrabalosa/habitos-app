@@ -194,6 +194,7 @@ Con cada completado la app puede mandar una `clave` (UUID; si no lo es, 400). Se
 
 - Si la clave ya existe en ese hábito, no se crea ni se paga nada: responde **200** (en vez de 201) con el mismo formato, el `registroId` del registro original, los premios a cero, `logrosOtorgados` vacío y los minutos del día y `diaHecho` tal como están ahora.
 - Si la clave existe en otro hábito, 409.
+- **Completados del mismo hábito a la vez** (con claves distintas o sin clave): el completado bloquea la fila del hábito al empezar (`SELECT … FOR UPDATE`) y la suelta al terminar, así que se hacen uno detrás de otro y el segundo ve lo que cobró el primero: la parte del día y el extra de la semana no se cobran dos veces. Tras el bloqueo la clave se vuelve a buscar. Deshacer bloquea el mismo hábito en el mismo orden (primero el hábito), para que «el último registro» no cambie entre comprobarlo y borrarlo y para que completar y deshacer no se bloqueen mutuamente.
 - Dos completados con la misma clave a la vez: el registro se guarda con `INSERT … ON CONFLICT (clave_cliente) DO NOTHING`. El segundo espera a que termine el primero, no escribe nada y responde como un reintento; no choca con la restricción única, así que la transacción no queda marcada para deshacer.
 
 ### Premio

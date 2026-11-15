@@ -13,4 +13,11 @@ public interface IHabitoDAO {
     void update(Habito habito);
     void delete(int id);
     List<Habito> findTodosActivos();
+
+    /**
+     * Bloquea la fila del hábito hasta el final de la transacción (SELECT …
+     * FOR UPDATE). Para serializar los completados y los deshacer de un
+     * mismo hábito.
+     */
+    void bloquear(int habitoId);
 }
