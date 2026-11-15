@@ -313,6 +313,11 @@ Reglas al tocar esa configuración:
 - **Los initializers siguen corriendo bajo test**, y es deliberado: sobre una
   BD desechable son inofensivos y siembran el catálogo. No hay guardas
   `@Profile` y no hacen falta.
+- **El pool de conexiones de test es pequeño y se encoge** (5 como mucho, 1
+  ociosa, 10 s). Spring guarda un contexto por cada combinación de
+  `@MockitoSpyBean`/`@TestPropertySource`, y cada uno conserva su pool: con el
+  de por defecto (10 fijas) la suite agotaba las 100 conexiones de Postgres
+  («remaining connection slots are reserved»).
 - **Usuario y contraseña salen del entorno** si existe:
   `${TEST_DB_USER:norday_test}`. Una máquina con otras credenciales las pone
   por variable, sin tocar el fichero.
