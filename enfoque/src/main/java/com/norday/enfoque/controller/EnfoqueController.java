@@ -169,12 +169,36 @@ public class EnfoqueController {
      */
     @ExceptionHandler({DataAccessException.class, TransactionException.class, DestinoNoDisponibleException.class})
     public ResponseEntity<?> falloTemporal(Exception e) {
+        // Una espera de bloqueo que agotó su tope (o un abrazo que Postgres
+        // cortó), en el alta de la sesión o dentro del destino: otra
+        // operación de la cuenta estaba en curso. Este manejador va antes que
+        // el global para todo DataAccessException, así que aquí se responde
+        // lo mismo que el global para ese caso (503, error.bloqueo.reintentar)
+        // y no se deja como error en el log: no es un fallo.
+        if (esEsperaDeBloqueo(e)) {
+            log.warn("Norday Focus: espera de bloqueo agotada: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("mensaje", textoParaQuienPide("error.bloqueo.reintentar")));
+        }
         if (!(e instanceof DestinoNoDisponibleException)) {
             // El del destino ya lo ha dejado en el log el servicio, con su traza.
             log.error("Fallo técnico en Norday Focus", e);
         }
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(Map.of("mensaje", textoParaQuienPide("enfoque.error.temporal")));
+    }
+
+    /** ¿Es (o envuelve) una espera de bloqueo agotada? */
+    private static boolean esEsperaDeBloqueo(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof org.springframework.dao.PessimisticLockingFailureException
+                    || t instanceof jakarta.persistence.LockTimeoutException
+                    || t instanceof jakarta.persistence.PessimisticLockException) {
+                return true;
+            }
+            if (t.getCause() == t) break;
+        }
+        return false;
     }
 
     /**

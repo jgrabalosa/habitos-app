@@ -201,6 +201,10 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
   técnico, o un `IllegalArgumentException` inesperado, sí sale: la sesión
   queda `PENDIENTE`, `EnfoqueController` responde 503 y la app reintenta con
   la misma clave (5xx o sin respuesta = reintentar; 400 y 409 = definitivo).
+  Una espera de bloqueo agotada también es 503, con el texto del resto de la
+  API (`error.bloqueo.reintentar`): el manejador de `EnfoqueController` va
+  antes que el global para todo `DataAccessException` y lo distingue. Si la
+  cuenta se borra mientras el alta espera el bloqueo del usuario, 404.
 - **Registrar una sesión son tres transacciones, no una**
   (`SesionEnfoqueService.registrar`, sin `@Transactional`): guardar la sesión
   (idempotente por clave, aporte `PENDIENTE` si hay destino), aportar en la

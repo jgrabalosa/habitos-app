@@ -243,9 +243,10 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 ### El aporte a un hábito
 
 - Solo si la sesión cuenta y lleva destino. Pasa por `RegistroService.completar` como un paso del panel de minutos: los minutos de la sesión, la clave de la sesión, la fecha = el día de la sesión y origen `ENFOQUE`. Paga exactamente lo mismo que el panel.
-- Antes de completar se comprueba: que el hábito exista y sea del usuario, que no esté en pausa, que ese día sea de minutos (con la versión vigente ese día), que el día sea de la semana en curso y no futuro, y de 1 a 600 minutos. Si algo falla, la sesión se guarda igual con el aporte `RECHAZADO` y su motivo (una clave de los textos, que la app muestra traducida). Una sesión del domingo que llega el lunes es de la semana pasada: rechazada, sin tocar el suelo del lunes de completar.
+- Antes de completar se comprueba: que el hábito exista y sea del usuario, que no esté en pausa, que ese día sea de minutos (con la versión vigente ese día), que el día sea de la semana en curso, no futuro y no anterior al alta del hábito (`aporte.habito.antes.alta`), y de 1 a 600 minutos. Si algo falla, la sesión se guarda igual con el aporte `RECHAZADO` y su motivo (una clave de los textos, que la app muestra traducida). Una sesión del domingo que llega el lunes es de la semana pasada: rechazada, sin tocar el suelo del lunes de completar.
 - Estados del aporte: `SIN_DESTINO`, `PENDIENTE` (guardada y aún sin llevar), `ACEPTADO`, `REPETIDO` (la clave ya estaba en el hábito: no suma ni paga) y `RECHAZADO`. Una `PERDIDA` con destino queda `RECHAZADO` con el motivo `enfoque.aporte.sesion.perdida`.
 - **Tres pasos, no una transacción**: guardar la sesión, aportar en la transacción propia del hábito y apuntar el resultado. Un rechazo del hábito no puede llevarse por delante la sesión. Si el proceso se corta entre aportar y apuntar, la sesión queda `PENDIENTE` y el reintento la completa (`REPETIDO`).
+- **Bloqueos**: guardar la sesión bloquea al usuario con el bloqueo del motor (`IUsuarioDAO.bloquear`, con su tope de espera) para que dos altas no pasen a la vez la comprobación de solape; si la cuenta se ha borrado mientras esperaba, 404. Aportar no puede llamarse con una transacción abierta (`DestinoMinutosHabitos.aportar` lanza `IllegalStateException`): completar bloquea al usuario en su propia transacción, con otra conexión, y si la de fuera ya lo tuviera se esperarían hasta agotar el tope.
 - Deshacer el registro desde Norday Habits devuelve lo suyo como cualquier paso; la sesión no se deshace (v1).
 - **Limitación conocida**: deshacer en Norday Habits un registro que vino de una sesión no toca la sesión: su `minutos_aportados` (y monedas, XP y logros aportados) se quedan como estaban. Y si la sesión estaba `PENDIENTE` cuando se deshizo el registro, un reintento posterior con la misma clave volvería a sumar los minutos, porque la clave ya no está en ningún registro.
 
@@ -254,6 +255,8 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 - **5xx o sin respuesta** (se cortó la red, 503 por un fallo técnico): reintentar más tarde con **la misma clave y el mismo cuerpo**. Si la sesión llegó a guardarse, el reintento la completa sin sumar ni pagar dos veces.
 - **400 y 409**: definitivos. La petición no vale (400, también si el cuerpo no es JSON o un parámetro no tiene el tipo que toca) o choca con lo guardado (409: otra sesión con esa clave o una sesión solapada). Reintentar la misma no cambia nada.
 - Un fallo técnico al llevar los minutos al hábito (la base de datos, un error inesperado) responde 503 con la sesión guardada y `PENDIENTE`. Los rechazos por las reglas del hábito no son fallos: van en el 201 con el aporte `RECHAZADO`.
+- Una espera de bloqueo que agota su tope (otra operación de la cuenta en curso), al guardar la sesión o al llevar los minutos, responde 503 con el mismo texto que el resto de la API (`error.bloqueo.reintentar`), no con el de fallo técnico (`enfoque.error.temporal`); los dos piden reintentar. Si fue al guardarla, no se ha guardado nada; si fue al llevar los minutos, la sesión queda `PENDIENTE`.
+- Si la cuenta se borra mientras la sesión espera su bloqueo, 404: definitivo.
 - Todos los errores llevan `{"mensaje": "<texto en el idioma del usuario>"}`, salvo el 401, que va sin cuerpo.
 
 ### Racha y resumen
@@ -347,6 +350,8 @@ Lo que concede logros, monedas o XP sin cambiar un hábito bloquea solo al usuar
 | `RegistroService.actualizarNota` (transaccional; también `actualizarValoracion`, que no concede nada) | `PRIMERA_NOTA` |
 | `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad y equipar | gasto, regalos, XP de la comida, logros de identidad |
 | `UsuarioService.actualizarPerfil` (transaccional) y `loginConGoogle` con un usuario que ya existe | `BIENVENIDO`, `LOGIN_GOOGLE` |
+
+**Pendiente** (fuera del encargo de bloqueos): guardan el usuario entero, leído antes y sin bloqueo, y pueden pisar lo que otro confirmó entretanto: `UsuarioService.cambiarContrasena`, `PreferenciasService.actualizar`, `OrigenInstalacionService`, `RecuperacionService` y `DispositivoService` (al escribir o quitar `usuario.fcm_token`). Por decidir: bloquear y releer o escribir solo la columna en cada uno, o `@DynamicUpdate` en `Usuario` (no cubre lo que guarda entidades sueltas, fuera de la sesión).
 
 No lo necesitan el alta (con Google o sin él: el usuario se acaba de crear en esa misma transacción y nadie más lo ve) ni `MascotaService.ganarExperiencia` y `restarExperiencia`, que solo llaman completar, deshacer y usar un producto, ya bloqueados. El bloqueo no va dentro de `UsuarioMonedaService.registrarMovimiento`: ahí llegaría después de leer el saldo y fuera de orden.
 
