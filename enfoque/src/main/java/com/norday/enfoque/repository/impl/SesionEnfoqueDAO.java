@@ -142,7 +142,9 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
                         "SELECT s FROM SesionEnfoque s WHERE s.usuario.usuarioId = :usuario"
                                 + " ORDER BY s.inicioUtc DESC, s.id DESC", SesionEnfoque.class)
                 .setParameter("usuario", usuarioId)
-                .setFirstResult(pagina * tamano)
+                // En long y con toIntExact: si algún día crecen los límites,
+                // un desbordamiento lanza en vez de servir otra página.
+                .setFirstResult(Math.toIntExact((long) pagina * tamano))
                 .setMaxResults(tamano)
                 .getResultList();
     }

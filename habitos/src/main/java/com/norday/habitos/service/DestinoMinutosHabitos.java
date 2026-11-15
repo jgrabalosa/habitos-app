@@ -64,9 +64,10 @@ import java.util.UUID;
  * Sin transacción exterior (que es como llama Norday Focus), REQUIRES_NEW no
  * pide una segunda conexión: no hay nada que suspender.
  *
- * Un fallo técnico (base de datos caída, abrazo mortal) no se traduce: sale
- * como excepción para que quien llama lo reintente, en vez de dejar apuntado
- * para siempre un rechazo que no lo era.
+ * Un fallo técnico (base de datos caída, abrazo mortal) o un
+ * IllegalArgumentException inesperado de completar no se traducen: salen como
+ * excepción para que quien llama lo reintente, en vez de dejar apuntado para
+ * siempre un rechazo que no lo era.
  */
 @Service
 public class DestinoMinutosHabitos implements DestinoMinutos {
@@ -83,11 +84,9 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
     public static final String MOTIVO_MINUTOS_RANGO = "aporte.habito.minutos.rango";
     public static final String MOTIVO_ORIGEN = "aporte.habito.origen";
     public static final String MOTIVO_CONFLICTO = "aporte.habito.conflicto";
-    public static final String MOTIVO_INVALIDO = "aporte.habito.invalido";
 
     public static final List<String> MOTIVOS = List.of(MOTIVO_NO_ENCONTRADO, MOTIVO_PAUSADO, MOTIVO_NO_MINUTOS,
-            MOTIVO_DIA_FUTURO, MOTIVO_SEMANA_PASADA, MOTIVO_MINUTOS_RANGO, MOTIVO_ORIGEN, MOTIVO_CONFLICTO,
-            MOTIVO_INVALIDO);
+            MOTIVO_DIA_FUTURO, MOTIVO_SEMANA_PASADA, MOTIVO_MINUTOS_RANGO, MOTIVO_ORIGEN, MOTIVO_CONFLICTO);
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DestinoMinutosHabitos.class);
 
@@ -159,10 +158,9 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
             return ResultadoAporte.rechazado(MOTIVO_CONFLICTO);
         } catch (RecursoNoEncontradoException e) {
             return ResultadoAporte.rechazado(MOTIVO_NO_ENCONTRADO);
-        } catch (IllegalArgumentException e) {
-            log.info("Aporte de {} min al hábito {} rechazado al completar: {}", minutos, destinoId, e.getMessage());
-            return ResultadoAporte.rechazado(MOTIVO_INVALIDO);
         }
+        // Un IllegalArgumentException no se traduce: las reglas ya se han
+        // mirado antes, así que es inesperado y sale como fallo técnico.
     }
 
     private ResultadoAporte aportarEnSuTransaccion(Long usuarioId, Long destinoId, int minutos, UUID clave,

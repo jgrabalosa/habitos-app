@@ -95,12 +95,16 @@ public class SesionEnfoqueService {
     public static final Duration ANTIGUEDAD_MAXIMA = Duration.ofDays(7);
     public static final int DIAS_MAXIMOS_RESUMEN = 62;
     public static final int TAMANO_MAXIMO_PAGINA = 100;
+    /** La última página del historial que se sirve. */
+    public static final int PAGINA_MAXIMA = 10000;
     /** Lo que cabe en destino_tipo. */
     public static final int LONGITUD_MAXIMA_TIPO = 20;
 
     /** UUID en su forma canónica: UUID.fromString admite formas raras como "1-1-1-1-1". */
     private static final Pattern UUID_CANONICO =
             Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SesionEnfoqueService.class);
 
     @Autowired
     private ISesionEnfoqueDAO sesionDAO;
@@ -170,9 +174,16 @@ public class SesionEnfoqueService {
         }
 
         // Paso 2: el destino, en su propia transacción. Una excepción aquí es
-        // técnica (el destino no lanza por sus reglas): sale tal cual y la
-        // sesión queda PENDIENTE para el reintento.
-        ResultadoAporte resultado = aportar(sesion);
+        // técnica (el destino no lanza por sus reglas): sale como
+        // DestinoNoDisponibleException (503) y la sesión queda PENDIENTE para
+        // el reintento con la misma clave.
+        ResultadoAporte resultado;
+        try {
+            resultado = aportar(sesion);
+        } catch (RuntimeException e) {
+            log.error("No se han podido llevar los minutos de la sesión {} a su destino", sesion.getId(), e);
+            throw new DestinoNoDisponibleException(e);
+        }
 
         // Paso 3: el resultado, en la sesión.
         EstadoAporte estado = EstadoAporte.valueOf(resultado.estado().name());
@@ -328,6 +339,11 @@ public class SesionEnfoqueService {
         if (estado.cuenta() && duracion < DURACION_MINIMA_SEG) {
             throw invalida("enfoque.peticion.duracion.minima", usuario, DURACION_MINIMA_SEG / 60);
         }
+        // Sin pausas, una sesión no puede durar más que lo elegido; el minuto
+        // de margen es para el reloj, como en la duración máxima.
+        if (duracion > objetivo * 60 + 60) {
+            throw invalida("enfoque.peticion.duracion.objetivo", usuario, objetivo);
+        }
 
         String destinoTipo = null;
         Long destinoId = null;
@@ -422,11 +438,11 @@ public class SesionEnfoqueService {
 
     /** Una página del historial, de la más reciente a la más antigua. */
     public Pagina historial(Usuario usuario, int pagina, int tamano) {
-        if (pagina < 0 || tamano < 1 || tamano > TAMANO_MAXIMO_PAGINA) {
-            throw invalida("enfoque.historial.pagina", usuario, TAMANO_MAXIMO_PAGINA);
+        if (pagina < 0 || pagina > PAGINA_MAXIMA || tamano < 1 || tamano > TAMANO_MAXIMO_PAGINA) {
+            throw invalida("enfoque.historial.pagina", usuario, PAGINA_MAXIMA, TAMANO_MAXIMO_PAGINA);
         }
         List<SesionEnfoque> sesiones = sesionDAO.pagina(usuario.getUsuarioId(), pagina, tamano);
         long total = sesionDAO.contar(usuario.getUsuarioId());
-        return new Pagina(sesiones, pagina, tamano, total, (long) (pagina + 1) * tamano < total);
+        return new Pagina(sesiones, pagina, tamano, total, ((long) pagina + 1) * tamano < total);
     }
 }

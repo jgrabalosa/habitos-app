@@ -266,10 +266,16 @@ class DestinoMinutosHabitosTest {
         verify(transactionManager, never()).commit(any());
     }
 
+    /**
+     * Las reglas se validan antes, así que un IllegalArgumentException de
+     * completar es inesperado: sale como fallo técnico (la sesión queda
+     * PENDIENTE y la app reintenta), en vez de apuntar un rechazo para siempre.
+     */
     @Test
-    void unIllegalArgumentDeCompletar_tampocoEscapa() {
+    void unIllegalArgumentDeCompletar_sale_comoFalloTecnico() {
         when(registroService.completar(any(), any())).thenThrow(new IllegalArgumentException("minutos"));
-        assertEquals(DestinoMinutosHabitos.MOTIVO_INVALIDO, aportar(10, 25, HOY).motivo());
+        assertThrows(IllegalArgumentException.class, () -> aportar(10, 25, HOY));
+        verify(transactionManager).rollback(estadoTx);
     }
 
     @Test

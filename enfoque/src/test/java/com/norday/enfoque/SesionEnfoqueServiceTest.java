@@ -11,6 +11,7 @@ import com.norday.enfoque.model.SesionEnfoque;
 import com.norday.enfoque.model.dto.PeticionSesionDTO;
 import com.norday.enfoque.model.dto.PeticionSesionDTO.DestinoDTO;
 import com.norday.enfoque.repository.ISesionEnfoqueDAO;
+import com.norday.enfoque.service.DestinoNoDisponibleException;
 import com.norday.enfoque.service.RelojEnfoque;
 import com.norday.enfoque.service.SesionEnfoqueService;
 import com.norday.enfoque.service.SesionEnfoqueService.Resultado;
@@ -221,11 +222,12 @@ class SesionEnfoqueServiceTest {
     }
 
     @Test
-    void unFalloTecnicoDelDestino_sale_yLaSesionQuedaPendiente() {
-        when(destinoHabito.aportar(any(), any(), anyInt(), any(), any(), any()))
-                .thenThrow(new IllegalStateException("la base de datos se ha ido"));
-        assertThrows(IllegalStateException.class,
+    void unFalloDelDestino_saleComoDestinoNoDisponible_yLaSesionQuedaPendiente() {
+        IllegalArgumentException causa = new IllegalArgumentException("inesperado");
+        when(destinoHabito.aportar(any(), any(), anyInt(), any(), any(), any())).thenThrow(causa);
+        DestinoNoDisponibleException e = assertThrows(DestinoNoDisponibleException.class,
                 () -> servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L))));
+        assertSame(causa, e.getCause());
         assertEquals(EstadoAporte.PENDIENTE, guardadaEnElAlta().getAporteEstado());
         verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt());
     }
@@ -352,6 +354,9 @@ class SesionEnfoqueServiceTest {
         invalida(peticion("2026-10-09T05:00:00Z", 7261, 120, "COMPLETADA", null),
                 "enfoque.peticion.duracion.maxima");
         invalida(peticion("2026-10-09T07:25:00Z", 599, 25, "TERMINADA", null), "enfoque.peticion.duracion.minima");
+        // Más que la duración elegida más un minuto: 25 min son 1500 s, y 1561 se pasan.
+        invalida(peticion("2026-10-09T07:20:00Z", 1561, 25, "COMPLETADA", null), "enfoque.peticion.duracion.objetivo");
+        invalida(peticion("2026-10-09T07:20:00Z", 1561, 25, "PERDIDA", null), "enfoque.peticion.duracion.objetivo");
         invalida(peticion("2026-10-09T07:25:00Z", 599, 25, "COMPLETADA", null), "enfoque.peticion.duracion.minima");
         invalida(peticion("2026-10-09T07:25:00Z", 1500, 25, "COMPLETADA", new DestinoDTO(" ", 3L)),
                 "enfoque.peticion.destino");
@@ -373,7 +378,8 @@ class SesionEnfoqueServiceTest {
         servicio.registrar(usuario, peticion("2026-10-02T08:00:00Z", 600, 10, "TERMINADA", null));
         servicio.registrar(usuario, peticion("2026-10-09T05:00:00Z", 7260, 120, "COMPLETADA", null));
         servicio.registrar(usuario, peticion("2026-10-09T07:00:00Z", 0, 25, "PERDIDA", null));
-        verify(sesionDAO, times(4)).insertarSiClaveLibre(any());
+        servicio.registrar(usuario, peticion("2026-10-09T07:30:00Z", 1560, 25, "COMPLETADA", null));
+        verify(sesionDAO, times(5)).insertarSiClaveLibre(any());
     }
 
     @Test
@@ -453,5 +459,16 @@ class SesionEnfoqueServiceTest {
         assertThrows(SesionInvalidaException.class, () -> servicio.historial(usuario, -1, 20));
         assertThrows(SesionInvalidaException.class, () -> servicio.historial(usuario, 0, 0));
         assertThrows(SesionInvalidaException.class, () -> servicio.historial(usuario, 0, 101));
+        assertThrows(SesionInvalidaException.class, () -> servicio.historial(usuario, 10001, 20));
+    }
+
+    @Test
+    void historial_laUltimaPaginaPermitida_yLasCuentasEnLong() {
+        // 10000 páginas de 100: (10000 + 1) * 100 cabe en int, pero el total
+        // de la tabla puede no caber: hayMas se calcula en long.
+        when(sesionDAO.contar(7)).thenReturn(3_000_000_000L);
+        var pagina = servicio.historial(usuario, 10000, 100);
+        verify(sesionDAO).pagina(7, 10000, 100);
+        assertTrue(pagina.hayMas());
     }
 }

@@ -15,6 +15,7 @@ import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.Unidad;
+import com.norday.habitos.service.DestinoMinutosHabitos;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.RachaService;
 import com.norday.habitos.service.RegistroService;
@@ -47,7 +48,10 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.hasKey;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -93,6 +97,10 @@ class SesionEnfoqueTest {
 
     @MockitoSpyBean
     private RelojEnfoque reloj;
+
+    /** Sin stubs se comporta como el de verdad; los tests de fallo técnico le hacen lanzar. */
+    @MockitoSpyBean
+    private DestinoMinutosHabitos destinoHabitos;
 
     @PersistenceContext
     private EntityManager em;
@@ -532,6 +540,7 @@ class SesionEnfoqueTest {
                 cuerpo(clave, inicio, 1500, 5, "COMPLETADA", null),
                 cuerpo(clave, inicio, 1500, 125, "COMPLETADA", null),
                 cuerpo(clave, inicio, 599, 25, "TERMINADA", null),
+                cuerpo(clave, inicio, 1561, 25, "COMPLETADA", null),
                 cuerpo(clave, AHORA.minusSeconds(8000), 7261, 120, "COMPLETADA", null),
                 cuerpo(clave, AHORA.minusSeconds(1500 - 121), 1500, 25, "COMPLETADA", null),
                 cuerpo(clave, AHORA.minus(java.time.Duration.ofDays(7)).minusSeconds(1), 1500, 25, "COMPLETADA", null),
@@ -556,6 +565,66 @@ class SesionEnfoqueTest {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.sesion.minutos").value(0));
         enviar(a, cuerpo(UUID.randomUUID().toString(), AHORA.minusSeconds(1500 - 120), 1500, 25, "COMPLETADA", null))
                 .andExpect(status().isCreated());
+    }
+
+    // ── Fallos técnicos y peticiones mal formadas ────────────────
+
+    /**
+     * Un fallo técnico al llevar los minutos: 503, la sesión queda guardada y
+     * PENDIENTE, el hábito no recibe nada. El reintento con la misma clave,
+     * ya sin fallo, la completa (200).
+     */
+    @Test
+    void falloTecnicoDelDestino_503_laSesionQuedaPendiente_yElReintentoLaCompleta() throws Exception {
+        int a = usuario();
+        int leer = habito(a, "Leer", minutosDiario(30), true);
+        String clave = UUID.randomUUID().toString();
+        String cuerpo = sesion25(clave, leer);
+        doThrow(new org.springframework.dao.DataAccessResourceFailureException("la base de datos se ha ido"))
+                .when(destinoHabitos).aportar(any(), any(), anyInt(), any(), any(), any());
+
+        enviar(a, cuerpo)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.mensaje").value("Ha habido un problema temporal. Inténtalo de nuevo en un momento."));
+        assertEquals("PENDIENTE", filaSesion(clave)[0]);
+        assertTrue(registros(leer).isEmpty());
+
+        doCallRealMethod().when(destinoHabitos).aportar(any(), any(), anyInt(), any(), any(), any());
+        enviar(a, cuerpo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aporte.estado").value("ACEPTADO"))
+                .andExpect(jsonPath("$.aporte.minutos").value(25));
+        assertEquals("ACEPTADO", filaSesion(clave)[0]);
+        assertEquals(1, registros(leer).size());
+    }
+
+    @Test
+    void unErrorInesperadoDelDestino_tambienEs503() throws Exception {
+        int a = usuario();
+        int leer = habito(a, "Leer", minutosDiario(30), true);
+        String clave = UUID.randomUUID().toString();
+        doThrow(new IllegalArgumentException("inesperado"))
+                .when(destinoHabitos).aportar(any(), any(), anyInt(), any(), any(), any());
+        enviar(a, sesion25(clave, leer)).andExpect(status().isServiceUnavailable());
+        assertEquals("PENDIENTE", filaSesion(clave)[0]);
+    }
+
+    @Test
+    void peticionMalFormada_400ConTexto() throws Exception {
+        int a = usuario();
+        enviar(a, "{").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensaje").value("La petición no tiene el formato esperado."));
+        enviar(a, sesion25(UUID.randomUUID().toString(), null).replace("1500", "\"mucho\""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensaje").value("La petición no tiene el formato esperado."));
+        mockMvc.perform(get("/api/enfoque/sesiones?pagina=abc").header("Authorization", "Bearer " + token(a)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensaje").value("La petición no tiene el formato esperado."));
+        mockMvc.perform(get("/api/enfoque/sesiones?pagina=10001").header("Authorization", "Bearer " + token(a)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/enfoque/sesiones?pagina=10000").header("Authorization", "Bearer " + token(a)))
+                .andExpect(status().isOk());
+        assertEquals(0, sesionesDe(a));
     }
 
     @Test

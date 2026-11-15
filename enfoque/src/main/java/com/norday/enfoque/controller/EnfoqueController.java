@@ -7,6 +7,7 @@ import com.norday.core.service.TextosService;
 import com.norday.core.service.UsuarioService;
 import com.norday.enfoque.model.SesionEnfoque;
 import com.norday.enfoque.model.dto.PeticionSesionDTO;
+import com.norday.enfoque.service.DestinoNoDisponibleException;
 import com.norday.enfoque.service.SesionEnfoqueService;
 import com.norday.enfoque.service.SesionEnfoqueService.Aporte;
 import com.norday.enfoque.service.SesionEnfoqueService.Pagina;
@@ -15,6 +16,11 @@ import com.norday.enfoque.service.SesionEnfoqueService.Resumen;
 import com.norday.enfoque.service.SesionInvalidaException;
 import com.norday.gamificacion.model.DestinoDisponible;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.TransactionException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,10 +39,24 @@ import java.util.stream.Collectors;
  *
  * Fechas: los instantes van en ISO-8601 UTC con Z ("2026-11-15T09:00:00Z") y
  * los días como "YYYY-MM-DD", en la zona del usuario.
+ *
+ * <h2>Contrato de errores para la app</h2>
+ * <ul>
+ *   <li><b>5xx o sin respuesta</b> (se cortó la red, 503 por un fallo
+ *       técnico): reintentar más tarde <b>con la misma clave y el mismo
+ *       cuerpo</b>. Si la sesión llegó a guardarse, el reintento la completa
+ *       sin sumar ni pagar dos veces.</li>
+ *   <li><b>400 y 409</b>: definitivos. La petición no vale (400) o choca con
+ *       lo guardado (409); reintentar la misma no cambia nada.</li>
+ *   <li>Todos los errores llevan {@code {"mensaje": "<texto en el idioma del
+ *       usuario>"}}, salvo el 401, que va sin cuerpo.</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/enfoque")
 public class EnfoqueController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EnfoqueController.class);
 
     @Autowired
     private SesionEnfoqueService sesionEnfoqueService;
@@ -127,6 +147,54 @@ public class EnfoqueController {
     @ExceptionHandler(SesionInvalidaException.class)
     public ResponseEntity<?> peticionInvalida(SesionInvalidaException e) {
         return ResponseEntity.badRequest().body(Map.of("mensaje", e.getMessage()));
+    }
+
+    /**
+     * Un cuerpo que no es JSON válido, o un campo o parámetro con un tipo que
+     * no es el suyo: 400 traducido. Es error del cliente, así que va al log
+     * como aviso, no como error.
+     */
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<?> peticionMalFormada(Exception e) {
+        log.warn("Petición de Norday Focus mal formada: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(Map.of("mensaje", textoParaQuienPide("enfoque.peticion.mal_formada")));
+    }
+
+    /**
+     * Un fallo técnico (base de datos, transacción, o el destino que no ha
+     * podido recibir los minutos): 503. Lo que se guardó, guardado está (la
+     * sesión queda PENDIENTE si no llegó a su destino), y la app reintenta con
+     * la misma clave.
+     */
+    @ExceptionHandler({DataAccessException.class, TransactionException.class, DestinoNoDisponibleException.class})
+    public ResponseEntity<?> falloTemporal(Exception e) {
+        if (!(e instanceof DestinoNoDisponibleException)) {
+            // El del destino ya lo ha dejado en el log el servicio, con su traza.
+            log.error("Fallo técnico en Norday Focus", e);
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("mensaje", textoParaQuienPide("enfoque.error.temporal")));
+    }
+
+    /**
+     * Un texto en el idioma de quien hace la petición. Los manejadores de error
+     * no reciben el Authentication como argumento: se lee del contexto. Si el
+     * usuario no se puede leer (la base de datos está caída), el idioma por
+     * defecto.
+     */
+    private String textoParaQuienPide(String clave) {
+        Usuario usuario = null;
+        try {
+            Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
+            if (autenticacion != null && autenticacion.getPrincipal() instanceof UsuarioAutenticado autenticado) {
+                usuario = usuarioService.buscarPorId(autenticado.usuarioId());
+            }
+        } catch (RuntimeException e) {
+            usuario = null;
+        }
+        return usuario != null ? textosService.texto(clave, usuario)
+                : textosService.texto(clave, textosService.localeDe((String) null));
     }
 
     // ── Formatos de respuesta ────────────────────────────────────
