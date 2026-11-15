@@ -227,6 +227,31 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - De minutos exige `minutosObjetivo` de 1 a 600 (si no, 400). En un diario, la meta pasa a 1; en un semanal, la meta son los días por semana (o el número de días fijos, como siempre).
 - Cambiar los minutos por día o pasar de veces a minutos se aplica por días (ver la tabla de «Regla de cambios»); de minutos a veces responde 409 con un texto del bundle.
 
+## Norday Enfoque
+
+Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Enfoque no da monedas, XP ni logros propios: paga el hábito, con sus reglas.
+
+### La sesión
+
+- Duración elegida de 10 a 120 minutos, de 5 en 5. Estados: `COMPLETADA` (llegó al final), `TERMINADA` (acabada antes, con al menos 10 minutos) y `PERDIDA` (se rindió o salió de la app y no volvió).
+- **Minutos** = minutos enteros transcurridos (`duracionSeg / 60`, hacia abajo) si es `COMPLETADA` o `TERMINADA`; una `PERDIDA` nunca suma.
+- **Día** = el día de inicio en la zona del usuario. Es el día al que van los minutos, aunque la sesión acabe pasada la medianoche o llegue días después.
+- Reglas al guardarla (400 si no): `duracionSeg` ≥ 600 si cuenta y ≤ 7260 (120 min + 1 de margen); que termine como mucho 2 minutos después de la hora del servidor; que no empezara hace más de 7 días; clave UUID. Si se solapa con otra sesión del usuario, 409.
+- **Clave**: la app la genera al empezar. La misma clave con el mismo cuerpo devuelve la sesión guardada (200); con otro cuerpo, 409. La misma clave viaja al registro del hábito, así que un reintento tampoco suma dos veces allí.
+
+### El aporte a un hábito
+
+- Solo si la sesión cuenta y lleva destino. Pasa por `RegistroService.completar` como un paso del panel de minutos: los minutos de la sesión, la clave de la sesión, la fecha = el día de la sesión y origen `ENFOQUE`. Paga exactamente lo mismo que el panel.
+- Antes de completar se comprueba: que el hábito exista y sea del usuario, que no esté en pausa, que ese día sea de minutos (con la versión vigente ese día), que el día sea de la semana en curso y no futuro, y de 1 a 600 minutos. Si algo falla, la sesión se guarda igual con el aporte `RECHAZADO` y su motivo (una clave de los textos, que la app muestra traducida). Una sesión del domingo que llega el lunes es de la semana pasada: rechazada, sin tocar el suelo del lunes de completar.
+- Estados del aporte: `SIN_DESTINO`, `PENDIENTE` (guardada y aún sin llevar), `ACEPTADO`, `REPETIDO` (la clave ya estaba en el hábito: no suma ni paga) y `RECHAZADO`. Una `PERDIDA` con destino queda `RECHAZADO` con el motivo `enfoque.aporte.sesion.perdida`.
+- **Tres pasos, no una transacción**: guardar la sesión, aportar en la transacción propia del hábito y apuntar el resultado. Un rechazo del hábito no puede llevarse por delante la sesión. Si el proceso se corta entre aportar y apuntar, la sesión queda `PENDIENTE` y el reintento la completa (`REPETIDO`).
+- Deshacer el registro desde Norday Habits devuelve lo suyo como cualquier paso; la sesión no se deshace (v1).
+
+### Racha y resumen
+
+- **Racha de enfoque**: días seguidos con al menos una sesión `COMPLETADA` o `TERMINADA`, terminando hoy o ayer. Solo es un indicador: no paga nada.
+- El resumen (minutos y sesiones por día, totales) cuenta solo `COMPLETADA` y `TERMINADA`, como mucho 62 días.
+
 ---
 
 ## Hitos por días hechos

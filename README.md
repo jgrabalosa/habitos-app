@@ -2,7 +2,8 @@
 
 Backend del ecosistema de apps **Norday**. Da servicio a **Norday Habits**, una
 app Android de hábitos con puntos, logros, una mascota que crece (Nori) e
-identidades visuales, y al dominio de **Norday Conocimiento**. Todas las apps
+identidades visuales, al dominio de **Norday Conocimiento** y a **Norday
+Focus**, un temporizador de concentración. Todas las apps
 del ecosistema comparten este backend, la base de datos y la cuenta del
 usuario, incluido el saldo de puntos.
 
@@ -23,11 +24,13 @@ Firebase Cloud Messaging. Textos en español, inglés y portugués.
 | `norday-motor/` | El motor común: cuenta, auth, email, notificaciones (`com.norday.core`) y puntos, logros, tienda y mascota (`com.norday.gamificacion`) |
 | `habitos/` | El dominio de Norday Habits: hábitos, registros, rachas, categorías y sus logros |
 | `conocimiento/` | El dominio de Norday Conocimiento: píldoras, preferencias y valoraciones |
+| `enfoque/` | El dominio de Norday Focus: sesiones de concentración, su resumen y su historial |
 | `norday-server/` | El ejecutable: arranque, configuración, textos, estáticos y migraciones |
 
-`habitos` y `conocimiento` dependen del motor y no se conocen entre sí. El
-motor no conoce ningún dominio: Maven lo impone, porque no declara
-dependencias hacia ellos.
+`habitos`, `conocimiento` y `enfoque` dependen del motor y no se conocen
+entre sí: los minutos de una sesión llegan a un hábito por un puerto del
+motor (`DestinoMinutos`). El motor no conoce ningún dominio: Maven lo impone,
+porque no declara dependencias hacia ellos.
 
 ## Repos relacionados
 

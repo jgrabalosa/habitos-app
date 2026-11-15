@@ -13,11 +13,12 @@ El backend de Norday está organizado en módulos:
 - `norday-motor`: cuentas, autenticación, preferencias, gamificación, versión mínima por aplicación y funcionalidades compartidas del ecosistema.
 - `habitos`: hábitos, registros, ritmo, pausas, racha heredada, logros específicos de hábitos y notificaciones relacionadas.
 - `conocimiento`: categorías, píldoras de conocimiento, preferencias y valoraciones.
+- `enfoque`: sesiones de concentración de Norday Focus.
 - `norday-server`: aplicación Spring Boot que integra y expone los módulos.
 
 La cuenta de usuario y la gamificación son compartidas por las aplicaciones del ecosistema.
 
-Este documento cubre el motor y el dominio de Norday Habits. Las entidades de `conocimiento` (`Categoria`, `Pildora`, `PildoraCategoria`, `UsuarioPildora`, `UsuarioCategoriaPreferencia` y `ValoracionPildora`) pertenecen a Norday Conocimiento y se describen en su propio módulo, en `conocimiento/src/main/java/com/norday/conocimiento/model/`.
+Este documento cubre el motor, el dominio de Norday Habits y las sesiones de Norday Focus (`enfoque`). Las entidades de `conocimiento` (`Categoria`, `Pildora`, `PildoraCategoria`, `UsuarioPildora`, `UsuarioCategoriaPreferencia` y `ValoracionPildora`) pertenecen a Norday Conocimiento y se describen en su propio módulo, en `conocimiento/src/main/java/com/norday/conocimiento/model/`.
 
 ---
 
@@ -206,6 +207,27 @@ Tabla `usuario_dispositivo`, del módulo `norday-motor` (paquete `core`, migraci
 
 La columna `usuario.fcm_token` sigue existiendo como columna de transición: el backend la escribe con el token de `habitos` para poder volver al jar anterior, y la usa como reserva para `habitos` cuando el usuario no tiene fila (quien registró su token mientras corría el jar anterior). Los envíos salen de `DispositivoService`, con el token de la app a la que va el aviso.
 
+### SesionEnfoque
+
+Tabla `sesion_enfoque`, del módulo `enfoque` (migración V26). Una fila por sesión de concentración de Norday Focus.
+
+- `id`: clave primaria.
+- `usuario_ref`: obligatoria, clave ajena a `usuario` (`FK_sesion_enfoque_usuario`).
+- `clave`: obligatoria, UUID. La genera la app al empezar la sesión; única (`UK_sesion_enfoque_clave`). Es también la `clave_cliente` del registro que crea en el hábito. No se exporta.
+- `inicio_utc`: obligatoria, instante de inicio en UTC.
+- `duracion_seg`: obligatoria, segundos que duró (de 0 a 7260).
+- `duracion_objetivo_min`: obligatoria, minutos elegidos al empezar (10–120, de 5 en 5).
+- `estado`: obligatorio, hasta 12 caracteres: `COMPLETADA`, `TERMINADA` o `PERDIDA`.
+- `dia`: obligatorio. El día de inicio en la zona del usuario: el día al que van los minutos.
+- `destino_tipo`: admite nulo, hasta 20 caracteres. A dónde iban los minutos (`habito`); nulo, sin destino.
+- `destino_ref`: admite nulo, BIGINT. El id del destino; opaco y **sin clave ajena**: el módulo `enfoque` no conoce las tablas del destino, y borrar el hábito no borra la sesión.
+- `aporte_estado`: obligatorio, hasta 12 caracteres: `SIN_DESTINO`, `PENDIENTE`, `ACEPTADO`, `REPETIDO` o `RECHAZADO`.
+- `aporte_motivo`: admite nulo, hasta 40 caracteres. En un rechazo, el código del motivo (una clave de los textos).
+- `minutos_aportados`: obligatorio, por defecto 0. Los minutos que están en el destino por esta sesión.
+- `creado_en`: obligatoria, en UTC.
+
+Índices: (`usuario_ref`, `dia`) para el resumen y la racha; (`usuario_ref`, `inicio_utc`) para el historial y el solape.
+
 ### Versión mínima (VersionApp)
 
 Tabla `version_app`, del módulo `norday-motor` (migración V20). Tiene dos columnas:
@@ -304,6 +326,7 @@ Usuario
  │           └── 1:1 ── Ritmo
  │
  ├── 1:N ── UsuarioDispositivo (una por app)
+ ├── 1:N ── SesionEnfoque (destino_ref opaco, sin FK al hábito)
  ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
  ├── 1:N ── UsuarioProducto ── N:1 ── Producto
@@ -358,6 +381,8 @@ La exportación de datos se organiza mediante los exportadores correspondientes 
 
 El exportador de notificaciones (`ExportadorDispositivos`, sección `notificaciones`) dice en qué apps tiene el usuario un token registrado y desde cuándo (`app`, `actualizadoEn`), sin el token, como tampoco sale `usuario.fcm_token`.
 
+Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
+
 ---
 
 ## 6. Zona horaria e idioma
@@ -381,6 +406,7 @@ Esto es especialmente relevante para:
 - Un usuario tiene como mucho un token de notificaciones por app (`usuario_ref`, `app_id` es único en `usuario_dispositivo`).
 - Un registro pertenece a un hábito.
 - Una clave del cliente identifica como mucho un registro (`clave_cliente` es único en `registro`).
+- Una clave de sesión identifica como mucho una sesión de enfoque (`clave` es único en `sesion_enfoque`). Las sesiones de un usuario no se solapan (lo comprueba el servicio al guardarlas).
 - La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
 - Un hito se paga una sola vez por hábito: (`habito_ref`, `umbral`) es único en `hito_pagado`. Deshacer el completado que lo pagó borra la fila.

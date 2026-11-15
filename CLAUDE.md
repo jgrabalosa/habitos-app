@@ -37,19 +37,29 @@ tiene dentro su propia estructura por capas (`config`, `controller`,
 - **`com.norday.conocimiento`** — dominio de la segunda app: píldoras de
   microaprendizaje, preferencias de categoría y valoraciones. Hermano de
   `habitos`, no descendiente suyo.
+- **`com.norday.enfoque`** — dominio de Norday Focus: sesiones de
+  concentración (`sesion_enfoque`), su resumen y su historial. Hermano de
+  `habitos` y `conocimiento`. Lleva minutos a los hábitos sin conocerlos, por
+  el puerto `DestinoMinutos` del motor (ver «Norday Focus: el puerto
+  DestinoMinutos»).
 
 ### Regla de dependencias (obligatoria)
 
 - `habitos` → puede importar de `core` y `gamificacion`.
 - `conocimiento` → puede importar de `core` y `gamificacion`.
+- `enfoque` → puede importar de `core` y `gamificacion`.
 - `gamificacion` ↔ `core` → permitido en ambos sentidos. Los dos son
   *motor* y viven en el mismo módulo Maven `norday-motor`; por eso entre
   ellos no hay muro.
-- `core` → `habitos` o `conocimiento` : **PROHIBIDO**.
-- `gamificacion` → `habitos` o `conocimiento` : **PROHIBIDO**.
+- `core` → `habitos`, `conocimiento` o `enfoque` : **PROHIBIDO**.
+- `gamificacion` → `habitos`, `conocimiento` o `enfoque` : **PROHIBIDO**.
 - `habitos` ↔ `conocimiento` : **PROHIBIDO** en los dos sentidos. Son
   hermanos y no se conocen: ninguno declara al otro en su `pom.xml`, así
   que una importación cruzada tampoco compila.
+- `enfoque` ↔ `habitos` y `enfoque` ↔ `conocimiento` : **PROHIBIDO** en los
+  dos sentidos, por lo mismo. Cuando un dominio necesita algo de otro, el
+  motor declara un puerto y el otro lo implementa (`DestinoMinutos`,
+  `CumplimientoDiarioPort`).
 
 Desde el Nivel 2 esta regla ya no depende solo de la disciplina: Maven la
 impone. `norday-motor` no declara ninguna dependencia hacia `habitos`, así
@@ -68,7 +78,7 @@ grep -rnE "\b(Habito|Registro|Racha|Categoria)\w*" norday-motor/src/main/java
 
 El backend es un proyecto multi-módulo. El `pom.xml` de la raíz es un
 agregador (`packaging=pom`, sin dependencias propias) que hereda de
-`spring-boot-starter-parent` y declara cuatro módulos:
+`spring-boot-starter-parent` y declara cinco módulos:
 
 - **`norday-motor/`** — el motor: `com.norday.core` y
   `com.norday.gamificacion`. Es una librería (sin
@@ -82,17 +92,19 @@ agregador (`packaging=pom`, sin dependencias propias) que hereda de
 - **`conocimiento/`** — el dominio de Norday Conocimiento:
   `com.norday.conocimiento`. Igual que `habitos`: librería, y su única
   dependencia de producción es `norday-motor`.
+- **`enfoque/`** — el dominio de Norday Focus: `com.norday.enfoque`. Igual:
+  librería, y su única dependencia de producción es `norday-motor`.
 - **`norday-server/`** — el ensamblado ejecutable: `NordayApplication`
   y `src/main/resources` (properties, `mensajes/`, `static/`,
-  `db/migration/`). Depende de `habitos` **y** de `conocimiento`, y lleva
+  `db/migration/`). Depende de `habitos`, `conocimiento` **y** `enfoque`, y lleva
   el `spring-boot-maven-plugin` con
   `mainClass com.norday.NordayApplication`. Es el único módulo que
   produce un jar arrancable.
 
-La cadena **no** es lineal, es una Y: `norday-server` cuelga de los dos
-módulos de dominio, y cada uno de ellos cuelga de `norday-motor`. Una app
-futura del ecosistema añadiría su propio módulo de dominio junto a
-`habitos` y `conocimiento`, colgando igualmente de `norday-motor`.
+La cadena **no** es lineal, es un abanico: `norday-server` cuelga de los
+tres módulos de dominio, y cada uno de ellos cuelga de `norday-motor`. Una
+app futura del ecosistema añadiría su propio módulo de dominio junto a
+`habitos`, `conocimiento` y `enfoque`, colgando igualmente de `norday-motor`.
 
 ## Borrado de cuenta: patrón LimpiadorDatosUsuario
 
@@ -101,7 +113,7 @@ Declara la interfaz `LimpiadorDatosUsuario` (en `core.service`), Spring
 recolecta todas sus implementaciones en un `List<LimpiadorDatosUsuario>`,
 se recorren, y solo después se borra el `Usuario`.
 
-Implementaciones actuales, cinco:
+Implementaciones actuales, seis:
 
 - `LimpiadorHabitos` — registros y rachas, luego hábitos, luego categorías
   propias.
@@ -112,6 +124,9 @@ Implementaciones actuales, cinco:
   valoraciones.
 - `LimpiadorDispositivos` — los tokens de notificaciones de todas las apps
   (`usuario_dispositivo`).
+- `LimpiadorEnfoque` — las sesiones de Norday Focus (`sesion_enfoque`). Los
+  minutos que llevaron a un hábito son registros del hábito y los borra
+  `LimpiadorHabitos`.
 
 **Cada módulo nuevo que guarde datos colgando de `Usuario` debe aportar su
 propio limpiador.** Esto sustituye a la regla frágil de "acordarse de
@@ -125,9 +140,10 @@ limpiador sí importa.
 `ExportacionDatosService.exportar(id)` tampoco conoce las tablas de cada
 módulo. La interfaz `ExportadorDatosUsuario` vive en `core.service` y
 Spring recolecta sus implementaciones igual que con los limpiadores:
-`ExportadorGamificacion`, `ExportadorHabitos`, `ExportadorConocimiento` y
+`ExportadorGamificacion`, `ExportadorHabitos`, `ExportadorConocimiento`,
 `ExportadorDispositivos` (en qué apps hay token y desde cuándo; nunca el
-token, como tampoco sale `usuario.fcm_token`).
+token, como tampoco sale `usuario.fcm_token`) y `ExportadorEnfoque` (sección
+`enfoque`: las sesiones, sin la clave).
 
 Lo consume `GET /api/usuarios/{id}/exportar`, que comprueba que el
 autenticado es el dueño y devuelve el JSON con `Content-Disposition`. Es la
@@ -165,6 +181,39 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
   seguro mientras Norday Focus no esté publicada, y al volver a avanzar hay
   que resincronizar (SQL en `docs/despliegue.md`). No se quita hasta que no
   haga falta volver atrás.
+
+## Norday Focus: el puerto DestinoMinutos
+
+Una sesión de Norday Focus puede llevar sus minutos a un hábito de minutos.
+`enfoque` no conoce los hábitos ni `habitos` conoce las sesiones: el motor
+declara el puerto `DestinoMinutos` (`gamificacion.service`, con los records
+`DestinoDisponible` y `ResultadoAporte` en `gamificacion.model`) y `habitos`
+lo implementa en `DestinoMinutosHabitos` (tipo `habito`). `enfoque` recibe
+todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
+
+- **El destino nunca lanza por sus reglas.** `DestinoMinutosHabitos.aportar`
+  valida antes de completar (dueño, que exista, que no esté en pausa, que el
+  día sea de minutos en la versión vigente ese día, semana en curso y no
+  futuro, de 1 a 600) y responde `RECHAZADO` con un código de motivo, que es
+  una clave de `mensajes/habitos`. Si completar lanza igualmente (una carrera),
+  se traduce a `RECHAZADO`. Un fallo técnico sí sale, para que se reintente.
+- **Registrar una sesión son tres transacciones, no una**
+  (`SesionEnfoqueService.registrar`, sin `@Transactional`): guardar la sesión
+  (idempotente por clave, aporte `PENDIENTE` si hay destino), aportar en la
+  transacción propia del destino, apuntar el resultado. Es la lección de
+  `asegurarIdentidad`: con una transacción compartida, la excepción de
+  completar la marcaría para deshacer y la sesión se perdería con
+  `UnexpectedRollbackException`. Hay un test que lo demuestra
+  (`SesionEnfoqueTest.rechazoDentroDeCompletar_noSeLlevaPorDelanteLaSesion`).
+- **El adaptador corre en `REQUIRES_NEW` y captura fuera de la plantilla.**
+  Capturar dentro no sirve: completar ya habría marcado la transacción.
+  Sin transacción exterior, `REQUIRES_NEW` no pide una segunda conexión.
+- **La clave de la sesión es la clave del registro.** Un reintento no suma
+  ni paga dos veces, ni en `sesion_enfoque` ni en `registro`; una sesión que
+  quedó `PENDIENTE` (el proceso murió entre aportar y apuntar) se completa
+  al reintentar, con `REPETIDO`.
+- **Enfoque no paga nada propio**: ni monedas, ni XP, ni logros. Paga el
+  hábito, con sus reglas, igual que el panel de minutos.
 
 ## Siembra de catálogos
 
