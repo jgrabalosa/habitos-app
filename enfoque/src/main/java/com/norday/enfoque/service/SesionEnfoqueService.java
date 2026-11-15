@@ -11,6 +11,7 @@ import com.norday.enfoque.model.SesionEnfoque;
 import com.norday.enfoque.model.dto.PeticionSesionDTO;
 import com.norday.enfoque.repository.ISesionEnfoqueDAO;
 import com.norday.gamificacion.model.DestinoDisponible;
+import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
 import com.norday.gamificacion.service.DestinoMinutos;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -131,10 +132,11 @@ public class SesionEnfoqueService {
 
     /**
      * Lo que pasó con los minutos de una sesión, para la respuesta.
-     * {@code minutos} son los que están en el destino por esta sesión.
-     * Monedas, XP, progreso del día y logros solo se conocen en la petición
-     * que llevó los minutos al destino: en un reintento de una sesión ya
-     * cerrada van a 0, null y vacío, como en el reintento de un completado.
+     * {@code minutos} son los que están en el destino por esta sesión, y
+     * monedas, XP y logros, lo que pagó el destino al recibirlos: en un
+     * reintento, los guardados (el resultado original). El progreso del día
+     * ({@code minutosDia}, {@code minutosObjetivo}, {@code diaHecho}) se lee
+     * en el momento: en un reintento, cómo va ahora el día del destino.
      */
     public record Aporte(EstadoAporte estado, String motivo, int minutos, int monedas, int xp, Integer minutosDia,
                          Integer minutosObjetivo, Boolean diaHecho, List<String> logros) {}
@@ -188,7 +190,8 @@ public class SesionEnfoqueService {
         // Paso 3: el resultado, en la sesión.
         EstadoAporte estado = EstadoAporte.valueOf(resultado.estado().name());
         int minutos = estado.minutosEnDestino() ? sesion.minutos() : 0;
-        sesionDAO.guardarAporte(sesion.getId(), estado, resultado.motivo(), minutos);
+        sesionDAO.guardarAporte(sesion.getId(), estado, resultado.motivo(), minutos, resultado.monedas(),
+                resultado.xp(), SesionEnfoque.textoDeLogros(resultado.logros()));
         SesionEnfoque guardada = sesionDAO.releer(sesion.getId());
         // Si otro reintento simultáneo apuntó antes otro resultado, manda el
         // guardado: la respuesta no puede contradecir a la base de datos.
@@ -240,6 +243,9 @@ public class SesionEnfoqueService {
             sesion.setAporteEstado(EstadoAporte.PENDIENTE);
         }
         sesion.setMinutosAportados(0);
+        sesion.setMonedasAportadas(0);
+        sesion.setXpAportada(0);
+        sesion.setLogrosAportados(null);
 
         Integer id = sesionDAO.insertarSiClaveLibre(sesion);
         if (id == null) {
@@ -266,12 +272,14 @@ public class SesionEnfoqueService {
         return guardada;
     }
 
+    /** El destino que declara ese tipo; null si ninguno. */
+    private DestinoMinutos destinoDe(String tipo) {
+        return destinos.stream().filter(d -> d.tipo().equals(tipo)).findFirst().orElse(null);
+    }
+
     /** Paso 2: el destino del tipo de la sesión; un tipo que nadie declara, RECHAZADO. */
     private ResultadoAporte aportar(SesionEnfoque sesion) {
-        DestinoMinutos destino = destinos.stream()
-                .filter(d -> d.tipo().equals(sesion.getDestinoTipo()))
-                .findFirst()
-                .orElse(null);
+        DestinoMinutos destino = destinoDe(sesion.getDestinoTipo());
         if (destino == null) {
             return ResultadoAporte.rechazado(MotivosEnfoque.DESTINO_DESCONOCIDO);
         }
@@ -279,10 +287,27 @@ public class SesionEnfoqueService {
                 sesion.getClave(), sesion.getDia(), ORIGEN);
     }
 
-    /** El aporte tal como está guardado, sin lo que solo se conoce al aportar. */
-    private static Aporte aporteGuardado(SesionEnfoque sesion) {
-        return new Aporte(sesion.getAporteEstado(), sesion.getAporteMotivo(), sesion.getMinutosAportados(), 0, 0,
-                null, null, null, List.of());
+    /**
+     * El aporte tal como está guardado (lo que pagó el destino la primera
+     * vez), con el progreso del día leído ahora del destino si los minutos
+     * están allí. Solo lee: no vuelve a aportar, porque el registro podría
+     * haberse deshecho y se sumaría otra vez.
+     */
+    private Aporte aporteGuardado(SesionEnfoque sesion) {
+        ProgresoDestino progreso = null;
+        if (sesion.getAporteEstado().minutosEnDestino()) {
+            DestinoMinutos destino = destinoDe(sesion.getDestinoTipo());
+            if (destino != null) {
+                progreso = destino.progreso((long) sesion.getUsuario().getUsuarioId(), sesion.getDestinoRef(),
+                        sesion.getDia());
+            }
+        }
+        return new Aporte(sesion.getAporteEstado(), sesion.getAporteMotivo(), sesion.getMinutosAportados(),
+                sesion.getMonedasAportadas(), sesion.getXpAportada(),
+                progreso != null ? progreso.minutosDia() : null,
+                progreso != null ? progreso.minutosObjetivo() : null,
+                progreso != null ? progreso.diaHecho() : null,
+                sesion.logros());
     }
 
     /** El día de inicio en la zona del usuario: el día al que van los minutos. */

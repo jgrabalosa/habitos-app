@@ -1,6 +1,7 @@
 package com.norday.gamificacion.service;
 
 import com.norday.gamificacion.model.DestinoDisponible;
+import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
 
 import java.time.LocalDate;
@@ -46,4 +47,11 @@ public interface DestinoMinutos {
      */
     ResultadoAporte aportar(Long usuarioId, Long destinoId, int minutos, UUID clave, LocalDate dia,
                             String origen);
+
+    /**
+     * Cómo va ahora el día {@code dia} del destino. Solo lee: no suma, no
+     * paga y no cambia nada. Sirve para responder a un reintento con el
+     * progreso actual. null si el destino no existe o no es del usuario.
+     */
+    ProgresoDestino progreso(Long usuarioId, Long destinoId, LocalDate dia);
 }

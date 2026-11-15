@@ -5,6 +5,7 @@ import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.gamificacion.model.DestinoDisponible;
+import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
 import com.norday.gamificacion.service.DestinoMinutos;
 import com.norday.habitos.model.Habito;
@@ -146,6 +147,38 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
         });
     }
 
+    /**
+     * Los minutos del día, su objetivo y si está hecho, con la versión vigente
+     * ese día: lo mismo que responde completar a un reintento. Solo lee. Si
+     * ese día el hábito no es de minutos, minutos y objetivo van a null.
+     */
+    @Override
+    public ProgresoDestino progreso(Long usuarioId, Long destinoId, LocalDate dia) {
+        TransactionTemplate lectura = new TransactionTemplate(transactionManager);
+        lectura.setReadOnly(true);
+        return lectura.execute(estado -> {
+            Habito habito = delUsuario(usuarioId, destinoId);
+            if (habito == null || dia == null) return null;
+            HistorialObjetivos historial = HistorialObjetivos.de(
+                    objetivoService.historiales(List.of(habito)), habito);
+            Objetivo objetivo = historial.objetivoEl(dia);
+            Hechos hechos = Hechos.de(registroDAO.findByHabitoAndRango(habito, dia, dia), historial::objetivoEl);
+            return new ProgresoDestino(objetivo.enMinutos() ? hechos.cantidadEl(dia) : null,
+                    objetivo.enMinutos() ? objetivo.minutosObjetivo() : null, hechos.diaHecho(dia));
+        });
+    }
+
+    /** El hábito si existe y es del usuario; null si no (lo mismo en los dos casos). */
+    private Habito delUsuario(Long usuarioId, Long destinoId) {
+        Habito habito = destinoId == null || destinoId <= 0 || destinoId > Integer.MAX_VALUE
+                ? null : habitoDAO.findById(destinoId.intValue());
+        if (habito == null || usuarioId == null || habito.getPropietario() == null
+                || habito.getPropietario().getUsuarioId() != usuarioId) {
+            return null;
+        }
+        return habito;
+    }
+
     @Override
     public ResultadoAporte aportar(Long usuarioId, Long destinoId, int minutos, UUID clave, LocalDate dia,
                                    String origen) {
@@ -167,10 +200,8 @@ public class DestinoMinutosHabitos implements DestinoMinutos {
                                                    LocalDate dia, String origenTexto) {
         // El dueño primero, y lo mismo si no existe que si es de otro: no se
         // dice qué ids hay.
-        Habito habito = destinoId == null || destinoId <= 0 || destinoId > Integer.MAX_VALUE
-                ? null : habitoDAO.findById(destinoId.intValue());
-        if (habito == null || usuarioId == null || habito.getPropietario() == null
-                || habito.getPropietario().getUsuarioId() != usuarioId) {
+        Habito habito = delUsuario(usuarioId, destinoId);
+        if (habito == null) {
             return ResultadoAporte.rechazado(MOTIVO_NO_ENCONTRADO);
         }
         OrigenRegistro origen;

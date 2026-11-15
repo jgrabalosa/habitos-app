@@ -6,6 +6,9 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,6 +33,9 @@ import java.util.UUID;
                 @Index(name = "idx_sesion_enfoque_usuario_inicio", columnList = "usuario_ref, inicio_utc")
         })
 public class SesionEnfoque {
+
+    /** Lo que cabe en logros_aportados. */
+    public static final int LONGITUD_LOGROS = 1000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -77,6 +83,19 @@ public class SesionEnfoque {
     @ColumnDefault("0")
     @Column(name = "minutos_aportados", nullable = false)
     private int minutosAportados = 0;
+
+    /** Lo que pagó el destino al llevar los minutos (0 si nada). */
+    @ColumnDefault("0")
+    @Column(name = "monedas_aportadas", nullable = false)
+    private int monedasAportadas = 0;
+
+    @ColumnDefault("0")
+    @Column(name = "xp_aportada", nullable = false)
+    private int xpAportada = 0;
+
+    /** Los códigos de los logros que desbloqueó el aporte, separados por comas; null si ninguno. */
+    @Column(name = "logros_aportados", length = LONGITUD_LOGROS)
+    private String logrosAportados;
 
     /** Sello de auditoría, en UTC. */
     @Column(name = "creado_en", nullable = false)
@@ -131,6 +150,39 @@ public class SesionEnfoque {
 
     public int getMinutosAportados() { return minutosAportados; }
     public void setMinutosAportados(int minutosAportados) { this.minutosAportados = minutosAportados; }
+
+    public int getMonedasAportadas() { return monedasAportadas; }
+    public void setMonedasAportadas(int monedasAportadas) { this.monedasAportadas = monedasAportadas; }
+
+    public int getXpAportada() { return xpAportada; }
+    public void setXpAportada(int xpAportada) { this.xpAportada = xpAportada; }
+
+    public String getLogrosAportados() { return logrosAportados; }
+    public void setLogrosAportados(String logrosAportados) { this.logrosAportados = logrosAportados; }
+
+    /** Los logros aportados como lista (vacía si ninguno). */
+    public List<String> logros() {
+        return logrosAportados == null || logrosAportados.isBlank() ? List.of()
+                : Arrays.stream(logrosAportados.split(",")).filter(c -> !c.isBlank()).toList();
+    }
+
+    /**
+     * Los códigos en el formato de logros_aportados: separados por comas, null
+     * si no hay ninguno. Si no caben todos (no debería pasar: son unos pocos
+     * códigos cortos), se guardan los que caben enteros.
+     */
+    public static String textoDeLogros(List<String> codigos) {
+        if (codigos == null || codigos.isEmpty()) return null;
+        List<String> caben = new ArrayList<>();
+        int longitud = 0;
+        for (String codigo : codigos) {
+            int con = longitud + (caben.isEmpty() ? 0 : 1) + codigo.length();
+            if (con > LONGITUD_LOGROS) break;
+            caben.add(codigo);
+            longitud = con;
+        }
+        return caben.isEmpty() ? null : String.join(",", caben);
+    }
 
     public LocalDateTime getCreadoEn() { return creadoEn; }
     public void setCreadoEn(LocalDateTime creadoEn) { this.creadoEn = creadoEn; }

@@ -52,6 +52,9 @@ public class ExportadorEnfoque implements ExportadorDatosUsuario {
         mapa.put("aporteEstado", sesion.getAporteEstado().name());
         mapa.put("aporteMotivo", sesion.getAporteMotivo());
         mapa.put("minutosAportados", sesion.getMinutosAportados());
+        mapa.put("monedasAportadas", sesion.getMonedasAportadas());
+        mapa.put("xpAportada", sesion.getXpAportada());
+        mapa.put("logrosAportados", sesion.logros());
         mapa.put("creadoEn", ExportacionDatosService.texto(sesion.getCreadoEn()));
         return mapa;
     }

@@ -431,18 +431,69 @@ class SesionEnfoqueTest {
         int saldoTrasLaPrimera = saldo(a);
         int xpTrasLaPrimera = xp(a);
 
-        enviar(a, cuerpo)
+        String reintento = enviar(a, cuerpo)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sesion.id").value(idDe(primera)))
                 .andExpect(jsonPath("$.aporte.estado").value("ACEPTADO"))
                 .andExpect(jsonPath("$.aporte.minutos").value(25))
-                .andExpect(jsonPath("$.aporte.monedas").value(0))
-                .andExpect(jsonPath("$.aporte.xp").value(0));
+                .andReturn().getResponse().getContentAsString();
+        // El reintento devuelve el resultado original, que es lo que la app
+        // enseña si la primera respuesta se perdió por el camino.
+        assertEquals(aporteDe(primera), aporteDe(reintento), "el mismo aporte que la primera vez");
 
         assertEquals(1, registros(leer).size(), "un solo registro");
         assertEquals(saldoTrasLaPrimera, saldo(a), "ni una moneda más");
         assertEquals(xpTrasLaPrimera, xp(a));
         assertEquals(1, sesionesDe(a));
+    }
+
+    /** El objeto "aporte" de una respuesta, tal cual. */
+    private static String aporteDe(String respuesta) {
+        return respuesta.substring(respuesta.indexOf("\"aporte\":"));
+    }
+
+    /**
+     * Monedas, XP y logros del reintento son los guardados; el progreso del
+     * día se lee en el momento: si desde entonces se ha sumado algo desde el
+     * panel, el reintento lo dice.
+     */
+    @Test
+    void reintento_devuelveLoPagadoOriginal_yElProgresoDelDiaDeAhora() throws Exception {
+        int a = usuario();
+        int leer = habito(a, "Leer", minutosDiario(30), true);
+        String clave = UUID.randomUUID().toString();
+        String cuerpo = sesion25(clave, leer);
+        enviar(a, cuerpo).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.aporte.monedas").value(20))
+                .andExpect(jsonPath("$.aporte.xp").value(4))
+                .andExpect(jsonPath("$.aporte.logros[0]").value("PRIMEROS_PASOS"));
+        tx.execute(estado -> registroService.completar(habitoService.buscarPorId(leer),
+                new Solicitud(null, VIERNES, "5", UUID.randomUUID(), OrigenRegistro.MANUAL)));
+
+        enviar(a, cuerpo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aporte.estado").value("ACEPTADO"))
+                .andExpect(jsonPath("$.aporte.monedas").value(20))
+                .andExpect(jsonPath("$.aporte.xp").value(4))
+                .andExpect(jsonPath("$.aporte.logros", hasSize(1)))
+                .andExpect(jsonPath("$.aporte.logros[0]").value("PRIMEROS_PASOS"))
+                .andExpect(jsonPath("$.aporte.minutosDia").value(30))
+                .andExpect(jsonPath("$.aporte.minutosObjetivo").value(30))
+                .andExpect(jsonPath("$.aporte.diaHecho").value(true));
+    }
+
+    @Test
+    void reintento_deUnRechazo_sinProgresoNiPremios() throws Exception {
+        int a = usuario();
+        int pausado = habito(a, "Leer", minutosDiario(30), false);
+        String cuerpo = sesion25(UUID.randomUUID().toString(), pausado);
+        enviar(a, cuerpo).andExpect(status().isCreated());
+        enviar(a, cuerpo).andExpect(status().isOk())
+                .andExpect(jsonPath("$.aporte.estado").value("RECHAZADO"))
+                .andExpect(jsonPath("$.aporte.motivo").value("aporte.habito.pausado"))
+                .andExpect(jsonPath("$.aporte.monedas").value(0))
+                .andExpect(jsonPath("$.aporte.minutosDia").isEmpty())
+                .andExpect(jsonPath("$.aporte.logros").isEmpty());
     }
 
     private static int idDe(String respuesta) {
@@ -756,6 +807,9 @@ class SesionEnfoqueTest {
                 .andExpect(jsonPath("$.enfoque.sesiones[0].destinoId").value(leer))
                 .andExpect(jsonPath("$.enfoque.sesiones[0].aporteEstado").value("ACEPTADO"))
                 .andExpect(jsonPath("$.enfoque.sesiones[0].minutosAportados").value(25))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].monedasAportadas").value(20))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].xpAportada").value(4))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].logrosAportados[0]").value("PRIMEROS_PASOS"))
                 .andExpect(jsonPath("$.enfoque.sesiones[0]", not(hasKey("clave"))));
     }
 }

@@ -4,6 +4,7 @@ import com.norday.core.exception.ConflictoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
 import com.norday.gamificacion.model.DestinoDisponible;
+import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -303,6 +304,38 @@ class DestinoMinutosHabitosTest {
 
         assertEquals(List.of(new DestinoDisponible("habito", 10L, "Leer", 25, 30)), disponibles);
         verify(objetivoService, never()).ponerAlDia(any(), any());
+    }
+
+    // ── Progreso (solo lectura) ──────────────────────────────────
+
+    @Test
+    void progreso_losMinutosDelDia_suObjetivo_ySiEstaHecho_sinCompletarNada() {
+        Registro r1 = new Registro(leer, true, null, HOY);
+        r1.setCantidad(25);
+        Registro r2 = new Registro(leer, true, null, HOY);
+        r2.setCantidad(5);
+        when(registroDAO.findByHabitoAndRango(leer, HOY, HOY)).thenReturn(List.of(r1, r2));
+
+        assertEquals(new ProgresoDestino(30, 30, true), destino.progreso(7L, 10L, HOY));
+        verify(registroService, never()).completar(any(), any());
+        verify(objetivoService, never()).ponerAlDia(any(), any());
+        ArgumentCaptor<TransactionDefinition> definicion = ArgumentCaptor.forClass(TransactionDefinition.class);
+        verify(transactionManager).getTransaction(definicion.capture());
+        assertTrue(definicion.getValue().isReadOnly());
+    }
+
+    @Test
+    void progreso_deUnHabitoAjenoOInexistente_esNull() {
+        assertNull(destino.progreso(7L, 99L, HOY));
+        assertNull(destino.progreso(8L, 10L, HOY));
+    }
+
+    @Test
+    void progreso_deUnDiaDeVeces_sinMinutos() {
+        Habito meditar = habito(11, "Meditar", new Objetivo(Frecuencia.DIARIO, 1, null));
+        when(habitoDAO.findById(11)).thenReturn(meditar);
+        when(registroDAO.findByHabitoAndRango(meditar, HOY, HOY)).thenReturn(List.of(new Registro(meditar, true, null, HOY)));
+        assertEquals(new ProgresoDestino(null, null, true), destino.progreso(7L, 11L, HOY));
     }
 
     @Test

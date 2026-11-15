@@ -16,6 +16,7 @@ import com.norday.enfoque.service.RelojEnfoque;
 import com.norday.enfoque.service.SesionEnfoqueService;
 import com.norday.enfoque.service.SesionEnfoqueService.Resultado;
 import com.norday.enfoque.service.SesionInvalidaException;
+import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
 import com.norday.gamificacion.service.DestinoMinutos;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,11 +90,17 @@ class SesionEnfoqueServiceTest {
             ArgumentCaptor<EstadoAporte> estado = ArgumentCaptor.forClass(EstadoAporte.class);
             ArgumentCaptor<String> motivo = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<Integer> minutos = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> monedas = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> xp = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<String> logros = ArgumentCaptor.forClass(String.class);
             verify(sesionDAO, atLeastOnce()).guardarAporte(eq(41), estado.capture(), motivo.capture(),
-                    minutos.capture());
+                    minutos.capture(), monedas.capture(), xp.capture(), logros.capture());
             s.setAporteEstado(estado.getValue());
             s.setAporteMotivo(motivo.getValue());
             s.setMinutosAportados(minutos.getValue());
+            s.setMonedasAportadas(monedas.getValue());
+            s.setXpAportada(xp.getValue());
+            s.setLogrosAportados(logros.getValue());
             return s;
         });
     }
@@ -146,7 +153,7 @@ class SesionEnfoqueServiceTest {
         assertEquals(0, guardada.getMinutosAportados());
         assertEquals(LocalDateTime.ofInstant(AHORA, ZoneOffset.UTC), guardada.getCreadoEn());
         verify(destinoHabito, never()).aportar(any(), any(), anyInt(), any(), any(), any());
-        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt());
+        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt(), anyInt(), anyInt(), any());
         assertTrue(resultado.nueva());
         assertEquals(EstadoAporte.SIN_DESTINO, resultado.aporte().estado());
     }
@@ -170,7 +177,7 @@ class SesionEnfoqueServiceTest {
         assertEquals("habito", alta.getDestinoTipo());
         assertEquals(3L, alta.getDestinoRef());
         verify(destinoHabito).aportar(7L, 3L, 25, CLAVE, LocalDate.of(2026, 10, 9), "ENFOQUE");
-        verify(sesionDAO).guardarAporte(41, EstadoAporte.ACEPTADO, null, 25);
+        verify(sesionDAO).guardarAporte(41, EstadoAporte.ACEPTADO, null, 25, 12, 2, "X");
         assertEquals(EstadoAporte.ACEPTADO, resultado.aporte().estado());
         assertEquals(25, resultado.aporte().minutos());
         assertEquals(12, resultado.aporte().monedas());
@@ -196,7 +203,7 @@ class SesionEnfoqueServiceTest {
         when(destinoHabito.aportar(any(), any(), anyInt(), any(), any(), any()))
                 .thenReturn(ResultadoAporte.rechazado("aporte.habito.pausado"));
         Resultado resultado = servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L)));
-        verify(sesionDAO).guardarAporte(41, EstadoAporte.RECHAZADO, "aporte.habito.pausado", 0);
+        verify(sesionDAO).guardarAporte(41, EstadoAporte.RECHAZADO, "aporte.habito.pausado", 0, 0, 0, null);
         assertEquals(EstadoAporte.RECHAZADO, resultado.aporte().estado());
         assertEquals("aporte.habito.pausado", resultado.aporte().motivo());
         assertEquals(0, resultado.aporte().minutos());
@@ -218,7 +225,8 @@ class SesionEnfoqueServiceTest {
     void unTipoQueNadieDeclara_seRechaza_sinLlamarAlDestino() {
         servicio.registrar(usuario, peticion25(new DestinoDTO("libro", 3L)));
         verify(destinoHabito, never()).aportar(any(), any(), anyInt(), any(), any(), any());
-        verify(sesionDAO).guardarAporte(41, EstadoAporte.RECHAZADO, MotivosEnfoque.DESTINO_DESCONOCIDO, 0);
+        verify(sesionDAO).guardarAporte(41, EstadoAporte.RECHAZADO, MotivosEnfoque.DESTINO_DESCONOCIDO, 0, 0, 0,
+                null);
     }
 
     @Test
@@ -229,7 +237,7 @@ class SesionEnfoqueServiceTest {
                 () -> servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L))));
         assertSame(causa, e.getCause());
         assertEquals(EstadoAporte.PENDIENTE, guardadaEnElAlta().getAporteEstado());
-        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt());
+        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt(), anyInt(), anyInt(), any());
     }
 
     // ── Reintentos ───────────────────────────────────────────────
@@ -253,9 +261,14 @@ class SesionEnfoqueServiceTest {
     }
 
     @Test
-    void reintento_deUnaSesionCerrada_devuelveLaGuardada_sinTocarNada() {
+    void reintento_deUnaSesionCerrada_devuelveLoGuardado_yElProgresoDeAhora_sinTocarNada() {
         SesionEnfoque guardada = yaGuardada(EstadoAporte.ACEPTADO);
+        guardada.setMonedasAportadas(12);
+        guardada.setXpAportada(2);
+        guardada.setLogrosAportados("PRIMEROS_PASOS,RACHA_3");
         when(sesionDAO.findByClave(CLAVE)).thenReturn(guardada);
+        when(destinoHabito.progreso(7L, 3L, LocalDate.of(2026, 10, 9)))
+                .thenReturn(new ProgresoDestino(30, 30, true));
 
         Resultado resultado = servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L)));
 
@@ -263,10 +276,39 @@ class SesionEnfoqueServiceTest {
         assertSame(guardada, resultado.sesion());
         assertEquals(EstadoAporte.ACEPTADO, resultado.aporte().estado());
         assertEquals(25, resultado.aporte().minutos());
-        assertEquals(0, resultado.aporte().monedas());
+        assertEquals(12, resultado.aporte().monedas());
+        assertEquals(2, resultado.aporte().xp());
+        assertEquals(List.of("PRIMEROS_PASOS", "RACHA_3"), resultado.aporte().logros());
+        assertEquals(30, resultado.aporte().minutosDia());
+        assertEquals(30, resultado.aporte().minutosObjetivo());
+        assertEquals(true, resultado.aporte().diaHecho());
         verify(sesionDAO, never()).insertarSiClaveLibre(any());
         verify(destinoHabito, never()).aportar(any(), any(), anyInt(), any(), any(), any());
-        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt());
+        verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void reintento_deUnRechazo_noLeeElProgreso() {
+        SesionEnfoque guardada = yaGuardada(EstadoAporte.RECHAZADO);
+        guardada.setAporteMotivo("aporte.habito.pausado");
+        when(sesionDAO.findByClave(CLAVE)).thenReturn(guardada);
+        Resultado resultado = servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L)));
+        assertEquals(EstadoAporte.RECHAZADO, resultado.aporte().estado());
+        assertNull(resultado.aporte().minutosDia());
+        assertEquals(List.of(), resultado.aporte().logros());
+        verify(destinoHabito, never()).progreso(any(), any(), any());
+    }
+
+    @Test
+    void losLogros_seGuardanSeparadosPorComas_yLosQueNoCabenSeQuedanFuera() {
+        assertNull(SesionEnfoque.textoDeLogros(List.of()));
+        assertNull(SesionEnfoque.textoDeLogros(null));
+        assertEquals("A,B", SesionEnfoque.textoDeLogros(List.of("A", "B")));
+        String largo = "X".repeat(600);
+        assertEquals(largo, SesionEnfoque.textoDeLogros(List.of(largo, largo)));
+        SesionEnfoque s = new SesionEnfoque();
+        s.setLogrosAportados("A,B");
+        assertEquals(List.of("A", "B"), s.logros());
     }
 
     @Test
@@ -284,7 +326,7 @@ class SesionEnfoqueServiceTest {
         assertFalse(resultado.nueva());
         verify(sesionDAO, never()).insertarSiClaveLibre(any());
         verify(destinoHabito).aportar(7L, 3L, 25, CLAVE, LocalDate.of(2026, 10, 9), "ENFOQUE");
-        verify(sesionDAO).guardarAporte(41, EstadoAporte.REPETIDO, null, 25);
+        verify(sesionDAO).guardarAporte(41, EstadoAporte.REPETIDO, null, 25, 0, 0, null);
         assertEquals(EstadoAporte.REPETIDO, resultado.aporte().estado());
     }
 

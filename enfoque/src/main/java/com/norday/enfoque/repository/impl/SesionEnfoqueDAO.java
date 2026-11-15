@@ -62,10 +62,12 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
         List<?> ids = em.createNativeQuery(
                         "INSERT INTO sesion_enfoque (usuario_ref, clave, inicio_utc, duracion_seg,"
                                 + " duracion_objetivo_min, estado, dia, destino_tipo, destino_ref,"
-                                + " aporte_estado, aporte_motivo, minutos_aportados, creado_en)"
+                                + " aporte_estado, aporte_motivo, minutos_aportados, monedas_aportadas,"
+                                + " xp_aportada, logros_aportados, creado_en)"
                                 + " VALUES (:usuario, CAST(:clave AS UUID), :inicio, :duracion, :objetivo,"
                                 + " :estado, :dia, CAST(:destinoTipo AS VARCHAR(20)), CAST(:destinoRef AS BIGINT),"
-                                + " :aporteEstado, CAST(:aporteMotivo AS VARCHAR(40)), :minutosAportados, :creadoEn)"
+                                + " :aporteEstado, CAST(:aporteMotivo AS VARCHAR(40)), :minutosAportados,"
+                                + " :monedas, :xp, CAST(:logros AS VARCHAR(1000)), :creadoEn)"
                                 + " ON CONFLICT (clave) DO NOTHING"
                                 + " RETURNING id")
                 .setParameter("usuario", sesion.getUsuario().getUsuarioId())
@@ -80,6 +82,9 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
                 .setParameter("aporteEstado", sesion.getAporteEstado().name())
                 .setParameter("aporteMotivo", sesion.getAporteMotivo())
                 .setParameter("minutosAportados", sesion.getMinutosAportados())
+                .setParameter("monedas", sesion.getMonedasAportadas())
+                .setParameter("xp", sesion.getXpAportada())
+                .setParameter("logros", sesion.getLogrosAportados())
                 .setParameter("creadoEn", sesion.getCreadoEn())
                 .getResultList();
         return ids.isEmpty() ? null : ((Number) ids.get(0)).intValue();
@@ -99,19 +104,40 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
         return !filas.isEmpty();
     }
 
+    // El orden de precedencia, en el propio UPDATE: comprobarlo antes en Java
+    // dejaría un hueco entre leer y escribir. SIN_DESTINO no entra (99): una
+    // sesión sin destino no recibe resultados.
     @Override
-    public boolean guardarAporte(int sesionId, EstadoAporte estado, String motivo, int minutosAportados) {
+    public boolean guardarAporte(int sesionId, EstadoAporte estado, String motivo, int minutosAportados,
+                                 int monedas, int xp, String logros) {
         int filas = em.createNativeQuery(
                         "UPDATE sesion_enfoque SET aporte_estado = :estado,"
-                                + " aporte_motivo = CAST(:motivo AS VARCHAR(40)), minutos_aportados = :minutos"
-                                + " WHERE id = :id AND (aporte_estado = 'PENDIENTE'"
-                                + " OR (aporte_estado = 'REPETIDO' AND :estado = 'ACEPTADO'))")
+                                + " aporte_motivo = CAST(:motivo AS VARCHAR(40)), minutos_aportados = :minutos,"
+                                + " monedas_aportadas = :monedas, xp_aportada = :xp,"
+                                + " logros_aportados = CAST(:logros AS VARCHAR(1000))"
+                                + " WHERE id = :id AND (CASE aporte_estado WHEN 'PENDIENTE' THEN 0"
+                                + " WHEN 'RECHAZADO' THEN 1 WHEN 'REPETIDO' THEN 2 WHEN 'ACEPTADO' THEN 3"
+                                + " ELSE 99 END) < :rango")
                 .setParameter("estado", estado.name())
                 .setParameter("motivo", motivo)
                 .setParameter("minutos", minutosAportados)
+                .setParameter("monedas", monedas)
+                .setParameter("xp", xp)
+                .setParameter("logros", logros)
                 .setParameter("id", sesionId)
+                .setParameter("rango", rango(estado))
                 .executeUpdate();
         return filas > 0;
+    }
+
+    /** El rango de un resultado: gana a los que tienen un rango menor. */
+    private static int rango(EstadoAporte estado) {
+        return switch (estado) {
+            case RECHAZADO -> 1;
+            case REPETIDO -> 2;
+            case ACEPTADO -> 3;
+            case PENDIENTE, SIN_DESTINO -> throw new IllegalArgumentException("No es un resultado: " + estado);
+        };
     }
 
     @Override

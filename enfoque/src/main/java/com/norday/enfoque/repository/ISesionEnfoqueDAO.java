@@ -39,11 +39,13 @@ public interface ISesionEnfoqueDAO {
     boolean haySolape(int usuarioId, LocalDateTime inicio, LocalDateTime fin);
 
     /**
-     * Apunta el resultado del aporte si la sesión sigue PENDIENTE (o si
-     * estaba REPETIDO y el resultado es ACEPTADO: el que pagó gana). Devuelve
-     * si ha escrito.
+     * Apunta el resultado del aporte (estado, motivo, minutos, monedas, XP y
+     * logros) si gana al que hay: PENDIENTE lo acepta todo; ACEPTADO gana a
+     * REPETIDO y a RECHAZADO; REPETIDO gana a RECHAZADO. Así, si dos reintentos
+     * simultáneos responden distinto, queda el que pagó. Devuelve si ha escrito.
      */
-    boolean guardarAporte(int sesionId, EstadoAporte estado, String motivo, int minutosAportados);
+    boolean guardarAporte(int sesionId, EstadoAporte estado, String motivo, int minutosAportados,
+                          int monedas, int xp, String logros);
 
     /** Las sesiones del usuario con día entre desde y hasta (incluidos). */
     List<SesionEnfoque> findByUsuarioEntre(int usuarioId, LocalDate desde, LocalDate hasta);

@@ -13,6 +13,9 @@
 -- aporte_estado: SIN_DESTINO, PENDIENTE (guardada, aún no llevada al destino),
 -- ACEPTADO, REPETIDO o RECHAZADO (con su motivo, una clave de los textos).
 -- minutos_aportados: los que están en el destino por esta sesión.
+-- monedas_aportadas, xp_aportada y logros_aportados: lo que pagó el destino
+-- al llevar los minutos (los logros, códigos separados por comas; NULL si
+-- ninguno). Se guardan para que un reintento devuelva el resultado original.
 --
 -- Índices: (usuario_ref, dia) para el resumen y la racha; (usuario_ref,
 -- inicio_utc) para el historial y la comprobación de solape.
@@ -30,6 +33,9 @@ CREATE TABLE sesion_enfoque (
     aporte_estado         VARCHAR(12) NOT NULL,
     aporte_motivo         VARCHAR(40),
     minutos_aportados     INTEGER     NOT NULL DEFAULT 0,
+    monedas_aportadas     INTEGER     NOT NULL DEFAULT 0,
+    xp_aportada           INTEGER     NOT NULL DEFAULT 0,
+    logros_aportados      VARCHAR(1000),
     creado_en             TIMESTAMP   NOT NULL,
     CONSTRAINT UK_sesion_enfoque_clave UNIQUE (clave),
     CONSTRAINT FK_sesion_enfoque_usuario
