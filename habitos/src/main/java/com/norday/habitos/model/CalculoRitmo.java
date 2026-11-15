@@ -128,7 +128,11 @@ public final class CalculoRitmo {
      * hoy. Tras un cambio de objetivo, los periodos de antes se siguen
      * juzgando con el que tenían (el ritmo de hace siete días no cambia por
      * cambiar hoy la meta). Un cambio de frecuencia solo entra en vigor un
-     * lunes, así que una semana nunca mezcla dos frecuencias.
+     * lunes o en la fecha de inicio del hábito (que entonces es su única
+     * versión), así que una semana nunca mezcla dos frecuencias. Aun así, un
+     * periodo nunca empieza antes del cursor: si un cambio cayera a mitad de
+     * semana, la semana del cambio no vuelve al lunes a contar otra vez días
+     * ya cerrados con la frecuencia de antes.
      */
     public static RitmoAlDia alDiaPorUnidades(double valor, LocalDate desde,
                                               java.util.function.Function<LocalDate, Objetivo> objetivoEl,
@@ -144,6 +148,7 @@ public final class CalculoRitmo {
             Objetivo objetivo = objetivoEl.apply(cursor);
             Frecuencia frecuencia = objetivo.frecuencia();
             LocalDate[] periodo = frecuencia.rangoPeriodo(cursor);
+            if (periodo[0].isBefore(cursor)) periodo[0] = cursor;
             if (!periodo[1].isBefore(hoy)) break; // sigue abierto: no mueve el ritmo
 
             double hechos = 0.0;
