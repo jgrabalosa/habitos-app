@@ -217,8 +217,12 @@ En `norday_flutter_core`, Quim mergea `wip` en `main`, comprueba con
 
    ```bash
    git -C /opt/norday-backend-staging --no-pager log -1 --oneline
-   psql -U postgres -d habitos_db_staging -c "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;"
+   sudo -u postgres psql -d habitos_db_staging -c "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;"
    ```
+
+   En el VPS, PostgreSQL entra por «peer»: como `root`, `psql -U postgres`
+   falla; hay que pasar por el usuario `postgres` con `sudo -u postgres`.
+   Vale igual para todas las consultas de esta guía.
 
 2. Comprobar que existe el dump de esa madrugada, o hacer uno con
    `/root/backup_bd.sh` (ver [`backups.md`](backups.md)).
@@ -544,8 +548,15 @@ resuelve todo dentro de un `route`, en este orden:
 
 1. Los enlaces cortos (`/ig`, `/threads`, `/web`, `/qr`, `/descargar`…):
    un `redir` 302 a la ficha de Google Play con sus UTM. `/web` es la
-   insignia de la landing y `/qr`, su QR.
+   insignia de la landing y `/qr`, su QR. Desde el 15-nov-2026, también
+   `/invitar`, el enlace que comparte la app al invitar a un amigo:
+   `referrer=utm_source%3Dcompartir%26utm_medium%3Dapp%26utm_campaign%3Dinvitar`,
+   y a `/iphone` si llega desde un iPhone.
 2. `/linkedin`: una página propia, servida desde `/var/www/norday-enlaces`.
+   Desde el 15-nov-2026, `/robots.txt` y `/sitemap.xml` salen de la misma
+   carpeta, con un `handle @seo`, para Google Search Console (la propiedad
+   de dominio `norday.app`, verificada por un registro TXT en Cloudflare
+   que no se borra). Así no se añaden rutas al `permitAll` del backend.
 3. La web: `reverse_proxy` al backend de producción **sólo** para `/`,
    `/index.html`, `/privacidad.html`, `/eliminar-cuenta.html`,
    `/favicon.ico`, `/img/*` y `/js/*`. La API no sale por `norday.app`.
@@ -582,11 +593,15 @@ Comprobación después de cualquier cambio:
     curl -sI https://norday.app/api/habitos | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/ | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/privacidad.html | grep -i "^HTTP"
+    curl -sI https://norday.app/robots.txt | grep -i "^HTTP"
+    curl -sI https://norday.app/sitemap.xml | grep -i "^HTTP"
+    curl -sI https://norday.app/invitar | grep -i -E "^HTTP|^location"
 
 La primera, 200 con la CSP; la de la letra, 200 (un 403 es que falta el
 `header_up -Origin`); la de `/api/habitos`, 302 a Google Play (la API no
 sale por `norday.app`); la de `api.norday.app/`, 301 a
-`https://norday.app/`; y la de `privacidad.html`, 200.
+`https://norday.app/`; la de `privacidad.html`, 200; `robots.txt` y
+`sitemap.xml`, 200; y `/invitar`, 302 a Google Play con su `referrer`.
 
 ## Staging en `staging-api.norday.app` (14-sep-2026)
 
