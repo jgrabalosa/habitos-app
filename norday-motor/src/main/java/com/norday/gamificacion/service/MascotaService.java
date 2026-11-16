@@ -33,8 +33,9 @@ public class MascotaService {
     @Autowired
     private LogroService logroService;
 
+    /** Lo de hoy de todas las apps que usa el usuario, combinado (16-nov-2026). */
     @Autowired
-    private CumplimientoDiarioPort cumplimientoDiario;
+    private CumplimientoCombinado cumplimientoDiario;
 
     /**
      * Subir de nivel cuesta siempre lo mismo. Con 2 hábitos al día (10 XP)

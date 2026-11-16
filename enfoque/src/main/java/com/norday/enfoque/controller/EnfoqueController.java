@@ -8,6 +8,7 @@ import com.norday.core.service.UsuarioService;
 import com.norday.enfoque.model.SesionEnfoque;
 import com.norday.enfoque.model.dto.PeticionSesionDTO;
 import com.norday.enfoque.service.DestinoNoDisponibleException;
+import com.norday.enfoque.service.PremioEnfoqueService.Premio;
 import com.norday.enfoque.service.SesionEnfoqueService;
 import com.norday.enfoque.service.SesionEnfoqueService.Aporte;
 import com.norday.enfoque.service.SesionEnfoqueService.Pagina;
@@ -78,9 +79,13 @@ public class EnfoqueController {
     }
 
     /**
-     * 201 {sesion, aporte} si la sesión es nueva; 200 con el mismo formato si
-     * la clave ya estaba guardada con el mismo cuerpo; 409 si estaba con otro
-     * cuerpo o si se solapa con otra sesión; 400 si no cumple las reglas.
+     * 201 {sesion, aporte, premio} si la sesión es nueva; 200 con el mismo
+     * formato si la clave ya estaba guardada con el mismo cuerpo (con el
+     * premio guardado: no se paga otra vez); 409 si estaba con otro cuerpo o
+     * si se solapa con otra sesión; 400 si no cumple las reglas.
+     *
+     * {@code aporte} es lo del destino (el hábito); {@code premio}, lo de la
+     * sesión: {monedas, xp, logros, topeAlcanzado}.
      */
     @PostMapping("/sesiones")
     public ResponseEntity<?> registrar(@RequestBody(required = false) PeticionSesionDTO peticion,
@@ -90,6 +95,7 @@ public class EnfoqueController {
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("sesion", sesion(resultado.sesion()));
         respuesta.put("aporte", aporte(resultado.aporte(), usuario));
+        respuesta.put("premio", premio(resultado.premio()));
         return ResponseEntity.status(resultado.nueva() ? HttpStatus.CREATED : HttpStatus.OK).body(respuesta);
     }
 
@@ -252,6 +258,15 @@ public class EnfoqueController {
             mapa.put("destino", null);
         }
         mapa.put("creadoEn", sesion.getCreadoEn().toInstant(ZoneOffset.UTC).toString());
+        return mapa;
+    }
+
+    private static Map<String, Object> premio(Premio premio) {
+        Map<String, Object> mapa = new LinkedHashMap<>();
+        mapa.put("monedas", premio.monedas());
+        mapa.put("xp", premio.xp());
+        mapa.put("logros", premio.logros());
+        mapa.put("topeAlcanzado", premio.topeAlcanzado());
         return mapa;
     }
 

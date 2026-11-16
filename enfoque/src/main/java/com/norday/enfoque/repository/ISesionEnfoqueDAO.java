@@ -1,6 +1,7 @@
 package com.norday.enfoque.repository;
 
 import com.norday.enfoque.model.EstadoAporte;
+import com.norday.enfoque.model.EstadoSesion;
 import com.norday.enfoque.model.SesionEnfoque;
 
 import java.time.LocalDate;
@@ -39,6 +40,36 @@ public interface ISesionEnfoqueDAO {
      */
     boolean guardarAporte(int sesionId, EstadoAporte estado, String motivo, int minutosAportados,
                           int monedas, int xp, String logros);
+
+    /**
+     * Apunta el premio de la sesión (V27). Solo se llama una vez, en el alta,
+     * con el usuario bloqueado: no hay precedencia que resolver.
+     */
+    void guardarPremio(int sesionId, int monedas, int xp, String logros, boolean tope);
+
+    /** Lo que ya han pagado las sesiones del usuario ese día: {monedas, xp}. */
+    int[] premiadoDelDia(int usuarioId, LocalDate dia);
+
+    /** Los minutos de las sesiones que cuentan del usuario ese día. */
+    int minutosDelDia(int usuarioId, LocalDate dia);
+
+    /** Las sesiones COMPLETADA del usuario ese día. */
+    int completadasDelDia(int usuarioId, LocalDate dia);
+
+    /** Cuántos días distintos tiene el usuario con alguna sesión que cuenta. */
+    int diasConSesion(int usuarioId);
+
+    /** Los minutos de todas las sesiones que cuentan del usuario. */
+    long minutosTotales(int usuarioId);
+
+    /** Los estados de las últimas {@code cuantas} sesiones del usuario, de la más reciente a la más antigua. */
+    List<EstadoSesion> ultimosEstados(int usuarioId, int cuantas);
+
+    /** El último día anterior a {@code dia} con una sesión que cuenta; null si ninguno. */
+    LocalDate ultimoDiaQueCuentaAntesDe(int usuarioId, LocalDate dia);
+
+    /** ¿Tiene el usuario alguna sesión que cuenta con día en {@code desde} o después? */
+    boolean hayQueCuentaDesde(int usuarioId, LocalDate desde);
 
     /** Las sesiones del usuario con día entre desde y hasta (incluidos). */
     List<SesionEnfoque> findByUsuarioEntre(int usuarioId, LocalDate desde, LocalDate hasta);

@@ -231,7 +231,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 
 ## Norday Focus (módulo `enfoque`)
 
-Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Enfoque no da monedas, XP ni logros propios: paga el hábito, con sus reglas.
+Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Desde el 16-nov-2026 **cada sesión que cuenta paga lo suyo** (monedas, XP de Nori y logros propios de Focus), tenga hábito o no; si lleva hábito, el hábito paga además lo suyo, con sus reglas, y se suman (ver «Premio de una sesión»).
 
 ### La sesión
 
@@ -240,7 +240,47 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 - **Día** = el día de inicio en la zona del usuario. Es el día al que van los minutos, aunque la sesión acabe pasada la medianoche o llegue días después.
 - Reglas al guardarla (400 si no): `duracionSeg` ≥ 600 si cuenta, ≤ 7260 (120 min + 1 de margen) y ≤ `duracionObjetivoMin` × 60 + 60 (sin pausas, no puede durar más que lo elegido más el minuto de margen); que termine como mucho 2 minutos después de la hora del servidor; que no empezara hace más de 7 días; clave UUID. Si se solapa con otra sesión del usuario, 409.
 - **Clave**: la app la genera al empezar. La misma clave con el mismo cuerpo devuelve la sesión guardada (200); con otro cuerpo, 409. La misma clave viaja al registro del hábito, así que un reintento tampoco suma dos veces allí.
-- **El reintento devuelve el resultado original**: monedas, XP y logros son los que pagó el hábito la primera vez (se guardan en la sesión), y el progreso del día (`minutosDia`, `minutosObjetivo`, `diaHecho`) se lee en el momento del hábito, sin tocar nada. Si la sesión quedó `PENDIENTE` y el reintento la completa con `REPETIDO`, monedas y XP van a 0: lo pagado entonces no se conoce.
+- **El reintento devuelve el resultado original**: monedas, XP y logros del aporte son los que pagó el hábito la primera vez (se guardan en la sesión), el premio de la sesión es el guardado, y el progreso del día (`minutosDia`, `minutosObjetivo`, `diaHecho`) se lee en el momento del hábito, sin tocar nada. Si la sesión quedó `PENDIENTE` y el reintento la completa con `REPETIDO`, monedas y XP van a 0: lo pagado entonces no se conoce.
+
+### Premio de una sesión
+
+Lo paga `PremioEnfoqueService`; las cifras están en `ParametrosPremioEnfoque`. Calibrado contra Habits: un día de hábito bien hecho son 25 monedas y 5 XP, y una sesión de 25 minutos completada, 30 monedas y 5 XP.
+
+| Estado | Monedas | XP |
+|---|---|---|
+| `COMPLETADA` | 1 por minuto + 5 de remate | 1 por cada 5 minutos, hacia abajo |
+| `TERMINADA` | 1 por minuto, sin remate | 1 por cada 5 minutos |
+| `PERDIDA` | 0 | 0 |
+
+- **Tope diario: 120 monedas y 24 XP** por día del usuario (el `dia` de la sesión). La sesión que llega al tope cobra lo que falta; con el tope de monedas ya alcanzado, la sesión no cobra nada, tampoco XP. Pasado el tope la sesión cuenta igual para el resumen, la racha y los logros. El tope no toca lo que paga el hábito destino ni lo que pagan los logros. Con sesiones `TERMINADA`, los dos topes llegan a la vez, a 120 minutos.
+- **Con hábito destino se suman los dos premios**: si la sesión con hábito pagara solo lo del hábito, mandar minutos a un hábito ya cumplido pagaría menos que no mandarlos.
+- **Se paga en el alta** (paso 1), en su transacción y con el usuario ya bloqueado: el tope no admite carreras, y si algo falla no queda ni la sesión ni el premio. Un rechazo del hábito no se lleva el premio, que ya está confirmado.
+- **Se guarda en la sesión** (`premio_monedas`, `premio_xp`, `premio_logros`, `premio_tope`; V27). El reintento devuelve el guardado y no paga otra vez. Las sesiones de antes de V27 se quedan con 0: no es retroactivo.
+- El movimiento de monedas va con origen `SESION_ENFOQUE` y la sesión como referencia. La XP pasa por `MascotaService.ganarExperiencia`, que concede los logros de fase si toca; van en `premio.logros` con los de Focus (los logros nuevos se miden como «después − antes», con el usuario bloqueado).
+- Respuesta: `premio: {monedas, xp, logros, topeAlcanzado}`, junto a `aporte`. `topeAlcanzado` = con esta sesión el día llegó al tope.
+- **Sesiones falsas.** Antes del premio propio, falsificar una sesión por la API no daba más que apuntar minutos a mano en Habits. Ahora da como mucho el tope de cada día (120 monedas). Lo acotan el tope, las reglas de la sesión (sin solapes, 10–120 minutos, ni futura ni de hace más de 7 días) y que las monedas no se venden. Aceptado (decisión del 16-nov-2026).
+
+### Logros de Norday Focus
+
+21 logros con `origenApp = enfoque` (`LogrosEnfoqueInitializer`): el catálogo de Norday Focus los ve y el de Norday Habits no. Los mira `LogrosEnfoqueService` en el alta de cada sesión que cuenta, con la sesión ya guardada. Son de estado: se miran cada vez, así que una sesión que llega tarde de la cola también los da. No se retiran nunca (una sesión no se deshace); un logro de racha no se pierde al romperla.
+
+| Código | Nombre | Puntos | Condición |
+|---|---|---:|---|
+| `ENFOQUE_PRIMERA_SESION` | Primer foco | 50 | Una sesión que cuenta |
+| `ENFOQUE_DIA` | Día de enfoque | 50 | 50 minutos o más en el día de la sesión |
+| `ENFOQUE_CON_DESTINO` | Minutos con destino | 50 | Una sesión que cuenta con hábito destino (aunque el hábito la rechace) |
+| `ENFOQUE_DIAS_3`, `_7`, `_30`, `_100` | Tres días… Cien días | 50, 100, 250, 250 | Días distintos con sesión |
+| `ENFOQUE_RACHA_3`, `_7`, `_30` | Tres seguidos… Treinta seguidos | 50, 100, 250 | Días seguidos con sesión, terminando en el día de la sesión |
+| `ENFOQUE_HORAS_5`, `_25`, `_100`, `_500` | Cinco horas… Quinientas horas | 50, 100, 250, 250 | Horas enteras de todas las sesiones |
+| `ENFOQUE_SESION_60` | Una hora seguida | 100 | Una `COMPLETADA` de 60 minutos o más |
+| `ENFOQUE_SESION_120` | Maratón | 250 | Una `COMPLETADA` de 120 minutos |
+| `ENFOQUE_CUATRO` | Cuatro seguidas | 100 | 4 `COMPLETADA` en un día |
+| `ENFOQUE_SIN_RENDIRSE` | Sin rendirse | 100 | Las 10 últimas sesiones (por inicio), ninguna `PERDIDA` |
+| `ENFOQUE_TOPE` | Al máximo | 100 | El día llega al tope de monedas |
+| `ENFOQUE_MANANA` | A primera hora | 50 | Una sesión que empieza antes de las 8:00, en la zona del usuario |
+| `ENFOQUE_NOCHE` | Turno de noche | 50 | Una sesión que empieza a las 22:00 o más tarde |
+
+En total, 2500 puntos. Las monedas de los logros no cuentan para el tope.
 
 ### El aporte a un hábito
 
@@ -263,7 +303,7 @@ Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesi
 
 ### Racha y resumen
 
-- **Racha de enfoque**: días seguidos con al menos una sesión `COMPLETADA` o `TERMINADA`, terminando hoy o ayer. Solo es un indicador: no paga nada.
+- **Racha de enfoque**: días seguidos con al menos una sesión `COMPLETADA` o `TERMINADA`, terminando hoy o ayer. Es un indicador y la base de los logros `ENFOQUE_RACHA_*`; no paga nada por sí misma.
 - El resumen (minutos y sesiones por día, totales) cuenta solo `COMPLETADA` y `TERMINADA`, como mucho 62 días.
 - El historial va de la más reciente a la más antigua, con `pagina` de 0 a 10000 y `tamano` de 1 a 100.
 
@@ -352,6 +392,7 @@ Lo que concede logros, monedas o XP sin cambiar un hábito bloquea solo al usuar
 | `RegistroService.actualizarNota` (transaccional; también `actualizarValoracion`, que no concede nada) | `PRIMERA_NOTA` |
 | `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad y equipar | gasto, regalos, XP de la comida, logros de identidad |
 | `UsuarioService.actualizarPerfil` (transaccional) y `loginConGoogle` con un usuario que ya existe | `BIENVENIDO`, `LOGIN_GOOGLE` |
+| `SesionEnfoqueService.guardar` (el alta de una sesión de Norday Focus) | premio de la sesión, XP, logros de Focus y de fase |
 
 **Pendiente** (fuera del encargo de bloqueos): guardan el usuario entero, leído antes y sin bloqueo, y pueden pisar lo que otro confirmó entretanto: `UsuarioService.cambiarContrasena`, `PreferenciasService.actualizar`, `OrigenInstalacionService`, `RecuperacionService` y `DispositivoService` (al escribir o quitar `usuario.fcm_token`). Por decidir: bloquear y releer o escribir solo la columna en cada uno, o `@DynamicUpdate` en `Usuario` (no cubre lo que guarda entidades sueltas, fuera de la sesión).
 
@@ -376,6 +417,19 @@ La mascota tiene dos logros propios del motor, que se tienen con esa fase o una 
 
 Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y también en cada paso que no da XP (minutos de más, un día ya hecho), una sola vez (`otorgarSiNoTiene`; `MascotaService.revisarLogrosDeFase`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y el siguiente paso (dé XP o no) o la siguiente comida los devuelve; lo que devuelve un paso entra en su reversión. Al perder XP no se miran.
 
+### Ánimo con varias apps
+
+El ánimo (y el estado antiguo) sale de `CumplimientoCombinado` (motor), que junta los `CumplimientoDiarioPort` de cada app: `CumplimientoDiarioHabitos` y `CumplimientoDiarioEnfoque` (16-nov-2026). Solo cuentan las apps **en uso** (`enUso`): Habits, si el usuario tiene algún hábito, activo o en pausa; Focus, si tiene alguna sesión que cuenta en los últimos 14 días. Si no usa ninguna, cuentan todas.
+
+| Ánimo | Cuando |
+|---|---|
+| exultante | todas las que cuentan, `COMPLETO` |
+| feliz | alguna `EMPEZADO` o `COMPLETO` |
+| triste | todas `AUSENTE` |
+| dormida | lo demás |
+
+Con una sola app, el ánimo es el suyo, sin cambios: quien solo usa Habits ve a Nori igual que antes. Para Focus: `COMPLETO` con 50 minutos o más hoy (el «día de enfoque»), `EMPEZADO` con alguna sesión hoy, `AUSENTE` con 3 días seguidos o más sin sesión antes de hoy (desde la última o, si no hay, desde el alta), la misma cuenta que Habits. Focus no escribe el día completo de la mascota (`registrarDiaCompleto`): esa fecha la guarda y la restaura la reversión de Habits.
+
 Poner nombre a la mascota y elegir la fase que se ve escriben solo su columna (`IMascotaDAO.actualizarNombre`, `actualizarFaseElegida`): no bloquean al usuario, y guardar la mascota entera pisaba la XP que se sumaba a la vez.
 
 Estos logros son independientes de los logros específicos del dominio de hábitos.
@@ -387,7 +441,8 @@ Estos logros son independientes de los logros específicos del dominio de hábit
 Los logros están divididos entre:
 
 1. logros específicos del dominio `habitos`;
-2. logros genéricos del motor de gamificación.
+2. logros específicos del dominio `enfoque` (Norday Focus, ver «Logros de Norday Focus»);
+3. logros genéricos del motor de gamificación.
 
 El dominio de hábitos decide qué código corresponde a cada evento mediante `LogrosHabitosService`. El otorgamiento efectivo lo realiza el `LogroService` genérico, que no concede dos veces el mismo logro.
 
@@ -493,8 +548,9 @@ Hay **7 logros** genéricos del motor (`CatalogoGamificacionInitializer`):
 ### Total
 
 - **39 logros específicos de Hábitos**
+- **21 logros específicos de Focus**
 - **7 logros genéricos del motor**
-- **46 logros activos en el catálogo actual**
+- **67 logros activos en el catálogo actual**: Habits ve 46 (los suyos y los genéricos) y Focus, 28
 
 Los logros genéricos que salen de la lista del inicializador se desactivan en el siguiente arranque. El número puede cambiar si se añaden o retiran entradas.
 

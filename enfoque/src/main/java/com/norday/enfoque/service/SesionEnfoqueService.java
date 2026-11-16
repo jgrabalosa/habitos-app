@@ -12,6 +12,7 @@ import com.norday.enfoque.model.MotivosEnfoque;
 import com.norday.enfoque.model.SesionEnfoque;
 import com.norday.enfoque.model.dto.PeticionSesionDTO;
 import com.norday.enfoque.repository.ISesionEnfoqueDAO;
+import com.norday.enfoque.service.PremioEnfoqueService.Premio;
 import com.norday.gamificacion.model.DestinoDisponible;
 import com.norday.gamificacion.model.ProgresoDestino;
 import com.norday.gamificacion.model.ResultadoAporte;
@@ -38,17 +39,19 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Las sesiones de concentración de Norday Focus: guardarlas, llevar sus
- * minutos a su destino y contarlas.
+ * Las sesiones de concentración de Norday Focus: guardarlas, pagar su premio,
+ * llevar sus minutos a su destino y contarlas.
  *
  * <h2>Registrar una sesión: tres pasos, ninguna transacción grande</h2>
  *
  * {@link #registrar} no es {@code @Transactional} a propósito:
  * <ol>
  *   <li>Guarda la sesión en una transacción corta, idempotente por clave
- *       (INSERT … ON CONFLICT). Si hay destino y la sesión cuenta, queda con el
- *       aporte PENDIENTE. Al confirmar, la sesión ya existe pase lo que pase
- *       después.</li>
+ *       (INSERT … ON CONFLICT), y en la misma transacción paga el premio de
+ *       la sesión (PremioEnfoqueService: monedas, XP y logros de Focus, con
+ *       el usuario ya bloqueado). Si hay destino y la sesión cuenta, queda
+ *       con el aporte PENDIENTE. Al confirmar, la sesión y su premio ya
+ *       existen pase lo que pase después.</li>
  *   <li>Lleva los minutos al destino con {@link DestinoMinutos#aportar}, que
  *       corre en su propia transacción.</li>
  *   <li>Apunta el resultado en la sesión, en otra transacción corta.</li>
@@ -131,6 +134,9 @@ public class SesionEnfoqueService {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @Autowired
+    private PremioEnfoqueService premioService;
+
     /** Una petición ya leída y con sus formatos validados. */
     public record Peticion(UUID clave, Instant inicio, int duracionSeg, int duracionObjetivoMin, EstadoSesion estado,
                            String destinoTipo, Long destinoId) {}
@@ -146,8 +152,12 @@ public class SesionEnfoqueService {
     public record Aporte(EstadoAporte estado, String motivo, int minutos, int monedas, int xp, Integer minutosDia,
                          Integer minutosObjetivo, Boolean diaHecho, List<String> logros) {}
 
-    /** El resultado de registrar: la sesión, su aporte y si se ha creado ahora (201) o ya existía (200). */
-    public record Resultado(SesionEnfoque sesion, Aporte aporte, boolean nueva) {}
+    /**
+     * El resultado de registrar: la sesión, su aporte (lo del destino), su
+     * premio (lo de la sesión) y si se ha creado ahora (201) o ya existía
+     * (200). En un reintento, el premio es el guardado.
+     */
+    public record Resultado(SesionEnfoque sesion, Aporte aporte, Premio premio, boolean nueva) {}
 
     public record DiaResumen(LocalDate dia, int minutos, int sesiones) {}
 
@@ -155,7 +165,7 @@ public class SesionEnfoqueService {
 
     public record Pagina(List<SesionEnfoque> sesiones, int pagina, int tamano, long total, boolean hayMas) {}
 
-    private record Alta(SesionEnfoque sesion, boolean nueva) {}
+    private record Alta(SesionEnfoque sesion, boolean nueva, Premio premio) {}
 
     // ── Destinos ─────────────────────────────────────────────────
 
@@ -177,7 +187,7 @@ public class SesionEnfoqueService {
         Alta alta = new TransactionTemplate(transactionManager).execute(estado -> guardar(usuario, peticion));
         SesionEnfoque sesion = alta.sesion();
         if (sesion.getAporteEstado() != EstadoAporte.PENDIENTE) {
-            return new Resultado(sesion, aporteGuardado(sesion), alta.nueva());
+            return new Resultado(sesion, aporteGuardado(sesion), alta.premio(), alta.nueva());
         }
 
         // Paso 2: el destino, en su propia transacción. Una excepción aquí es
@@ -205,7 +215,7 @@ public class SesionEnfoqueService {
                         resultado.xp(), resultado.minutosDia(), resultado.minutosObjetivo(), resultado.diaHecho(),
                         resultado.logros())
                 : aporteGuardado(guardada);
-        return new Resultado(guardada, aporte, alta.nueva());
+        return new Resultado(guardada, aporte, alta.premio(), alta.nueva());
     }
 
     /**
@@ -225,7 +235,7 @@ public class SesionEnfoqueService {
         }
         SesionEnfoque existente = sesionDAO.findByClave(peticion.clave());
         if (existente != null) {
-            return new Alta(laMisma(existente, usuario, peticion), false);
+            return yaGuardada(laMisma(existente, usuario, peticion));
         }
 
         validarTiempo(peticion, usuario);
@@ -263,9 +273,19 @@ public class SesionEnfoqueService {
         if (id == null) {
             // La clave la ha guardado otra cuenta entretanto (el bloqueo es
             // por usuario): no es esta sesión.
-            return new Alta(laMisma(sesionDAO.findByClave(peticion.clave()), usuario, peticion), false);
+            return yaGuardada(laMisma(sesionDAO.findByClave(peticion.clave()), usuario, peticion));
         }
-        return new Alta(sesionDAO.findById(id), true);
+        SesionEnfoque nueva = sesionDAO.findById(id);
+        // El premio de la sesión, aquí: dentro de la transacción del alta y con
+        // el usuario bloqueado desde el principio. Si falla, no queda nada y
+        // el reintento lo hace entero.
+        Premio premio = premioService.pagar(usuario, nueva);
+        return new Alta(nueva, true, premio);
+    }
+
+    /** Una sesión que ya estaba guardada: su premio es el guardado, sin pagar otra vez. */
+    private Alta yaGuardada(SesionEnfoque guardada) {
+        return new Alta(guardada, false, PremioEnfoqueService.guardado(guardada));
     }
 
     /** La sesión guardada con esa clave, si es la misma petición; si no, 409. */

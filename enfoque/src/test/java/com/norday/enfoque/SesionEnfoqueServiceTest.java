@@ -13,6 +13,8 @@ import com.norday.enfoque.model.dto.PeticionSesionDTO.DestinoDTO;
 import com.norday.enfoque.repository.ISesionEnfoqueDAO;
 import com.norday.enfoque.service.DestinoNoDisponibleException;
 import com.norday.enfoque.service.RelojEnfoque;
+import com.norday.enfoque.service.PremioEnfoqueService;
+import com.norday.enfoque.service.PremioEnfoqueService.Premio;
 import com.norday.enfoque.service.SesionEnfoqueService;
 import com.norday.enfoque.service.SesionEnfoqueService.Resultado;
 import com.norday.enfoque.service.SesionInvalidaException;
@@ -62,6 +64,7 @@ class SesionEnfoqueServiceTest {
     @Mock private TextosService textosService;
     @Mock private RelojEnfoque reloj;
     @Mock private PlatformTransactionManager transactionManager;
+    @Mock private PremioEnfoqueService premioService;
 
     private SesionEnfoqueService servicio;
     private Usuario usuario;
@@ -76,6 +79,8 @@ class SesionEnfoqueServiceTest {
         ReflectionTestUtils.setField(servicio, "textosService", textosService);
         ReflectionTestUtils.setField(servicio, "reloj", reloj);
         ReflectionTestUtils.setField(servicio, "transactionManager", transactionManager);
+        ReflectionTestUtils.setField(servicio, "premioService", premioService);
+        when(premioService.pagar(any(), any())).thenReturn(Premio.NADA);
         usuario = new Usuario();
         usuario.setUsuarioId(7);
         when(usuarioDAO.bloquear(7)).thenReturn(true);
@@ -159,6 +164,55 @@ class SesionEnfoqueServiceTest {
         verify(sesionDAO, never()).guardarAporte(anyInt(), any(), any(), anyInt(), anyInt(), anyInt(), any());
         assertTrue(resultado.nueva());
         assertEquals(EstadoAporte.SIN_DESTINO, resultado.aporte().estado());
+    }
+
+    // ── Paso 1: el premio de la sesión ───────────────────────────
+
+    @Test
+    void elAlta_pagaElPremio_conLaSesionGuardada_yLoDevuelve() {
+        Premio premio = new Premio(30, 5, List.of("ENFOQUE_PRIMERA_SESION"), false);
+        when(premioService.pagar(eq(usuario), any())).thenReturn(premio);
+
+        Resultado resultado = servicio.registrar(usuario, peticion25(null));
+
+        ArgumentCaptor<SesionEnfoque> pagada = ArgumentCaptor.forClass(SesionEnfoque.class);
+        verify(premioService).pagar(eq(usuario), pagada.capture());
+        assertEquals(41, pagada.getValue().getId(), "la sesión ya guardada, con su id");
+        assertSame(premio, resultado.premio());
+    }
+
+    @Test
+    void elPremio_sePagaDespuesDeBloquearAlUsuario_yDeGuardarLaSesion() {
+        when(destinoHabito.aportar(any(), any(), anyInt(), any(), any(), any())).thenReturn(aceptado());
+        servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L)));
+        var orden = inOrder(usuarioDAO, sesionDAO, premioService, destinoHabito);
+        orden.verify(usuarioDAO).bloquear(7);
+        orden.verify(sesionDAO).insertarSiClaveLibre(any());
+        orden.verify(premioService).pagar(eq(usuario), any());
+        orden.verify(destinoHabito).aportar(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void unReintento_noVuelveAPagar_yDevuelveElPremioGuardado() {
+        SesionEnfoque guardada = yaGuardada(EstadoAporte.ACEPTADO);
+        guardada.setPremioMonedas(30);
+        guardada.setPremioXp(5);
+        guardada.setPremioLogros("ENFOQUE_PRIMERA_SESION,MASCOTA_CRIA");
+        guardada.setPremioTope(true);
+        when(sesionDAO.findByClave(CLAVE)).thenReturn(guardada);
+        when(destinoHabito.progreso(any(), any(), any())).thenReturn(new ProgresoDestino(25, 30, false));
+
+        Resultado resultado = servicio.registrar(usuario, peticion25(new DestinoDTO("habito", 3L)));
+
+        verify(premioService, never()).pagar(any(), any());
+        assertEquals(new Premio(30, 5, List.of("ENFOQUE_PRIMERA_SESION", "MASCOTA_CRIA"), true), resultado.premio());
+    }
+
+    @Test
+    void siElAltaFalla_noSePagaNada() {
+        when(sesionDAO.haySolape(anyInt(), any(), any())).thenReturn(true);
+        assertThrows(RuntimeException.class, () -> servicio.registrar(usuario, peticion25(null)));
+        verify(premioService, never()).pagar(any(), any());
     }
 
     @Test

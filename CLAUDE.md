@@ -242,16 +242,28 @@ todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
 - **Limitación conocida:** deshacer en Norday Habits un registro que vino de
   una sesión no toca la sesión (sus `minutos_aportados` se quedan), y si la
   sesión estaba `PENDIENTE`, un reintento posterior volvería a sumar.
-- **Enfoque no paga nada propio**: ni monedas, ni XP, ni logros. Paga el
-  hábito, con sus reglas, igual que el panel de minutos.
+- **Enfoque paga lo suyo, aparte del hábito** (desde el 16-nov-2026,
+  `docs/decisiones/2026-11-16-focus-paga-lo-suyo.md`): cada sesión que cuenta
+  paga monedas y XP (`PremioEnfoqueService`, cifras en
+  `ParametrosPremioEnfoque`, tope de 120 monedas al día) y los logros de
+  Focus (`LogrosEnfoqueService`), tenga hábito o no. **Se paga en el paso 1**,
+  dentro de la transacción del alta y con el usuario ya bloqueado, y se guarda
+  en la sesión (`premio_*`, V27): el reintento devuelve el guardado. Si lleva
+  hábito, el hábito paga además lo suyo, con sus reglas, igual que el panel
+  de minutos, y la respuesta lo separa: `aporte` (hábito) y `premio` (sesión).
+- **El ánimo de Nori junta las apps** (`CumplimientoCombinado`, motor): cada
+  app implementa `CumplimientoDiarioPort` con `enUso`, y solo cuentan las que
+  el usuario usa. Con una sola, el ánimo es el suyo, sin cambios. Una app
+  nueva que mueva el ánimo aporta su implementación.
 
 ## Siembra de catálogos
 
 Cada módulo siembra lo suyo con su propio `CommandLineRunner`:
 `CategoriasInitializer`, `LogrosHabitosInitializer` y
 `ProductosHabitosInitializer` (habitos; este último, la `PAUSA_HABITO` de la
-tienda, con `origenApp = habitos`), y `CatalogoGamificacionInitializer`
-(gamificacion).
+tienda, con `origenApp = habitos`), `LogrosEnfoqueInitializer` (enfoque: los
+21 logros de Norday Focus, con `origenApp = enfoque`) y
+`CatalogoGamificacionInitializer` (gamificacion).
 
 La comprobación de idempotencia de logros y productos es **por código,
 fila a fila** (`findByCodigo(...) != null` → saltar), no una guarda
@@ -478,7 +490,7 @@ hilos se cierran en `@AfterEach`.
 
 Qué cubre la suite y qué no: los tests unitarios de `norday-motor`,
 `habitos`, `conocimiento` y `enfoque` mockean los DAOs, así que no ven
-proxies de Hibernate ni validan JPQL. Los de `norday-server` (42 clases con
+proxies de Hibernate ni validan JPQL. Los de `norday-server` (44 clases con
 `@SpringBootTest`: los de concurrencia y los de integración) sí tocan
 Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
 pasan. Una consulta que ninguno de ellos recorre no está validada porque la

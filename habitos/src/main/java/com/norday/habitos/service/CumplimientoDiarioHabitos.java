@@ -60,6 +60,18 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
         return habitoService.esDiaCompleto(usuario);
     }
 
+    /**
+     * Usa Norday Habits quien tiene algún hábito, activo o en pausa. Sin
+     * ninguno, el ánimo de Nori lo deciden las otras apps que use
+     * (CumplimientoCombinado).
+     */
+    @Override
+    @Transactional
+    public boolean enUso(int usuarioId) {
+        Usuario usuario = usuarioDAO.findById(usuarioId);
+        return usuario != null && !habitoDAO.findByPropietario(usuario).isEmpty();
+    }
+
     @Override
     @Transactional
     public AvanceDeHoy comoVaHoy(int usuarioId) {

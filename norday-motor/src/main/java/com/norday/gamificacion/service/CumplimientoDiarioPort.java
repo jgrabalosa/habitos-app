@@ -11,9 +11,20 @@ import com.norday.gamificacion.model.AvanceDeHoy;
  * acordarse de revertirlo en cada camino que invalide el día (borrar un
  * hábito, desactivarlo, añadir otro, subir una meta), y basta que uno se
  * olvide para que la mascota mienta.
+ *
+ * Cada app del ecosistema que mueve el ánimo de la mascota implementa el
+ * puerto, y CumplimientoCombinado junta las respuestas de las que el usuario
+ * usa (16-nov-2026).
  */
 public interface CumplimientoDiarioPort {
     boolean hoyCumplido(int usuarioId);
+
+    /**
+     * Si el usuario usa esta app: solo cuentan para el ánimo las apps en uso,
+     * para que una app que no ha abierto nunca no le ponga triste a la
+     * mascota. Cada app decide qué es usarla.
+     */
+    boolean enUso(int usuarioId);
 
     /**
      * Cómo va hoy el usuario con lo suyo, en cuatro escalones: de llevar un
