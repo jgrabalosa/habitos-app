@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
  * Norday Habits (X-Norday-App: habitos) no los ve y el de Norday Focus sí.
  *
  * El nombre y la descripción son la caída en español: la app traduce por
- * código.
+ * código. Las categorías son de las que ya traduce norday_flutter_core
+ * (Inicio, Constancia, Volumen, Variedad): una nueva saldría sin traducir.
  */
 @Component
 public class LogrosEnfoqueInitializer implements CommandLineRunner {
@@ -62,24 +63,24 @@ public class LogrosEnfoqueInitializer implements CommandLineRunner {
             {dias(7), "Una semana de foco", "Concéntrate 7 días distintos", "Constancia", "Medio", "100"},
             {dias(30), "Un mes de foco", "Concéntrate 30 días distintos", "Constancia", "Dificil", "250"},
             {dias(100), "Cien días", "Concéntrate 100 días distintos", "Constancia", "Dificil", "250"},
-            // Racha: días seguidos con sesión
-            {racha(3), "Tres seguidos", "Concéntrate 3 días seguidos", "Racha", "Facil", "50"},
-            {racha(7), "Siete seguidos", "Concéntrate 7 días seguidos", "Racha", "Medio", "100"},
-            {racha(30), "Treinta seguidos", "Concéntrate 30 días seguidos", "Racha", "Dificil", "250"},
+            // Racha: días seguidos con sesión (categoría Constancia)
+            {racha(3), "Tres seguidos", "Concéntrate 3 días seguidos", "Constancia", "Facil", "50"},
+            {racha(7), "Siete seguidos", "Concéntrate 7 días seguidos", "Constancia", "Medio", "100"},
+            {racha(30), "Treinta seguidos", "Concéntrate 30 días seguidos", "Constancia", "Dificil", "250"},
             // Volumen: horas en total
             {horas(5), "Cinco horas", "Suma 5 horas de concentración", "Volumen", "Facil", "50"},
             {horas(25), "Veinticinco horas", "Suma 25 horas de concentración", "Volumen", "Medio", "100"},
             {horas(100), "Cien horas", "Suma 100 horas de concentración", "Volumen", "Dificil", "250"},
             {horas(500), "Quinientas horas", "Suma 500 horas de concentración", "Volumen", "Dificil", "250"},
-            // Sesión
-            {SESION_60, "Una hora seguida", "Completa una sesión de 60 minutos o más", "Sesión", "Medio", "100"},
-            {SESION_120, "Maratón", "Completa una sesión de 120 minutos", "Sesión", "Dificil", "250"},
-            {CUATRO, "Cuatro seguidas", "Completa 4 sesiones en un día", "Sesión", "Medio", "100"},
-            {SIN_RENDIRSE, "Sin rendirse", "Haz 10 sesiones seguidas sin perder ninguna", "Sesión", "Medio", "100"},
-            {TOPE, "Al máximo", "Llega al tope de monedas de las sesiones en un día", "Sesión", "Medio", "100"},
-            // Horario, en la zona del usuario
-            {MANANA, "A primera hora", "Empieza una sesión antes de las 8:00", "Horario", "Facil", "50"},
-            {NOCHE, "Turno de noche", "Empieza una sesión a las 22:00 o más tarde", "Horario", "Facil", "50"},
+            // Sesión (categoría Volumen; SIN_RENDIRSE, Constancia)
+            {SESION_60, "Una hora seguida", "Completa una sesión de 60 minutos o más", "Volumen", "Medio", "100"},
+            {SESION_120, "Maratón", "Completa una sesión de 120 minutos", "Volumen", "Dificil", "250"},
+            {CUATRO, "Cuatro seguidas", "Completa 4 sesiones en un día", "Volumen", "Medio", "100"},
+            {SIN_RENDIRSE, "Sin rendirse", "Haz 10 sesiones seguidas sin perder ninguna", "Constancia", "Medio", "100"},
+            {TOPE, "Al máximo", "Llega al tope de monedas de las sesiones en un día", "Volumen", "Medio", "100"},
+            // Horario, en la zona del usuario (categoría Variedad)
+            {MANANA, "A primera hora", "Empieza una sesión antes de las 8:00", "Variedad", "Facil", "50"},
+            {NOCHE, "Turno de noche", "Empieza una sesión a las 22:00 o más tarde", "Variedad", "Facil", "50"},
     };
 
     @Autowired
