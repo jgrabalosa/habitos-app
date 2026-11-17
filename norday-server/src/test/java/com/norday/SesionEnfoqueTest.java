@@ -184,6 +184,43 @@ class SesionEnfoqueTest {
                 .setParameter("u", usuarioId).getResultList().stream().map(Object::toString).toList());
     }
 
+    /**
+     * Los movimientos que no son de Norday Focus: sin el premio de las
+     * sesiones (SESION_ENFOQUE) ni los logros propios de Focus. Es lo que paga
+     * el hábito, más lo que no tiene que ver con Focus.
+     */
+    private static final String SIN_FOCUS = " FROM usuario_moneda m"
+            + " LEFT JOIN logro l ON m.origen = 'LOGRO' AND l.logro_id = m.referencia_id"
+            + " WHERE m.usuario_id = :u AND m.origen <> 'SESION_ENFOQUE'"
+            + " AND (l.origen_app IS NULL OR l.origen_app <> 'enfoque')";
+
+    private List<String> movimientosSinFocus(int usuarioId) {
+        return tx.execute(estado -> em.createNativeQuery(
+                        "SELECT m.cantidad || ' ' || m.origen" + SIN_FOCUS + " ORDER BY 1")
+                .setParameter("u", usuarioId).getResultList().stream().map(Object::toString).toList());
+    }
+
+    private int saldoSinFocus(int usuarioId) {
+        return tx.execute(estado -> ((Number) em.createNativeQuery("SELECT COALESCE(SUM(m.cantidad), 0)" + SIN_FOCUS)
+                .setParameter("u", usuarioId).getSingleResult()).intValue());
+    }
+
+    /** Las monedas del premio de las sesiones (SESION_ENFOQUE), sin los logros. */
+    private int monedasDeSesiones(int usuarioId) {
+        return tx.execute(estado -> ((Number) em.createNativeQuery(
+                        "SELECT COALESCE(SUM(cantidad), 0) FROM usuario_moneda"
+                                + " WHERE usuario_id = :u AND origen = 'SESION_ENFOQUE'")
+                .setParameter("u", usuarioId).getSingleResult()).intValue());
+    }
+
+    /** Los códigos de los logros del usuario. */
+    private List<String> logrosDe(int usuarioId) {
+        return tx.execute(estado -> em.createNativeQuery(
+                        "SELECT l.codigo FROM usuario_logro ul JOIN logro l ON l.logro_id = ul.logro_id"
+                                + " WHERE ul.usuario_id = :u ORDER BY 1")
+                .setParameter("u", usuarioId).getResultList().stream().map(Object::toString).toList());
+    }
+
     private List<Registro> registros(int habitoId) {
         return tx.execute(estado -> em.createQuery(
                         "SELECT r FROM Registro r WHERE r.habito.habitoId = :h", Registro.class)
@@ -257,15 +294,20 @@ class SesionEnfoqueTest {
         Map<String, Object> panel = tx.execute(estado -> registroService.completar(habitoService.buscarPorId(leerB),
                 new Solicitud(null, VIERNES, "25", UUID.randomUUID(), OrigenRegistro.MANUAL)));
 
-        int monedasSesion = saldo(a) - saldoA;
+        // Lo del hábito es lo mismo que desde el panel; la sesión paga además
+        // lo suyo (30 monedas y 5 XP), que se suma.
+        int monedasHabito = saldoSinFocus(a) - saldoA;
         int monedasPanel = saldo(b) - saldoB;
         assertTrue(monedasPanel > 0, "el panel paga algo por 25 de 30 minutos");
-        assertEquals(monedasPanel, monedasSesion, "la sesión paga lo mismo que el panel");
-        assertEquals(xp(b) - xpB, xp(a) - xpA, "y da la misma XP");
+        assertEquals(monedasPanel, monedasHabito, "el hábito paga lo mismo que desde el panel");
+        assertEquals(30, monedasDeSesiones(a), "y la sesión paga lo suyo aparte");
+        assertEquals(xp(b) - xpB + 5, xp(a) - xpA, "la misma XP del hábito, más la de la sesión");
+        assertTrue(respuesta.contains("\"premio\":{\"monedas\":30,\"xp\":5,"), respuesta);
         assertTrue(respuesta.contains("\"monedas\":" + panel.get("puntosGanados") + ","),
                 "la respuesta dice las monedas del hábito, como puntosGanados en el panel: " + respuesta);
         assertTrue(respuesta.contains("\"xp\":" + panel.get("xpGanada") + ","), respuesta);
-        assertEquals(movimientos(b), movimientos(a), "los mismos movimientos en el libro, logros incluidos");
+        assertEquals(movimientos(b), movimientosSinFocus(a),
+                "los mismos movimientos del hábito en el libro, logros incluidos");
 
         List<Registro> suyos = registros(leerA);
         assertEquals(1, suyos.size());
@@ -290,20 +332,23 @@ class SesionEnfoqueTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.aporte.logros[0]").value("PRIMEROS_PASOS"))
                 .andReturn().getResponse().getContentAsString();
-        int delHabito = movimientos(a).stream().filter(m -> !m.endsWith(" LOGRO"))
+        int delHabito = movimientos(a).stream().filter(m -> !m.endsWith(" LOGRO") && !m.endsWith(" SESION_ENFOQUE"))
                 .mapToInt(m -> Integer.parseInt(m.substring(0, m.indexOf(' ')))).sum();
         assertTrue(delHabito > 0);
+        assertTrue(respuesta.contains("\"aporte\":{\"estado\":\"ACEPTADO\""), respuesta);
         assertTrue(respuesta.contains("\"monedas\":" + delHabito + ","), respuesta);
-        assertTrue(respuesta.contains("\"xp\":" + (xp(a) - xpAntes) + ","), respuesta);
+        // La XP del hábito: la total menos los 5 de la sesión.
+        assertTrue(respuesta.contains("\"xp\":" + (xp(a) - xpAntes - 5) + ","), respuesta);
     }
 
     // ── Sin destino ──────────────────────────────────────────────
 
     @Test
-    void sinDestino_seGuarda_yNoTocaNada() throws Exception {
+    void sinDestino_seGuarda_pagaSuPremio_yNoTocaElHabito() throws Exception {
         int a = usuario();
         int leer = habito(a, "Leer", minutosDiario(30), true);
         int saldoAntes = saldo(a);
+        int xpAntes = xp(a);
         String clave = UUID.randomUUID().toString();
 
         enviar(a, sesion25(clave, null))
@@ -313,9 +358,17 @@ class SesionEnfoqueTest {
                 .andExpect(jsonPath("$.aporte.estado").value("SIN_DESTINO"))
                 .andExpect(jsonPath("$.aporte.minutos").value(0))
                 .andExpect(jsonPath("$.aporte.monedas").value(0))
-                .andExpect(jsonPath("$.aporte.xp").value(0));
+                .andExpect(jsonPath("$.aporte.xp").value(0))
+                .andExpect(jsonPath("$.premio.monedas").value(30))
+                .andExpect(jsonPath("$.premio.xp").value(5))
+                .andExpect(jsonPath("$.premio.logros", hasSize(1)))
+                .andExpect(jsonPath("$.premio.logros[0]").value("ENFOQUE_PRIMERA_SESION"))
+                .andExpect(jsonPath("$.premio.topeAlcanzado").value(false));
 
-        assertEquals(saldoAntes, saldo(a), "sin hábito no hay premio");
+        assertEquals(saldoAntes, saldoSinFocus(a), "el hábito no paga nada");
+        assertEquals(30, monedasDeSesiones(a), "sin hábito, la sesión paga lo suyo");
+        assertEquals(saldoAntes + 30 + 50, saldo(a), "más los 50 de ENFOQUE_PRIMERA_SESION");
+        assertEquals(xpAntes + 5, xp(a));
         assertTrue(registros(leer).isEmpty());
         assertEquals("SIN_DESTINO", filaSesion(clave)[0]);
     }
@@ -338,7 +391,7 @@ class SesionEnfoqueTest {
     // ── Rechazos del hábito: la sesión se guarda igual ───────────
 
     private void rechazada(int usuarioId, int habitoId, String clave, String cuerpo, String motivo) throws Exception {
-        int saldoAntes = saldo(usuarioId);
+        int saldoAntes = saldoSinFocus(usuarioId);
         enviar(usuarioId, cuerpo)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.aporte.estado").value("RECHAZADO"))
@@ -350,7 +403,8 @@ class SesionEnfoqueTest {
         assertEquals(motivo, fila[1]);
         assertEquals(0, ((Number) fila[2]).intValue());
         assertTrue(registros(habitoId).isEmpty(), "el hábito no recibe nada");
-        assertEquals(saldoAntes, saldo(usuarioId));
+        assertEquals(saldoAntes, saldoSinFocus(usuarioId), "el hábito no paga nada");
+        assertTrue(monedasDeSesiones(usuarioId) > 0, "la sesión sí paga lo suyo, aunque el hábito la rechace");
     }
 
     @Test
@@ -406,15 +460,17 @@ class SesionEnfoqueTest {
         UUID clave = UUID.randomUUID();
         tx.execute(estado -> registroService.completar(habitoService.buscarPorId(otro),
                 new Solicitud(null, VIERNES, "10", clave, OrigenRegistro.MANUAL)));
-        int saldoAntes = saldo(a);
+        int saldoAntes = saldoSinFocus(a);
 
         enviar(a, sesion25(clave.toString(), leer))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.aporte.estado").value("RECHAZADO"))
-                .andExpect(jsonPath("$.aporte.motivo").value("aporte.habito.conflicto"));
+                .andExpect(jsonPath("$.aporte.motivo").value("aporte.habito.conflicto"))
+                .andExpect(jsonPath("$.premio.monedas").value(30));
         assertEquals("RECHAZADO", filaSesion(clave.toString())[0]);
         assertTrue(registros(leer).isEmpty());
-        assertEquals(saldoAntes, saldo(a));
+        assertEquals(saldoAntes, saldoSinFocus(a));
+        assertEquals(30, monedasDeSesiones(a), "el premio de la sesión, que se confirmó en el alta, se queda");
     }
 
     // ── Idempotencia ─────────────────────────────────────────────
@@ -886,6 +942,9 @@ class SesionEnfoqueTest {
                 .andExpect(jsonPath("$.enfoque.sesiones[0].monedasAportadas").value(20))
                 .andExpect(jsonPath("$.enfoque.sesiones[0].xpAportada").value(4))
                 .andExpect(jsonPath("$.enfoque.sesiones[0].logrosAportados[0]").value("PRIMEROS_PASOS"))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].premioMonedas").value(30))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].premioXp").value(5))
+                .andExpect(jsonPath("$.enfoque.sesiones[0].premioLogros", hasSize(2)))
                 .andExpect(jsonPath("$.enfoque.sesiones[0]", not(hasKey("clave"))));
     }
 }

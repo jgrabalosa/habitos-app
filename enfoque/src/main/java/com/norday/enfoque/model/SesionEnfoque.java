@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Una sesión de concentración de Norday Focus (tabla sesion_enfoque, V26).
+ * Una sesión de concentración de Norday Focus (tabla sesion_enfoque, V26 y V27).
  *
  * La clave la pone la app al empezar la sesión y la identifica para siempre:
  * un reintento con la misma clave no crea otra fila. La misma clave viaja al
@@ -101,6 +101,28 @@ public class SesionEnfoque {
     @Column(name = "creado_en", nullable = false)
     private LocalDateTime creadoEn;
 
+    /**
+     * Lo que pagó la sesión por sí misma (V27), aparte de lo que pagó el
+     * destino: monedas y XP ya recortadas por el tope del día. Ver
+     * PremioEnfoqueService.
+     */
+    @ColumnDefault("0")
+    @Column(name = "premio_monedas", nullable = false)
+    private int premioMonedas = 0;
+
+    @ColumnDefault("0")
+    @Column(name = "premio_xp", nullable = false)
+    private int premioXp = 0;
+
+    /** Los logros que desbloqueó la sesión, como logros_aportados; null si ninguno. */
+    @Column(name = "premio_logros", length = LONGITUD_LOGROS)
+    private String premioLogros;
+
+    /** Si con esta sesión el día llegó al tope de monedas. */
+    @ColumnDefault("false")
+    @Column(name = "premio_tope", nullable = false)
+    private boolean premioTope = false;
+
     // Constructor vacío — obligatorio para JPA
     public SesionEnfoque() {}
 
@@ -162,8 +184,17 @@ public class SesionEnfoque {
 
     /** Los logros aportados como lista (vacía si ninguno). */
     public List<String> logros() {
-        return logrosAportados == null || logrosAportados.isBlank() ? List.of()
-                : Arrays.stream(logrosAportados.split(",")).filter(c -> !c.isBlank()).toList();
+        return lista(logrosAportados);
+    }
+
+    /** Los logros del premio de la sesión como lista (vacía si ninguno). */
+    public List<String> logrosDelPremio() {
+        return lista(premioLogros);
+    }
+
+    private static List<String> lista(String codigos) {
+        return codigos == null || codigos.isBlank() ? List.of()
+                : Arrays.stream(codigos.split(",")).filter(c -> !c.isBlank()).toList();
     }
 
     /**
@@ -186,4 +217,16 @@ public class SesionEnfoque {
 
     public LocalDateTime getCreadoEn() { return creadoEn; }
     public void setCreadoEn(LocalDateTime creadoEn) { this.creadoEn = creadoEn; }
+
+    public int getPremioMonedas() { return premioMonedas; }
+    public void setPremioMonedas(int premioMonedas) { this.premioMonedas = premioMonedas; }
+
+    public int getPremioXp() { return premioXp; }
+    public void setPremioXp(int premioXp) { this.premioXp = premioXp; }
+
+    public String getPremioLogros() { return premioLogros; }
+    public void setPremioLogros(String premioLogros) { this.premioLogros = premioLogros; }
+
+    public boolean isPremioTope() { return premioTope; }
+    public void setPremioTope(boolean premioTope) { this.premioTope = premioTope; }
 }

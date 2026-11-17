@@ -7,7 +7,7 @@ import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.model.Mascota;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
-import com.norday.gamificacion.service.CumplimientoDiarioPort;
+import com.norday.gamificacion.service.CumplimientoCombinado;
 import com.norday.gamificacion.service.LogroService;
 import com.norday.gamificacion.service.MascotaService;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +48,7 @@ class MascotaServiceTest {
     private LogroService logroService;
 
     @Mock
-    private CumplimientoDiarioPort cumplimientoDiario;
+    private CumplimientoCombinado cumplimientoDiario;
 
     @InjectMocks
     private MascotaService mascotaService;

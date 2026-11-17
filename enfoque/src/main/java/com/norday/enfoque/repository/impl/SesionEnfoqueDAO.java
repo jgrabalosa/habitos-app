@@ -131,6 +131,104 @@ public class SesionEnfoqueDAO implements ISesionEnfoqueDAO {
     }
 
     @Override
+    public void guardarPremio(int sesionId, int monedas, int xp, String logros, boolean tope) {
+        em.createNativeQuery(
+                        "UPDATE sesion_enfoque SET premio_monedas = :monedas, premio_xp = :xp,"
+                                + " premio_logros = CAST(:logros AS VARCHAR(1000)), premio_tope = :tope"
+                                + " WHERE id = :id")
+                .setParameter("monedas", monedas)
+                .setParameter("xp", xp)
+                .setParameter("logros", logros)
+                .setParameter("tope", tope)
+                .setParameter("id", sesionId)
+                .executeUpdate();
+    }
+
+    @Override
+    public int[] premiadoDelDia(int usuarioId, LocalDate dia) {
+        Object[] fila = (Object[]) em.createNativeQuery(
+                        "SELECT COALESCE(SUM(premio_monedas), 0), COALESCE(SUM(premio_xp), 0)"
+                                + " FROM sesion_enfoque WHERE usuario_ref = :usuario AND dia = :dia")
+                .setParameter("usuario", usuarioId)
+                .setParameter("dia", Date.valueOf(dia))
+                .getSingleResult();
+        return new int[]{((Number) fila[0]).intValue(), ((Number) fila[1]).intValue()};
+    }
+
+    // Los minutos de una sesión son los enteros transcurridos, como
+    // SesionEnfoque.minutos(): en SQL, la división entera de duracion_seg.
+    @Override
+    public int minutosDelDia(int usuarioId, LocalDate dia) {
+        return ((Number) em.createNativeQuery(
+                        "SELECT COALESCE(SUM(duracion_seg / 60), 0) FROM sesion_enfoque"
+                                + " WHERE usuario_ref = :usuario AND dia = :dia AND estado IN ('COMPLETADA', 'TERMINADA')")
+                .setParameter("usuario", usuarioId)
+                .setParameter("dia", Date.valueOf(dia))
+                .getSingleResult()).intValue();
+    }
+
+    @Override
+    public int completadasDelDia(int usuarioId, LocalDate dia) {
+        return ((Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM sesion_enfoque"
+                                + " WHERE usuario_ref = :usuario AND dia = :dia AND estado = 'COMPLETADA'")
+                .setParameter("usuario", usuarioId)
+                .setParameter("dia", Date.valueOf(dia))
+                .getSingleResult()).intValue();
+    }
+
+    @Override
+    public int diasConSesion(int usuarioId) {
+        return ((Number) em.createNativeQuery(
+                        "SELECT COUNT(DISTINCT dia) FROM sesion_enfoque"
+                                + " WHERE usuario_ref = :usuario AND estado IN ('COMPLETADA', 'TERMINADA')")
+                .setParameter("usuario", usuarioId)
+                .getSingleResult()).intValue();
+    }
+
+    @Override
+    public long minutosTotales(int usuarioId) {
+        return ((Number) em.createNativeQuery(
+                        "SELECT COALESCE(SUM(duracion_seg / 60), 0) FROM sesion_enfoque"
+                                + " WHERE usuario_ref = :usuario AND estado IN ('COMPLETADA', 'TERMINADA')")
+                .setParameter("usuario", usuarioId)
+                .getSingleResult()).longValue();
+    }
+
+    @Override
+    public List<EstadoSesion> ultimosEstados(int usuarioId, int cuantas) {
+        return em.createQuery(
+                        "SELECT s.estado FROM SesionEnfoque s WHERE s.usuario.usuarioId = :usuario"
+                                + " ORDER BY s.inicioUtc DESC, s.id DESC", EstadoSesion.class)
+                .setParameter("usuario", usuarioId)
+                .setMaxResults(cuantas)
+                .getResultList();
+    }
+
+    @Override
+    public LocalDate ultimoDiaQueCuentaAntesDe(int usuarioId, LocalDate dia) {
+        return em.createQuery(
+                        "SELECT MAX(s.dia) FROM SesionEnfoque s WHERE s.usuario.usuarioId = :usuario"
+                                + " AND s.estado IN :estados AND s.dia < :dia", LocalDate.class)
+                .setParameter("usuario", usuarioId)
+                .setParameter("estados", QUE_CUENTAN)
+                .setParameter("dia", dia)
+                .getSingleResult();
+    }
+
+    @Override
+    public boolean hayQueCuentaDesde(int usuarioId, LocalDate desde) {
+        return !em.createQuery(
+                        "SELECT s.id FROM SesionEnfoque s WHERE s.usuario.usuarioId = :usuario"
+                                + " AND s.estado IN :estados AND s.dia >= :desde", Integer.class)
+                .setParameter("usuario", usuarioId)
+                .setParameter("estados", QUE_CUENTAN)
+                .setParameter("desde", desde)
+                .setMaxResults(1)
+                .getResultList().isEmpty();
+    }
+
+    @Override
     public List<SesionEnfoque> findByUsuarioEntre(int usuarioId, LocalDate desde, LocalDate hasta) {
         return em.createQuery(
                         "SELECT s FROM SesionEnfoque s WHERE s.usuario.usuarioId = :usuario"

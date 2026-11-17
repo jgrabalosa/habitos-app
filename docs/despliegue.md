@@ -169,6 +169,16 @@ en V20, que es la última de `main`):
 | V25 | la fila `enfoque` en `version_app`, a 1 |
 | V26 | `sesion_enfoque`, las sesiones de Norday Focus |
 
+**Después de la salida A, la V27** (rama `wip-focus-economia`, 16-nov-2026):
+el premio propio de Norday Focus. Añade a `sesion_enfoque` `premio_monedas`,
+`premio_xp`, `premio_logros` y `premio_tope`, todas con valor por defecto o
+nulas: el jar de la V26 sigue funcionando sobre la base en la V27 (no las lee
+y su `INSERT` las deja con el valor por defecto). Siembra además los 21 logros
+de Focus al arrancar (`LogrosEnfoqueInitializer`, con `origen_app =
+enfoque`). Va a `main` cuando la salida A ya esté en `main`, y antes que
+Norday Focus a producción. Si Nori vestida llega antes a `main`, una de las
+dos renumera su migración antes del merge.
+
 ### 0. Antes, una sola vez
 
 - **Repo de Focus en GitHub**: hecho el 15-nov-2026
