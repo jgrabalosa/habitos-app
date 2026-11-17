@@ -10,6 +10,7 @@ import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.LogrosHabitosService;
+import com.norday.habitos.service.ObjetivoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class LogrosHabitosServiceTest {
 
     @Mock
     private IRachaDAO rachaDAO;
+
+    @Mock
+    private ObjetivoService objetivoService;
 
     @InjectMocks
     private LogrosHabitosService logrosHabitosService;
@@ -165,11 +169,46 @@ class LogrosHabitosServiceTest {
         );
 
         when(habitoDAO.findActivos(usuario)).thenReturn(tresHabitos);
+        // PRIMER_HABITO ya lo tenía: el motor lo rechaza.
+        when(logroService.otorgarSiNoTiene(usuario, "PRIMER_HABITO")).thenReturn(false);
         when(logroService.otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3")).thenReturn(true);
 
         logrosHabitosService.evaluarTrasCrearHabito(usuario);
 
         verify(logroService).otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3");
+    }
+
+    @Test
+    void activosYCategorias_queSaltanElUmbral_tambienLoConceden() {
+        // Reanudar no evalúa logros: con A y B, pausar B, crear C, reanudar
+        // B y crear D, los activos pasan de 2 a 4 sin crear el tercero, y
+        // las categorías distintas pueden saltar igual.
+        List<Habito> cuatro = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            Habito h = crearHabitoSimple(i);
+            com.norday.habitos.model.Categoria categoria = new com.norday.habitos.model.Categoria();
+            categoria.setCategoriaId(100 + i);
+            h.setTipo(categoria);
+            cuatro.add(h);
+        }
+        when(habitoDAO.findActivos(usuario)).thenReturn(cuatro);
+        when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCrearHabito(usuario);
+
+        assertTrue(otorgados.containsAll(List.of("PRIMER_HABITO", "HABITOS_ACTIVOS_3", "CATEGORIAS_3")),
+                "otorgados: " + otorgados);
+        assertFalse(otorgados.contains("HABITOS_ACTIVOS_5"));
+        assertFalse(otorgados.contains("CATEGORIAS_5"));
+    }
+
+    @Test
+    void primeraCategoria_conMasDeUnaCreada_tambienLaConcede() {
+        Usuario creador = usuario;
+        List<com.norday.habitos.model.Categoria> dos = List.of(
+                new com.norday.habitos.model.Categoria(), new com.norday.habitos.model.Categoria());
+        logrosHabitosService.evaluarTrasCrearCategoria(creador, dos);
+        verify(logroService).otorgarSiNoTiene(creador, "PRIMERA_CATEGORIA");
     }
 
     private Habito crearHabitoSimple(int id) {
@@ -206,6 +245,8 @@ class LogrosHabitosServiceTest {
         when(registroDAO.findByHabito(habito))
                 .thenReturn(hechosHace(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
         when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+        // Con 12 registros, PRIMEROS_PASOS ya lo tenía: el motor lo rechaza.
+        when(logroService.otorgarSiNoTiene(usuario, "PRIMEROS_PASOS")).thenReturn(false);
         when(registroDAO.contarPorUsuario(1)).thenReturn(12);
 
         List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
@@ -239,7 +280,20 @@ class LogrosHabitosServiceTest {
         List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
 
         assertTrue(otorgados.isEmpty());
-        verify(logroService, never()).otorgarSiNoTiene(any(), anyString());
+        verify(logroService, never()).otorgarSiNoTiene(any(), startsWith("RACHA_"));
+    }
+
+    @Test
+    void volumen_seConcedeAlAlcanzarOSuperarElNumero_noSoloAlCaerJusto() {
+        // Deshacer pudo retirar PRIMEROS_PASOS y REGISTROS_100 con el contador
+        // ya por encima de 1 y de 100: vuelven igual.
+        when(registroDAO.contarPorUsuario(1)).thenReturn(150);
+        when(logroService.otorgarSiNoTiene(eq(usuario), anyString())).thenReturn(true);
+
+        List<String> otorgados = logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito);
+
+        assertTrue(otorgados.containsAll(List.of("PRIMEROS_PASOS", "REGISTROS_100")));
+        assertFalse(otorgados.contains("REGISTROS_500"));
     }
 
     @Test

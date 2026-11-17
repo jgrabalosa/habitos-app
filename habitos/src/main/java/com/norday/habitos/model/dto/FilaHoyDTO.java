@@ -1,5 +1,7 @@
 package com.norday.habitos.model.dto;
 
+import com.norday.habitos.model.Unidad;
+
 import java.util.List;
 
 /**
@@ -11,6 +13,15 @@ import java.util.List;
  * {@code completadoEnFecha}, si se marcó el día que se mira.
  * {@code ritmoNivel} va de 1 a 5 y es siempre el de hoy.
  * {@code fechasCompletadas} son las fechas ISO de la semana en que se hizo.
+ *
+ * En un hábito de minutos, {@code completados} y {@code meta} cuentan días,
+ * para que la app ya instalada los entienda: en un diario, 0 o 1 (el día
+ * hecho o no); en un semanal, los días hechos de la semana. {@code hecho} y
+ * {@code completadoEnFecha} dicen si el día llegó a sus minutos, y
+ * {@code fechasCompletadas} lleva una fecha por día hecho.
+ * {@code minutosHechos} son los minutos del día que se mira y
+ * {@code minutosObjetivo}, los de ese día; los dos null en VECES.
  */
 public record FilaHoyDTO(HabitoDTO habito, int completados, int meta, boolean hecho,
-                         boolean completadoEnFecha, int ritmoNivel, List<String> fechasCompletadas) {}
+                         boolean completadoEnFecha, int ritmoNivel, List<String> fechasCompletadas,
+                         Unidad unidad, Integer minutosHechos, Integer minutosObjetivo) {}

@@ -1,9 +1,17 @@
 package com.norday.core.exception;
 
+import com.norday.core.security.UsuarioAutenticado;
+import com.norday.core.service.TextosService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -24,6 +32,49 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @Autowired
+    private TextosService textosService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    /**
+     * Una espera de bloqueo que agotó su tope (lock_timeout, ver
+     * IUsuarioDAO.bloquear) o que Postgres cortó por abrazo mortal: otra
+     * operación de la misma cuenta estaba en curso. Nada se ha guardado (la
+     * transacción se deshizo) y reintentar es lo correcto: 503, con un texto
+     * en el idioma del usuario que lo dice. Spring traduce las dos a
+     * PessimisticLockingFailureException (CannotAcquireLockException es una
+     * de ellas); las de JPA, por si llegan sin traducir.
+     */
+    @ExceptionHandler({PessimisticLockingFailureException.class,
+            jakarta.persistence.PessimisticLockException.class,
+            jakarta.persistence.LockTimeoutException.class})
+    public ResponseEntity<?> manejarBloqueoAgotado(RuntimeException e) {
+        log.warn("Espera de bloqueo agotada: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("mensaje", textosService.texto("error.bloqueo.reintentar", localeDelAutenticado())));
+    }
+
+    /**
+     * El idioma del usuario autenticado. Se lee con una consulta suelta y no
+     * con la sesión de la petición, que viene de un fallo; sin usuario o si
+     * algo falla, el idioma por defecto.
+     */
+    private Locale localeDelAutenticado() {
+        String idioma = null;
+        Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
+        if (autenticacion != null && autenticacion.getPrincipal() instanceof UsuarioAutenticado autenticado) {
+            try {
+                idioma = jdbcTemplate.queryForObject("SELECT idioma FROM usuario WHERE usuario_id = ?",
+                        String.class, autenticado.usuarioId());
+            } catch (RuntimeException ignorada) {
+                // Sin idioma: el de por defecto.
+            }
+        }
+        return textosService.localeDe(idioma);
+    }
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<?> manejarNoEncontrado(RecursoNoEncontradoException e) {

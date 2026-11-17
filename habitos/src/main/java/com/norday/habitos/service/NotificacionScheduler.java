@@ -1,19 +1,22 @@
 package com.norday.habitos.service;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
-import com.norday.core.repository.IUsuarioDAO;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.NotificacionService;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.Habito;
-import com.norday.habitos.model.Registro;
+import com.norday.habitos.model.Hechos;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -36,7 +39,7 @@ public class NotificacionScheduler {
     private IRegistroDAO registroDAO;
 
     @Autowired
-    private IUsuarioDAO usuarioDAO;
+    private DispositivoService dispositivoService;
 
     @Autowired
     private NotificacionService notificacionService;
@@ -46,6 +49,9 @@ public class NotificacionScheduler {
 
     @Autowired
     private TextosService textosService;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     /**
      * Barrido cada 5 minutos: el recordatorio que el usuario ha puesto a cada
@@ -60,6 +66,15 @@ public class NotificacionScheduler {
      */
     @Scheduled(cron = "0 0/5 * * * *")
     public void enviarRecordatorios() {
+        enviarRecordatorios(Instant.now());
+    }
+
+    /**
+     * El barrido tal como lo vería el reloj en ese instante. Separado del
+     * programado para que los tests fijen la hora en vez de depender de en
+     * qué ventana de 5 minutos caen.
+     */
+    public void enviarRecordatorios(Instant ahora) {
         List<Habito> activos = habitoDAO.findTodosActivos();
 
         // Candidatos: la hora del recordatorio cae en la ventana actual del
@@ -70,10 +85,10 @@ public class NotificacionScheduler {
                 continue;
             }
             ZoneId zona = zonaUsuarioService.zonaDe(habito.getPropietario());
-            if (!redondearArriba5Min(habito.getRecordatorioHora()).equals(ventanaActual(zona))) {
+            if (!redondearArriba5Min(habito.getRecordatorioHora()).equals(ventanaActual(zona, ahora))) {
                 continue;
             }
-            candidatosPorFecha.computeIfAbsent(LocalDate.now(zona), fecha -> new ArrayList<>()).add(habito);
+            candidatosPorFecha.computeIfAbsent(LocalDate.ofInstant(ahora, zona), fecha -> new ArrayList<>()).add(habito);
         }
 
         if (candidatosPorFecha.isEmpty()) {
@@ -88,18 +103,17 @@ public class NotificacionScheduler {
             LocalDate hoyUsuario = entrada.getKey();
             List<Habito> candidatos = entrada.getValue();
 
-            Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
-            for (Registro registro : registroDAO.findByHabitosAndRango(
-                    candidatos, hoyUsuario.with(DayOfWeek.MONDAY), hoyUsuario)) {
-                if (!registro.isCompletado()) continue;
-                fechasPorHabito
-                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
-                        .add(registro.getFecha());
-            }
-
+            // Cada hábito con el objetivo vigente en la fecha de su dueño, sin
+            // escribir nada: el barrido solo avisa. Una consulta por fecha.
+            // Lo hecho se juzga día a día: un hábito de minutos no está hecho
+            // hasta que llega a sus minutos.
+            Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(candidatos);
+            Map<Integer, Hechos> hechosPorHabito = Hechos.porHabito(registroDAO.findByHabitosAndRango(
+                    candidatos, hoyUsuario.with(DayOfWeek.MONDAY), hoyUsuario), candidatos, historiales);
             for (Habito habito : candidatos) {
-                List<LocalDate> fechas = fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of());
-                if (!CalculoHoy.tocaRecordar(habito, fechas, hoyUsuario)) {
+                Hechos hechos = hechosPorHabito.get(habito.getHabitoId());
+                Habito deHoy = HistorialObjetivos.de(historiales, habito).vistaEl(hoyUsuario);
+                if (!CalculoHoy.tocaRecordar(deHoy, hechos, hoyUsuario)) {
                     continue; // hecho, cubierto o con la semana ya cumplida
                 }
                 Usuario propietario = habito.getPropietario();
@@ -112,10 +126,17 @@ public class NotificacionScheduler {
             }
         }
 
+        // El token de Norday Habits de cada uno, no el de otra app del
+        // ecosistema: un recordatorio de hábitos solo va a Habits. Una
+        // consulta para todos los usuarios con algo que recordar.
+        Map<Integer, String> tokens = pendientesPorUsuario.isEmpty()
+                ? Map.of()
+                : dispositivoService.tokensDe(pendientesPorUsuario.keySet(), AppNorday.HABITOS);
+
         int enviados = 0;
         for (List<Habito> pendientes : pendientesPorUsuario.values()) {
             Usuario propietario = pendientes.get(0).getPropietario();
-            String fcmToken = propietario.getFcmToken();
+            String fcmToken = tokens.get(propietario.getUsuarioId());
             if (fcmToken == null || fcmToken.isBlank()) {
                 continue;
             }
@@ -136,8 +157,7 @@ public class NotificacionScheduler {
             boolean tokenInvalido = notificacionService.enviarNotificacion(fcmToken, titulo, cuerpo);
             if (tokenInvalido) {
                 // Token dado de baja en FCM: lo borramos para no reintentar indefinidamente.
-                propietario.setFcmToken(null);
-                usuarioDAO.update(propietario);
+                dispositivoService.olvidarToken(propietario.getUsuarioId(), AppNorday.HABITOS, fcmToken);
             } else {
                 enviados++;
             }
@@ -156,9 +176,9 @@ public class NotificacionScheduler {
      * scheduler), comparar el minuto exacto haría perder en silencio todos
      * los recordatorios de esa ventana.
      */
-    private LocalTime ventanaActual(ZoneId zona) {
-        LocalTime ahora = LocalTime.now(zona).withSecond(0).withNano(0);
-        return ahora.withMinute((ahora.getMinute() / 5) * 5);
+    private LocalTime ventanaActual(ZoneId zona, Instant ahora) {
+        LocalTime enSuReloj = LocalTime.ofInstant(ahora, zona).withSecond(0).withNano(0);
+        return enSuReloj.withMinute((enSuReloj.getMinute() / 5) * 5);
     }
 
     /** Redondea hacia ARRIBA al siguiente múltiplo de 5 minutos (nunca antes de la hora elegida). */

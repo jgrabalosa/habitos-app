@@ -129,9 +129,13 @@ Cuando sea necesario, las acciones deben verificarse contra su fuente real:
 | `habitos-app` | `C:\Dev\Norday\habitos-app` | `/home/quim/habitos-app` |
 | `habitos_app_mobile` | `C:\Dev\Norday\habitos_app_mobile` | `/home/quim/habitos_app_mobile` |
 | `norday_flutter_core` | `C:\Dev\Norday\norday_flutter_core` | `/home/quim/norday_flutter_core` |
+| `enfoque_app_mobile` | `C:\Dev\Norday\enfoque_app_mobile` | — |
 | `conocimiento_app_mobile` | `C:\Dev\Conocimiento\conocimiento_app_mobile` | `/home/quim/conocimiento_app_mobile` |
 
 Las rutas Linux anteriores son los clones locales conocidos en el servidor.
+`enfoque_app_mobile` (Norday Focus) no tiene clon conocido en el servidor ni,
+a 15-nov-2026, repositorio en GitHub: se sube antes del despliegue conjunto
+(ver `docs/despliegue.md`).
 
 El repositorio `norday_investigation` ya no forma parte de esta arquitectura.
 
@@ -169,9 +173,9 @@ Antes de trabajar en un repositorio:
 
 ```bash
 git status
-git switch main
+git fetch origin
+git switch wip          # o la rama del tema: wip-<tema>, p. ej. wip-enfoque
 git pull
-git switch -c wip/nombre-de-la-tarea
 ```
 
 Reglas:
@@ -179,8 +183,11 @@ Reglas:
 - Comprobar siempre el estado del repositorio antes de empezar.
 - Evitar trabajar simultáneamente sobre la misma rama desde las dos máquinas.
 - No mezclar `main` dentro de una rama de trabajo mediante un `git pull origin main` ejecutado accidentalmente desde esa rama.
-- Las ramas de trabajo siguen el patrón `wip/...`.
-- Los cambios deben poder revisarse mediante el diff antes de incorporarse a `main`.
+- Las ramas de trabajo son `wip` y, para un tema largo, `wip-<tema>` (hoy
+  `wip-enfoque`, que es además la línea de publicación de hábitos en minutos
+  y Norday Focus).
+- Nadie trabaja en `main`. **Quim mergea a `main`** cuando ha revisado el
+  diff en el remoto, y es quien pone los tags.
 
 Las reglas concretas de trabajo de Hermes deben prevalecer sobre las antiguas instrucciones específicas de programación que existían en este documento.
 

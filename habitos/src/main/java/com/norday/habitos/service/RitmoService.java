@@ -6,11 +6,14 @@ import com.norday.habitos.model.CalculoRitmo;
 import com.norday.habitos.model.CalculoRitmo.RitmoAlDia;
 import com.norday.habitos.model.CalculoRitmo.RitmoConPeso;
 import com.norday.habitos.model.CalculoRitmo.RitmoLeido;
-import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HistorialObjetivos;
+import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.repository.IHabitoDAO;
+import com.norday.habitos.repository.IHabitoObjetivoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IRitmoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Function;
 
 /**
  * Única puerta de lectura del ritmo de un hábito.
@@ -37,8 +41,17 @@ import java.util.OptionalDouble;
  * semana nueva avanza al lunes: lo anterior ya no puede cambiar, así que no
  * tiene sentido repasarlo en cada lectura; se guarda también la que se deja
  * atrás, para calcular el ritmo de hace siete días. Y al cambiar la
- * frecuencia o el objetivo de un hábito pasa a ese día, para que lo ya
- * cerrado no se vuelva a juzgar con las reglas nuevas.
+ * frecuencia o el objetivo de un hábito pasa al día en que el cambio entra
+ * en vigor, para que lo ya cerrado no se vuelva a juzgar con las reglas
+ * nuevas.
+ *
+ * Cada periodo se juzga con el objetivo que tenía, sacado del historial
+ * (frecuencia y meta del periodo, y lo hecho cada día convertido a unidades
+ * con el objetivo vigente ese día: en un día de minutos, min(1, minutos /
+ * objetivo); en uno de veces, las veces). No con el que guarda hoy el
+ * hábito: el ritmo de hace siete días se calcula desde un ancla anterior a
+ * un cambio de objetivo, y con la meta de hoy los días de antes se volvían
+ * a juzgar con la nueva y la tendencia cambiaba sin motivo.
  */
 @Service
 public class RitmoService {
@@ -54,6 +67,10 @@ public class RitmoService {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    // El repositorio y no ObjetivoService, que depende de este servicio.
+    @Autowired
+    private IHabitoObjetivoDAO objetivoDAO;
 
     /** El ritmo de hoy de un hábito, de 0 a 1, en el "hoy" de su dueño. */
     @Transactional
@@ -80,7 +97,9 @@ public class RitmoService {
         if (!habito.isActivo()) {
             return congelado(ritmo);
         }
-        return ponerAlDia(ritmo, habito, fechasHechas(ritmo, habito, hoy), hoy);
+        HistorialObjetivos historial = historialDe(habito);
+        return ponerAlDia(ritmo, habito, hechosPorDia(ritmo, habito, historial::objetivoEl, hoy),
+                historial::objetivoEl, hoy);
     }
 
     /**
@@ -107,6 +126,15 @@ public class RitmoService {
             anclas.put(ritmo.getHabito().getHabitoId(), ritmo);
         }
 
+        // Las versiones del objetivo de todos, en una sola consulta: cada
+        // periodo se juzga con el objetivo que tenía.
+        Map<Integer, List<HabitoObjetivo>> versiones = objetivoDAO.findByHabitos(habitos);
+        Map<Integer, HistorialObjetivos> historiales = new HashMap<>();
+        for (Habito habito : habitos) {
+            historiales.put(habito.getHabitoId(), HistorialObjetivos.de(habito,
+                    versiones.getOrDefault(habito.getHabitoId(), List.of())));
+        }
+
         // Una sola consulta de registros, desde el inicio de periodo más
         // antiguo de todas las anclas. A cada hábito le llegan también fechas
         // anteriores a su ancla; CalculoRitmo.alDia las ignora, porque
@@ -115,27 +143,29 @@ public class RitmoService {
         for (Habito habito : habitos) {
             Ritmo ritmo = anclas.get(habito.getHabitoId());
             if (ritmo == null) continue;
-            LocalDate inicio = desdeDondeLeer(ritmo, habito);
+            LocalDate inicio = desdeDondeLeer(ritmo, historiales.get(habito.getHabitoId())::objetivoEl);
             if (desde == null || inicio.isBefore(desde)) desde = inicio;
         }
-        Map<Integer, List<LocalDate>> fechasPorHabito = new HashMap<>();
+        Map<Integer, Map<LocalDate, Integer>> hechosPorHabito = new HashMap<>();
         if (desde != null && desde.isBefore(hoy)) {
             for (Registro registro : registroDAO.findByHabitosAndRango(habitos, desde, hoy.minusDays(1))) {
                 if (!registro.isCompletado()) continue;
-                fechasPorHabito
-                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
-                        .add(registro.getFecha());
+                hechosPorHabito
+                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new HashMap<>())
+                        .merge(registro.getFecha(), registro.getCantidad(), Integer::sum);
             }
         }
 
         for (Habito habito : habitos) {
             Ritmo ritmo = anclas.get(habito.getHabitoId());
+            HistorialObjetivos historial = historiales.get(habito.getHabitoId());
             RitmoLeido leido = ritmo == null
                     ? empezarHoy(habito, hoy)
                     : !habito.isActivo()
                             ? congelado(ritmo)
                             : ponerAlDia(ritmo, habito,
-                                    fechasPorHabito.getOrDefault(habito.getHabitoId(), List.of()), hoy);
+                                    hechosPorHabito.getOrDefault(habito.getHabitoId(), Map.of()),
+                                    historial::objetivoEl, hoy);
             leidos.put(habito.getHabitoId(), leido);
         }
         return leidos;
@@ -217,7 +247,12 @@ public class RitmoService {
                 LocalDate.now(zonaUsuarioService.zonaDe(habitoComoEstaba.getPropietario())));
     }
 
-    /** Igual, con el día dado, para que los tests lo fijen. */
+    /**
+     * Igual, con el día del cambio dado. Lo usan los tests para fijarlo,
+     * HabitoService (un semanal que empieza el lunes de esta semana se ancla
+     * ese lunes) y ObjetivoService al aplicar un cambio programado, que se
+     * ancla en su fecha de efecto aunque se lea después.
+     */
     @Transactional
     public void anclarAntesDeCambiar(Habito habitoComoEstaba, LocalDate hoy) {
         // En pausa no se toca: el ritmo se quedó donde se pausó, y al
@@ -232,11 +267,28 @@ public class RitmoService {
             ritmoDAO.save(ritmo);
             return;
         }
+        // El día del cambio puede ser anterior a hoy: un cambio programado se
+        // ancla en su fecha aunque se lea después, y un semanal sin
+        // registros esta semana, el lunes. Si el ancla ya está más allá —un
+        // cambio anterior de esta misma semana, o el día en que se creó el
+        // hábito—, lo de antes no se vuelve a juzgar: el ancla se queda y el
+        // cambio pasa a su día, cuyo periodo solo podrá subir.
+        LocalDate dia = ritmo.getDesde().isAfter(hoy) ? ritmo.getDesde() : hoy;
+        // Los periodos hasta el cambio, con las reglas de antes: las del
+        // hábito tal como estaba. Desde el ancla no ha cambiado (cada cambio
+        // ancla el ritmo en su día). No las del historial: el cambio ya puede
+        // estar escrito en él, y uno de semanal a diario empieza el lunes de
+        // esta semana pero se ancla hoy para no cerrar de lunes a hoy como
+        // días sin hacer. Lo hecho cada día, con su objetivo del historial.
+        HistorialObjetivos historial = historialDe(habitoComoEstaba);
+        Objetivo comoEstaba = Objetivo.de(habitoComoEstaba);
+        Function<LocalDate, Objetivo> reglasDeAntes = d -> comoEstaba;
         double vigente = ponerAlDia(ritmo, habitoComoEstaba,
-                fechasHechas(ritmo, habitoComoEstaba, hoy), hoy).valor();
+                hechosPorDia(ritmo, habitoComoEstaba, reglasDeAntes, dia), historial::objetivoEl, reglasDeAntes,
+                dia).valor();
         ritmo.setValor(vigente);
-        ritmo.setDesde(hoy);
-        ritmo.setCambio(hoy);
+        ritmo.setDesde(dia);
+        ritmo.setCambio(dia);
         ritmoDAO.update(ritmo);
     }
 
@@ -269,21 +321,36 @@ public class RitmoService {
      * inicio del periodo de su ancla más antigua. Un semanal cuenta la semana
      * entera, de ahí que sea el inicio del periodo y no el ancla misma.
      */
-    private LocalDate desdeDondeLeer(Ritmo ritmo, Habito habito) {
+    private LocalDate desdeDondeLeer(Ritmo ritmo, Function<LocalDate, Objetivo> objetivoEl) {
         LocalDate ancla = ritmo.getDesdePrevio() != null && ritmo.getDesdePrevio().isBefore(ritmo.getDesde())
                 ? ritmo.getDesdePrevio()
                 : ritmo.getDesde();
-        return habito.getFrecuencia().rangoPeriodo(ancla)[0];
+        // Con la frecuencia que tenía el ancla, no la de hoy: cada periodo se
+        // juzga con la suya.
+        return objetivoEl.apply(ancla).frecuencia().rangoPeriodo(ancla)[0];
     }
 
-    /** Las fechas hechas de un hábito que hacen falta para ponerlo al día. Hoy no se lee: su periodo sigue abierto. */
-    private List<LocalDate> fechasHechas(Ritmo ritmo, Habito habito, LocalDate hoy) {
-        LocalDate inicio = desdeDondeLeer(ritmo, habito);
-        if (!inicio.isBefore(hoy)) return List.of();
-        return registroDAO.findByHabitoAndRango(habito, inicio, hoy.minusDays(1)).stream()
-                .filter(Registro::isCompletado)
-                .map(Registro::getFecha)
-                .toList();
+    /** El historial de objetivos de un hábito, sin poner nada al día. */
+    private HistorialObjetivos historialDe(Habito habito) {
+        return HistorialObjetivos.de(habito, objetivoDAO.findByHabito(habito));
+    }
+
+    /**
+     * Lo hecho cada día (la suma de {@code cantidad}: las veces o los
+     * minutos) que hace falta para poner al día un hábito. Hoy no se lee: su
+     * periodo sigue abierto.
+     */
+    private Map<LocalDate, Integer> hechosPorDia(Ritmo ritmo, Habito habito,
+                                                 Function<LocalDate, Objetivo> objetivoEl, LocalDate hoy) {
+        LocalDate inicio = desdeDondeLeer(ritmo, objetivoEl);
+        Map<LocalDate, Integer> hechos = new HashMap<>();
+        if (!inicio.isBefore(hoy)) return hechos;
+        for (Registro registro : registroDAO.findByHabitoAndRango(habito, inicio, hoy.minusDays(1))) {
+            if (registro.isCompletado()) {
+                hechos.merge(registro.getFecha(), registro.getCantidad(), Integer::sum);
+            }
+        }
+        return hechos;
     }
 
     /**
@@ -308,15 +375,35 @@ public class RitmoService {
      * Pone al día un ancla y, si ha avanzado, la guarda junto con la que deja
      * atrás. Devuelve el ritmo de hoy y el de hace siete días.
      */
-    private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, List<LocalDate> fechasHechas, LocalDate hoy) {
-        Frecuencia frecuencia = habito.getFrecuencia();
-        int objetivo = habito.getMeta();
+    private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
+                                  Function<LocalDate, Objetivo> objetivoEl, LocalDate hoy) {
+        return ponerAlDia(ritmo, habito, hechosPorDia, objetivoEl, objetivoEl, hoy);
+    }
+
+    /**
+     * Igual, con {@code reglasEl} aparte: el objetivo con el que se juzga
+     * cada periodo (frecuencia y meta). En una lectura es el mismo historial
+     * que {@code objetivoEl}; al anclar antes de un cambio son las reglas de
+     * antes del cambio (ver anclarAntesDeCambiar).
+     */
+    private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
+                                  Function<LocalDate, Objetivo> objetivoEl,
+                                  Function<LocalDate, Objetivo> reglasEl, LocalDate hoy) {
+        // Lo hecho cada día en unidades de la meta, con el objetivo vigente
+        // ESE día: en un día de veces, las veces; en uno de minutos,
+        // min(1, minutos / objetivo), así que un día a medias cuenta en
+        // proporción y pasarse no suma más. En la semana del paso de veces a
+        // minutos, los días de veces cuentan sus sesiones y no 1 minuto cada una.
+        Map<LocalDate, Double> unidades = new HashMap<>();
+        hechosPorDia.forEach((dia, hechos) ->
+                unidades.put(dia, objetivoEl.apply(dia).unidadesParcialesDelDia(hechos)));
         // El periodo que solo puede subir: el del último cambio de frecuencia
         // u objetivo y, si no ha habido ninguno, el primero del hábito.
         LocalDate soloSube = ritmo.getCambio() != null ? ritmo.getCambio() : habito.getFechaInicio();
 
-        RitmoAlDia alDia = CalculoRitmo.alDia(ritmo.getValor(), ritmo.getDesde(),
-                frecuencia, objetivo, soloSube, fechasHechas, hoy);
+        // Cada periodo, con la frecuencia y la meta que tenía (ver la clase).
+        RitmoAlDia alDia = CalculoRitmo.alDiaPorUnidades(ritmo.getValor(), ritmo.getDesde(),
+                reglasEl, soloSube, unidades, hoy);
 
         if (alDia.desdeAncla().isAfter(ritmo.getDesde())) {
             // El ancla anterior es el ritmo una semana antes de la nueva. Si
@@ -327,8 +414,8 @@ public class RitmoService {
                 ritmo.setValorPrevio(ritmo.getValor());
                 ritmo.setDesdePrevio(ritmo.getDesde());
             } else {
-                ritmo.setValorPrevio(CalculoRitmo.alDia(ritmo.getValor(), ritmo.getDesde(),
-                        frecuencia, objetivo, soloSube, fechasHechas, unaSemanaAntes).valor());
+                ritmo.setValorPrevio(CalculoRitmo.alDiaPorUnidades(ritmo.getValor(), ritmo.getDesde(),
+                        reglasEl, soloSube, unidades, unaSemanaAntes).valor());
                 ritmo.setDesdePrevio(unaSemanaAntes);
             }
             ritmo.setValor(alDia.valorAncla());
@@ -339,10 +426,10 @@ public class RitmoService {
         // El ritmo de hace siete días se calcula desde el ancla anterior; si
         // el ancla no ha avanzado nunca, desde la única que hay.
         boolean hayAnterior = ritmo.getDesdePrevio() != null;
-        double haceUnaSemana = CalculoRitmo.alDia(
+        double haceUnaSemana = CalculoRitmo.alDiaPorUnidades(
                 hayAnterior ? ritmo.getValorPrevio() : ritmo.getValor(),
                 hayAnterior ? ritmo.getDesdePrevio() : ritmo.getDesde(),
-                frecuencia, objetivo, soloSube, fechasHechas, hoy.minusDays(7)).valor();
+                reglasEl, soloSube, unidades, hoy.minusDays(7)).valor();
 
         return new RitmoLeido(alDia.valor(), haceUnaSemana);
     }

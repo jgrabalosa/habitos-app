@@ -3,6 +3,7 @@ package com.norday.habitos.model.dto;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Unidad;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -12,6 +13,9 @@ import java.time.LocalTime;
  *
  * La categoria viaja aplanada en tres campos, los tres null si el habito no
  * tiene. `propietario` no esta: el cliente ya sabe de quien son sus habitos.
+ *
+ * `unidad` y `minutosObjetivo` (null en VECES) son el objetivo de minutos,
+ * como `frecuencia` y `meta`. La app ya instalada no los lee.
  */
 public class HabitoDTO {
 
@@ -20,6 +24,8 @@ public class HabitoDTO {
     private final String descripcion;
     private final Frecuencia frecuencia;
     private final int meta;
+    private final Unidad unidad;
+    private final Integer minutosObjetivo;
     private final String diasSemana;
     private final LocalDate fechaInicio;
     private final boolean recordatorioActivo;
@@ -35,6 +41,8 @@ public class HabitoDTO {
         this.descripcion = habito.getDescripcion();
         this.frecuencia = habito.getFrecuencia();
         this.meta = habito.getMeta();
+        this.unidad = habito.getUnidad();
+        this.minutosObjetivo = habito.getMinutosObjetivo();
         this.diasSemana = habito.getDiasSemana();
         this.fechaInicio = habito.getFechaInicio();
         this.recordatorioActivo = habito.isRecordatorioActivo();
@@ -55,6 +63,8 @@ public class HabitoDTO {
     public String getDescripcion() { return descripcion; }
     public Frecuencia getFrecuencia() { return frecuencia; }
     public int getMeta() { return meta; }
+    public Unidad getUnidad() { return unidad; }
+    public Integer getMinutosObjetivo() { return minutosObjetivo; }
     public String getDiasSemana() { return diasSemana; }
     public LocalDate getFechaInicio() { return fechaInicio; }
     public boolean isRecordatorioActivo() { return recordatorioActivo; }

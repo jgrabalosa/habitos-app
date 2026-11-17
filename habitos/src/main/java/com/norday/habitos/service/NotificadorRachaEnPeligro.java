@@ -1,6 +1,8 @@
 package com.norday.habitos.service;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.NotificacionService;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
@@ -45,6 +47,9 @@ public class NotificadorRachaEnPeligro {
     private NotificacionService notificacionService;
 
     @Autowired
+    private DispositivoService dispositivoService;
+
+    @Autowired
     private ZonaUsuarioService zonaUsuarioService;
 
     @Autowired
@@ -79,7 +84,10 @@ public class NotificadorRachaEnPeligro {
                 continue; // ya rota (nada que salvar), o ya renovada hoy
             }
 
-            String fcmToken = propietario != null ? propietario.getFcmToken() : null;
+            // Aviso de hábitos: al token de Norday Habits, no al de otra app.
+            String fcmToken = propietario != null
+                    ? dispositivoService.tokenDe(propietario.getUsuarioId(), AppNorday.HABITOS)
+                    : null;
             if (fcmToken == null || fcmToken.isBlank()) {
                 continue;
             }

@@ -3,6 +3,9 @@ package com.norday;
 import com.norday.core.model.Usuario;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.HabitoObjetivo;
+import com.norday.habitos.model.HitoPagado;
+import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
@@ -155,5 +158,96 @@ class BorradoHabitoTest {
 
         assertNull(em.find(Habito.class, habitoId));
         assertEquals(0L, ritmosDe(habitoId));
+    }
+
+    private long hitosPagadosDe(int habitoId) {
+        return em.createQuery(
+                        "SELECT count(h) FROM HitoPagado h WHERE h.habito.habitoId = :habitoId", Long.class)
+                .setParameter("habitoId", habitoId)
+                .getSingleResult();
+    }
+
+    /** Un hábito con un registro que pagó el hito de 3 y otro hito del relleno, sin registro. */
+    private int habitoConHitosPagados(Usuario usuario) {
+        Habito habito = new Habito("Hábito con hitos", "Descripción", Frecuencia.DIARIO, 1,
+                usuario, null, LocalDate.now());
+        em.persist(habito);
+        Registro registro = new Registro(habito, true, null, LocalDate.now());
+        em.persist(registro);
+        em.persist(new HitoPagado(habito, 3, registro));
+        em.persist(new HitoPagado(habito, 7, null));
+        em.flush();
+        int habitoId = habito.getHabitoId();
+        assertEquals(2L, hitosPagadosDe(habitoId));
+        em.clear();
+        return habitoId;
+    }
+
+    @Test
+    void eliminarHabitoConHitosPagadosNoRevientaPorFk() {
+        int habitoId = habitoConHitosPagados(usuarioDePrueba("test-hito-borrado"));
+
+        habitoService.eliminar(habitoId);
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, hitosPagadosDe(habitoId));
+    }
+
+    @Test
+    void limpiarCuentaConHitosPagadosNoRevientaPorFk() {
+        Usuario usuario = usuarioDePrueba("test-hito-cuenta");
+        int habitoId = habitoConHitosPagados(usuario);
+
+        limpiadorHabitos.limpiar(em.find(Usuario.class, usuario.getUsuarioId()));
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, hitosPagadosDe(habitoId));
+    }
+
+    private long objetivosDe(int habitoId) {
+        return em.createQuery(
+                        "SELECT count(o) FROM HabitoObjetivo o WHERE o.habito.habitoId = :habitoId", Long.class)
+                .setParameter("habitoId", habitoId)
+                .getSingleResult();
+    }
+
+    /** Un hábito con dos versiones de objetivo: la de su inicio y una programada. */
+    private int habitoConHistorialDeObjetivos(Usuario usuario) {
+        Habito habito = new Habito("Hábito con historial", "Descripción", Frecuencia.DIARIO, 1,
+                usuario, null, LocalDate.now());
+        em.persist(habito);
+        em.persist(new HabitoObjetivo(habito, LocalDate.now(), Objetivo.de(habito)));
+        em.persist(new HabitoObjetivo(habito, LocalDate.now().plusDays(1),
+                new Objetivo(Frecuencia.DIARIO, 2, null)));
+        em.flush();
+        int habitoId = habito.getHabitoId();
+        assertEquals(2L, objetivosDe(habitoId));
+        em.clear();
+        return habitoId;
+    }
+
+    @Test
+    void eliminarHabitoConHistorialDeObjetivosNoRevientaPorFk() {
+        int habitoId = habitoConHistorialDeObjetivos(usuarioDePrueba("test-objetivo-borrado"));
+
+        habitoService.eliminar(habitoId);
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, objetivosDe(habitoId));
+    }
+
+    @Test
+    void limpiarCuentaConHistorialDeObjetivosNoRevientaPorFk() {
+        Usuario usuario = usuarioDePrueba("test-objetivo-cuenta");
+        int habitoId = habitoConHistorialDeObjetivos(usuario);
+
+        limpiadorHabitos.limpiar(em.find(Usuario.class, usuario.getUsuarioId()));
+        em.flush();
+
+        assertNull(em.find(Habito.class, habitoId));
+        assertEquals(0L, objetivosDe(habitoId));
     }
 }

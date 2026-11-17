@@ -24,6 +24,45 @@ public class RegistroDAO implements IRegistroDAO {
         em.persist(registro);
     }
 
+    // Consulta nativa con ON CONFLICT DO NOTHING, como HitoPagadoDAO: si dos
+    // completados con la misma clave llegan a la vez, el segundo espera a que
+    // el primero termine y no escribe nada, en vez de chocar con la
+    // restricción única, que dejaría la transacción marcada para deshacer y
+    // respondería un 500. creado_en va en UTC, como en Registro.alCrear.
+    @Override
+    public Registro guardarSiClaveLibre(Registro registro) {
+        List<?> ids = em.createNativeQuery(
+                        "INSERT INTO registro (fecha, creado_en, completado, nota, habito_ref,"
+                                + " cantidad, origen, clave_cliente)"
+                                + " VALUES (:fecha, :creadoEn, :completado, CAST(:nota AS VARCHAR(500)),"
+                                + " :habito, :cantidad, :origen, CAST(:clave AS UUID))"
+                                + " ON CONFLICT (clave_cliente) DO NOTHING"
+                                + " RETURNING registro_id")
+                .setParameter("fecha", registro.getFecha())
+                .setParameter("creadoEn", java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
+                .setParameter("completado", registro.isCompletado())
+                .setParameter("nota", registro.getNota())
+                .setParameter("habito", registro.getHabito().getHabitoId())
+                .setParameter("cantidad", registro.getCantidad())
+                .setParameter("origen", registro.getOrigen().name())
+                .setParameter("clave", registro.getClaveCliente().toString())
+                .getResultList();
+        if (ids.isEmpty()) {
+            return null;
+        }
+        return em.find(Registro.class, ((Number) ids.get(0)).intValue());
+    }
+
+    @Override
+    public Registro findByClave(java.util.UUID clave) {
+        return em.createQuery(
+                        "SELECT r FROM Registro r WHERE r.claveCliente = :clave", Registro.class)
+                .setParameter("clave", clave)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
+    }
+
     @Override
     public Registro findById(int id) {
         return em.find(Registro.class, id);
@@ -100,11 +139,58 @@ public class RegistroDAO implements IRegistroDAO {
         em.merge(registro);
     }
 
+    // Una columna y no el registro entero: la nota y la valoración llegan por
+    // peticiones distintas, y guardar el registro leído antes de esperar pisaba
+    // la otra. Después se relee la copia de la sesión, si la hay, para que no
+    // quede nada viejo que un flush pueda escribir.
+    @Override
+    public int actualizarNota(int registroId, String nota) {
+        return actualizarColumna(registroId, "nota", nota);
+    }
+
+    @Override
+    public int actualizarValoracion(int registroId, Integer valoracion) {
+        return actualizarColumna(registroId, "valoracion", valoracion);
+    }
+
+    private int actualizarColumna(int registroId, String campo, Object valor) {
+        int filas = em.createQuery("UPDATE Registro r SET r." + campo + " = :valor WHERE r.registroId = :id")
+                .setParameter("valor", valor)
+                .setParameter("id", registroId)
+                .executeUpdate();
+        Registro enSesion = em.find(Registro.class, registroId);
+        if (enSesion != null) {
+            if (filas == 0) {
+                em.detach(enSesion);
+            } else {
+                em.refresh(enSesion);
+            }
+        }
+        return filas;
+    }
+
+    // Para los logros de volumen. Nativa porque cada registro se juzga con la
+    // unidad de la versión del objetivo vigente en su fecha (la de mayor
+    // desde <= fecha; antes de la primera, la primera; sin versiones, la del
+    // hábito). Un registro de veces cuenta por sí mismo (su id lo distingue);
+    // los de minutos de un mismo hábito y día se funden en uno (0 en lugar
+    // del id) y DISTINCT los cuenta una vez.
     @Override
     public int contarPorUsuario(int usuarioId) {
-        Long count = em.createQuery(
-                        "SELECT COUNT(r) FROM Registro r WHERE r.habito.propietario.usuarioId = :usuarioId",
-                        Long.class)
+        Number count = (Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM ("
+                                + " SELECT DISTINCT r.habito_ref, r.fecha,"
+                                + "  CASE WHEN COALESCE("
+                                + "   (SELECT o.unidad FROM habito_objetivo o"
+                                + "     WHERE o.habito_ref = r.habito_ref AND o.desde <= r.fecha"
+                                + "     ORDER BY o.desde DESC LIMIT 1),"
+                                + "   (SELECT o.unidad FROM habito_objetivo o"
+                                + "     WHERE o.habito_ref = r.habito_ref ORDER BY o.desde ASC LIMIT 1),"
+                                + "   h.unidad) = 'MINUTOS'"
+                                + "  THEN 0 ELSE r.registro_id END AS fila"
+                                + " FROM registro r JOIN habito h ON h.habito_id = r.habito_ref"
+                                + " WHERE h.propietario_id = :usuarioId"
+                                + ") t")
                 .setParameter("usuarioId", usuarioId)
                 .getSingleResult();
         return count.intValue();

@@ -5,14 +5,14 @@ import com.norday.gamificacion.service.LogroService;
 import com.norday.habitos.model.CalculoPremio;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Racha;
-import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +37,9 @@ public class LogrosHabitosService {
 
     @Autowired
     private IRachaDAO rachaDAO;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     // B3: los logros de constancia ya no van por racha (ver DIAS_HECHOS_CON_LOGRO).
     // Se conserva comentado.
@@ -129,15 +132,16 @@ public class LogrosHabitosService {
      * importar los huecos. Se conceden todos los escalones alcanzados o ya
      * superados que el usuario no tenga: el motor nunca repite un logro, así
      * que no hace falta acertar el día exacto ni guardar por dónde se va.
-     * Un día hecho es la misma unidad que en los puntos y los hitos.
+     * Un día hecho es la misma unidad que en los puntos y los hitos, y se
+     * juzga con el objetivo que el hábito tenía ese día.
      */
     private List<String> comprobarLogrosDeDiasHechos(Usuario usuario, Habito habito) {
         List<String> otorgados = new ArrayList<>();
-        List<LocalDate> fechas = new ArrayList<>();
-        for (Registro registro : registroDAO.findByHabito(habito)) {
-            if (registro.isCompletado()) fechas.add(registro.getFecha());
-        }
-        int diasHechos = CalculoPremio.diasHechos(habito.getFrecuencia(), habito.getMeta(), fechas);
+        HistorialObjetivos historial = HistorialObjetivos.de(
+                objetivoService.historiales(List.of(habito)), habito);
+        // En un hábito de minutos, un día cuenta cuando llega a sus minutos.
+        int diasHechos = CalculoPremio.diasHechos(
+                Hechos.de(registroDAO.findByHabito(habito), historial::objetivoEl));
 
         for (int dias : DIAS_HECHOS_CON_LOGRO) {
             if (dias > diasHechos) break;
@@ -147,20 +151,26 @@ public class LogrosHabitosService {
         return otorgados;
     }
 
+    // El número de registros lo da RegistroDAO.contarPorUsuario: cada fila en
+    // los días de veces y como mucho una por hábito y día en los de minutos.
+    // Al alcanzar o superar cada número, no al caer justo en él: deshacer
+    // retira el logro que dio un completado, y para entonces el contador
+    // puede haber pasado de largo (completar A, completar B, deshacer A). Que
+    // se dé una sola vez ya lo garantiza otorgarSiNoTiene.
     private List<String> comprobarLogrosDeVolumen(Usuario usuario) {
         List<String> otorgados = new ArrayList<>();
         int totalRegistros = registroDAO.contarPorUsuario(usuario.getUsuarioId());
 
-        if (totalRegistros == 1) {
+        if (totalRegistros >= 1) {
             if (logroService.otorgarSiNoTiene(usuario, "PRIMEROS_PASOS")) otorgados.add("PRIMEROS_PASOS");
         }
-        if (totalRegistros == 100) {
+        if (totalRegistros >= 100) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_100")) otorgados.add("REGISTROS_100");
         }
-        if (totalRegistros == 500) {
+        if (totalRegistros >= 500) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_500")) otorgados.add("REGISTROS_500");
         }
-        if (totalRegistros == 1000) {
+        if (totalRegistros >= 1000) {
             if (logroService.otorgarSiNoTiene(usuario, "REGISTROS_1000")) otorgados.add("REGISTROS_1000");
         }
         return otorgados;
@@ -171,13 +181,16 @@ public class LogrosHabitosService {
         List<String> otorgados = new ArrayList<>();
         List<Habito> activos = habitoDAO.findActivos(usuario);
 
-        if (activos.size() == 1) {
+        // Al alcanzar o superar cada número, como en los de volumen: reanudar
+        // un hábito en pausa no evalúa logros, así que los activos (y sus
+        // categorías) pueden pasar de 2 a 4 sin crear el tercero.
+        if (activos.size() >= 1) {
             if (logroService.otorgarSiNoTiene(usuario, "PRIMER_HABITO")) otorgados.add("PRIMER_HABITO");
         }
-        if (activos.size() == 3) {
+        if (activos.size() >= 3) {
             if (logroService.otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_3")) otorgados.add("HABITOS_ACTIVOS_3");
         }
-        if (activos.size() == 5) {
+        if (activos.size() >= 5) {
             if (logroService.otorgarSiNoTiene(usuario, "HABITOS_ACTIVOS_5")) otorgados.add("HABITOS_ACTIVOS_5");
         }
 
@@ -194,10 +207,10 @@ public class LogrosHabitosService {
             }
         }
 
-        if (categoriasDistintas.size() == 3) {
+        if (categoriasDistintas.size() >= 3) {
             if (logroService.otorgarSiNoTiene(usuario, "CATEGORIAS_3")) otorgados.add("CATEGORIAS_3");
         }
-        if (categoriasDistintas.size() == 5) {
+        if (categoriasDistintas.size() >= 5) {
             if (logroService.otorgarSiNoTiene(usuario, "CATEGORIAS_5")) otorgados.add("CATEGORIAS_5");
         }
         return otorgados;
@@ -205,7 +218,7 @@ public class LogrosHabitosService {
 
     // ── Evento: crear categoría personalizada ────────────────
     public void evaluarTrasCrearCategoria(Usuario usuario, List<Categoria> categoriasCreadorUsuario) {
-        if (categoriasCreadorUsuario.size() == 1) {
+        if (!categoriasCreadorUsuario.isEmpty()) {
             logroService.otorgarSiNoTiene(usuario, "PRIMERA_CATEGORIA");
         }
     }

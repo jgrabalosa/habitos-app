@@ -50,6 +50,12 @@ class RitmoServiceTest {
     @Mock
     private ZonaUsuarioService zonaUsuarioService;
 
+    // Desde la Fase 3 el ritmo convierte cada día con el objetivo de ese día.
+    // Sin versiones (lo que devuelve el mock), es el del hábito, como antes.
+    @Mock
+    private com.norday.habitos.repository.IHabitoObjetivoDAO objetivoDAO;
+
+
     @InjectMocks
     private RitmoService ritmoService;
 
@@ -450,6 +456,25 @@ class RitmoServiceTest {
         assertEquals(0.628501, guardado.getValue().getValor(), D);
         assertEquals(d(10, 8), guardado.getValue().getDesde());
         assertEquals(d(10, 8), guardado.getValue().getCambio());
+    }
+
+    @Test
+    void anclarEnUnaFechaQueElAnclaYaHaPasado_noRejuzgaNada_yElDiaDelAnclaSoloPuedeSubir() {
+        // Un semanal sin registros esta semana empieza el lunes 5, pero el
+        // ancla ya está en el miércoles 7 (un cambio anterior de esta misma
+        // semana). Lo de antes del ancla no se vuelve a juzgar: el valor y el
+        // ancla se quedan, y el cambio pasa al día del ancla, cuyo periodo
+        // solo puede subir.
+        anclaEn(0.7, d(10, 7));
+
+        ritmoService.anclarAntesDeCambiar(habito, d(10, 5));
+
+        ArgumentCaptor<Ritmo> guardado = ArgumentCaptor.forClass(Ritmo.class);
+        verify(ritmoDAO, times(1)).update(guardado.capture());
+        assertEquals(0.7, guardado.getValue().getValor(), D);
+        assertEquals(d(10, 7), guardado.getValue().getDesde());
+        assertEquals(d(10, 7), guardado.getValue().getCambio());
+        verify(registroDAO, never()).findByHabitoAndRango(any(), any(), any());
     }
 
     @Test

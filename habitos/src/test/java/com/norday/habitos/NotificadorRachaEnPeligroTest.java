@@ -1,6 +1,8 @@
 package com.norday.habitos;
 
+import com.norday.core.model.AppNorday;
 import com.norday.core.model.Usuario;
+import com.norday.core.service.DispositivoService;
 import com.norday.core.service.NotificacionService;
 import com.norday.core.service.TextosService;
 import com.norday.core.service.ZonaUsuarioService;
@@ -34,6 +36,7 @@ class NotificadorRachaEnPeligroTest {
     @Mock private IHabitoDAO habitoDAO;
     @Mock private IRachaDAO rachaDAO;
     @Mock private NotificacionService notificacionService;
+    @Mock private DispositivoService dispositivoService;
     @Mock private ZonaUsuarioService zonaUsuarioService;
 
     @Mock
@@ -56,7 +59,7 @@ class NotificadorRachaEnPeligroTest {
     void setUp() {
         Usuario usuario = new Usuario();
         usuario.setUsuarioId(1);
-        usuario.setFcmToken("token-fcm");
+        lenient().when(dispositivoService.tokenDe(1, AppNorday.HABITOS)).thenReturn("token-fcm");
 
         habito = new Habito();
         habito.setHabitoId(10);

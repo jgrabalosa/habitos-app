@@ -125,6 +125,21 @@ public class UsuarioService {
     @Transactional
     public ResultadoLoginGoogle loginConGoogle(String email, String nombre) {
         Usuario usuario = usuarioDAO.findByEmail(email);
+        if (usuario != null) {
+            // Entrar con Google concede LOGIN_GOOGLE y puede escribir el
+            // proveedor: el usuario, bloqueado antes de nada y releído tras el
+            // bloqueo (ver IUsuarioDAO.bloquearYReleer), para no pisar lo que
+            // otro confirmó entretanto. No lanza: un fallo aquí dejaría el
+            // login entero marcado para deshacer.
+            usuario = usuarioDAO.bloquearYReleer(usuario.getUsuarioId());
+            // Si la cuenta se ha borrado (su baja) mientras se esperaba, o ya
+            // no tiene este email, se sigue como si no se hubiera encontrado:
+            // un alta nueva, lo mismo que pasaría si el login llegara un
+            // momento después. Nunca un token de una cuenta que ya no existe.
+            if (usuario != null && !email.equals(usuario.getEmail())) {
+                usuario = null;
+            }
+        }
 
         if (usuario != null) {
             if (!"GOOGLE".equals(usuario.getProveedorAuth())) {
@@ -154,8 +169,15 @@ public class UsuarioService {
         return usuarioDAO.findById(id);
     }
 
+    @Transactional
     public void actualizarPerfil(Usuario usuario) {
-        Usuario existente = usuarioDAO.findById(usuario.getUsuarioId());
+        // Editar el perfil concede BIENVENIDO: el usuario, bloqueado antes de
+        // leer nada (ver IUsuarioDAO.bloquear), y todo en una transacción,
+        // para que el logro no se cuele en lo que mide otra operación suya.
+        // Releído tras el bloqueo: la copia que el controlador ya tenía en la
+        // sesión puede ser vieja, y guardarla entera pisaba lo confirmado
+        // entretanto (las preferencias, el proveedor).
+        Usuario existente = usuarioDAO.bloquearYReleer(usuario.getUsuarioId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
@@ -205,19 +227,22 @@ public class UsuarioService {
         usuarioDAO.update(usuario);
     }
 
-    public void actualizarFcmToken(int id, String fcmToken) {
-        Usuario usuario = usuarioDAO.findById(id);
-        if (usuario == null) {
-            throw new RecursoNoEncontradoException("Usuario no encontrado");
-        }
-        usuario.setFcmToken(fcmToken);
-        usuarioDAO.update(usuario);
-    }
-
     @Transactional
     public void eliminarCuenta(int id) {
         Usuario usuario = usuarioDAO.findById(id);
         if (usuario == null) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
+        // El usuario se bloquea antes que nada de lo que cuelga de él: es el
+        // orden de todos los bloqueos (ver IUsuarioDAO.bloquear). Sin esto,
+        // los limpiadores bloquean primero las filas que borran y el borrado
+        // del usuario llega el último: con una operación que ya tuviera al
+        // usuario y esperase a una de esas filas, Postgres abortaría una de
+        // las dos por abrazo mortal.
+        // Si al conseguir el bloqueo la fila ya no está, otra baja se ha
+        // adelantado (un doble toque, un reintento): 404, como si no
+        // existiera, en vez de reventar al borrar una fila que ya no está.
+        if (!usuarioDAO.bloquear(id)) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
 

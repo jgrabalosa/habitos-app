@@ -2,12 +2,16 @@ package com.norday.habitos.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.UUID;
 
 @Entity
-@Table(name = "registro")
+@Table(name = "registro",
+        uniqueConstraints = @UniqueConstraint(name = "UK_registro_clave_cliente",
+                columnNames = {"clave_cliente"}))
 public class Registro {
 
     @Id
@@ -31,6 +35,24 @@ public class Registro {
 
     @Column(name = "valoracion")
     private Integer valoracion; // 1-5, null si el usuario no valoró
+
+    // Lo que aporta el registro a su día: los minutos en un hábito de
+    // minutos, 1 en uno de veces. Los "hechos" de un día son la suma.
+    @ColumnDefault("1")
+    @Column(name = "cantidad", nullable = false)
+    private int cantidad = 1;
+
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'MANUAL'")
+    @Column(name = "origen", nullable = false, length = 20)
+    private OrigenRegistro origen = OrigenRegistro.MANUAL;
+
+    // La clave que manda el cliente con cada completado para que un
+    // reintento no cree otro registro (ver RegistroService). Única en toda la
+    // tabla. No sale en el JSON: es un detalle del protocolo, no un dato.
+    @JsonIgnore
+    @Column(name = "clave_cliente")
+    private UUID claveCliente;
 
     // No sale en el JSON. Se serializaba en un solo sitio, GET
     // /api/registros/habito/{id}, que devuelve la lista de registros en crudo:
@@ -68,6 +90,15 @@ public class Registro {
 
     public Integer getValoracion() { return valoracion; }
     public void setValoracion(Integer valoracion) { this.valoracion = valoracion; }
+
+    public int getCantidad() { return cantidad; }
+    public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+
+    public OrigenRegistro getOrigen() { return origen; }
+    public void setOrigen(OrigenRegistro origen) { this.origen = origen; }
+
+    public UUID getClaveCliente() { return claveCliente; }
+    public void setClaveCliente(UUID claveCliente) { this.claveCliente = claveCliente; }
 
     public Habito getHabito() { return habito; }
     public void setHabito(Habito habito) { this.habito = habito; }

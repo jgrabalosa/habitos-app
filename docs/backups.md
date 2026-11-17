@@ -98,6 +98,17 @@ después del dump. Siguiente, hacia el 24-oct-2026 o antes si entra una
 migración que cambie el esquema. Anotar aquí cada una con su fecha y sus
 cifras: sin eso no se sabe si toca.
 
+**Vencida desde el 24-oct-2026** (a 15-nov-2026 no se ha hecho ninguna
+después de la del 24-sep). Y el despliegue conjunto de hábitos en minutos y
+Norday Focus mete seis migraciones, V21–V26, y cinco cambian el esquema:
+cuatro tablas nuevas (`hito_pagado`, `habito_objetivo`, `usuario_dispositivo`
+y `sesion_enfoque`) y columnas nuevas en `habito` y `registro` (V25 solo
+inserta una fila en `version_app`). Por eso la
+prueba de restauración es un **paso obligatorio tras ese despliegue**, con el
+primer dump de producción posterior: Flyway en la versión 26 con
+`success = t` y las tablas nuevas presentes. Ver
+[`despliegue.md`](despliegue.md), «Despliegue conjunto».
+
 Anteriores: 11-sep-2026, `habitos_db_2026-09-11_0300.dump`, 21 tablas, 6
 usuarios, 10 hábitos y 38 registros.
 

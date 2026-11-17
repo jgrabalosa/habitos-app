@@ -1,5 +1,6 @@
 package com.norday.habitos.config;
 
+import com.norday.core.model.AppNorday;
 import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.repository.ILogroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ public class LogrosHabitosInitializer implements CommandLineRunner {
     private ILogroDAO logroDAO;
 
     /** El appId que el core envía en X-Norday-App para esta app. */
-    private static final String APP = "habitos";
+    private static final String APP = AppNorday.HABITOS;
 
     // {codigo, nombre, descripcion, categoria, nivel, puntos}
     private static final String[][] LOGROS = {

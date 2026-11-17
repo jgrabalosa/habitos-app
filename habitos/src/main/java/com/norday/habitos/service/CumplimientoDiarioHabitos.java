@@ -7,6 +7,8 @@ import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.service.CumplimientoDiarioPort;
 import com.norday.habitos.model.CalculoHoy;
 import com.norday.habitos.model.Habito;
+import com.norday.habitos.model.Hechos;
+import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IRegistroDAO;
@@ -19,7 +21,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,6 +49,9 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
+
+    @Autowired
+    private ObjetivoService objetivoService;
 
     @Override
     public boolean hoyCumplido(int usuarioId) {
@@ -78,15 +82,15 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
 
         // Una sola consulta, desde el lunes de la semana pasada: es lo más
         // atrás que hace falta mirar para saber si lleva tiempo sin aparecer.
-        Map<Integer, List<LocalDate>> fechasDeEstaSemana = new HashMap<>();
+        // Para eso vale cualquier registro, también un paso de minutos que no
+        // llega al objetivo: es actividad.
+        List<Registro> deEstaSemana = new ArrayList<>();
         List<LocalDate> actividadReciente = new ArrayList<>();
         for (Registro registro : registroDAO.findByHabitosAndRango(activos, lunes.minusWeeks(1), hoy)) {
             if (!registro.isCompletado()) continue;
             actividadReciente.add(registro.getFecha());
             if (!registro.getFecha().isBefore(lunes)) {
-                fechasDeEstaSemana
-                        .computeIfAbsent(registro.getHabito().getHabitoId(), id -> new ArrayList<>())
-                        .add(registro.getFecha());
+                deEstaSemana.add(registro);
             }
         }
 
@@ -98,6 +102,13 @@ public class CumplimientoDiarioHabitos implements CumplimientoDiarioPort {
                     .withZoneSameInstant(zona).toLocalDate());
         }
 
-        return CalculoHoy.comoVa(activos, fechasDeEstaSemana, actividadReciente, hoy);
+        // Cada hábito con el objetivo vigente hoy, sin escribir nada, y lo
+        // hecho esta semana con el objetivo de cada día.
+        Map<Integer, HistorialObjetivos> historiales = objetivoService.historiales(activos);
+        List<Habito> deHoy = activos.stream()
+                .map(h -> HistorialObjetivos.de(historiales, h).vistaEl(hoy))
+                .toList();
+        Map<Integer, Hechos> hechos = Hechos.porHabito(deEstaSemana, activos, historiales);
+        return CalculoHoy.comoVaConHechos(deHoy, hechos, actividadReciente, hoy);
     }
 }

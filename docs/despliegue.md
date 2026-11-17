@@ -54,31 +54,62 @@ empaquetado, que es el de producción.
 
 ## El procedimiento
 
-Staging primero, siempre. Y `git pull` **antes** que `mvn`, sin excepción: el
-commit que aísla los tests puede ser justo el que todavía no está en la máquina.
+Staging primero, siempre. Tres reglas sin excepción:
+
+- **El código se trae antes que `mvn`**: el commit que aísla los tests puede
+  ser justo el que todavía no está en la máquina.
+- **El servicio se para antes de empaquetar.** `mvn clean package` con el
+  servicio vivo deja el apagado a medias (`clean` borra el jar que está
+  corriendo), y los tests necesitan conexiones libres en Postgres (ver
+  abajo).
+- **Se anota el commit** que se va a compilar, con `git --no-pager log -1`.
+
+Staging compila una rama concreta sin rama local, con el HEAD suelto en el
+commit del remoto (hoy, `wip-enfoque`):
 
 ```bash
 cd /opt/norday-backend-staging
-git pull
+git fetch origin
+git switch --detach origin/<rama>
+git --no-pager log -1 --oneline
+systemctl stop norday-backend-staging
 mvn clean package
-systemctl restart norday-backend-staging
+systemctl start norday-backend-staging
 ```
 
-Y después producción, con backup por delante:
+Y después producción, siempre desde `main` y con backup por delante:
 
 ```bash
 /root/backup_bd.sh
 cd /opt/norday-backend
 git pull
+git --no-pager log -1 --oneline
+systemctl stop norday-backend
 mvn clean package
-systemctl restart norday-backend
+systemctl start norday-backend
 ```
+
+Producción queda parada lo que tarde el `package`, suite incluida: se elige
+una hora de poco uso. En el VPS se usa `mvn`, no `./mvnw`.
 
 ## `mvn clean package` va SIN `-DskipTests`
 
 No es un descuido: es la regla. Cinco tests estuvieron rotos tres sesiones sin
-que nadie se enterara porque el despliegue se los saltaba. En el servidor los
-tests usan mocks y no necesitan nada especial.
+que nadie se enterara porque el despliegue se los saltaba.
+
+Los tests **no** son solo mocks: los `@SpringBootTest` de `norday-server`
+(los de concurrencia y los de integración) levantan el contexto contra
+Postgres de verdad, en `habitos_db_test`. Para que el `package` pase en el
+VPS hacen falta dos cosas:
+
+- **`habitos_db_test`**, con `norday_test` como dueño (ver `CLAUDE.md`,
+  «Tests»).
+- **Conexiones libres en Postgres.** Cada contexto de test guarda su pool
+  (hasta 5) y la suite levanta varios; con el servicio que se despliega
+  todavía vivo, sus conexiones también cuentan. Si salta «remaining connection
+  slots are reserved», no se reintenta con `-DskipTests`: se mira qué tiene
+  conexiones abiertas (`SELECT datname, count(*) FROM pg_stat_activity GROUP
+  BY datname;`).
 
 ## Cómo se comprueba que arrancó
 
@@ -117,6 +148,261 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
 - Sin sesión válida (sin token, caducado o mal firmado) se devuelve **401**
   desde el 25-sep-2026; antes era 403. El 403 queda para pedir datos de otro
   usuario.
+
+## Despliegue conjunto: hábitos en minutos + Norday Focus
+
+Decidido por Quim: los hábitos en minutos y Norday Focus salen **juntos**, en
+la misma versión, cuando estén los arreglos pendientes. La línea de
+publicación es `wip-enfoque`, en este repo y en `habitos_app_mobile`; el core
+sale por su tag `v0.55.0` (desde su `wip`) y `enfoque_app_mobile`, desde su
+`wip`. Hasta entonces no se publica nada.
+
+Lo que entra en el backend: seis migraciones, de V21 a V26 (producción está
+en V20, que es la última de `main`):
+
+| Migración | Qué hace |
+|---|---|
+| V21 | `hito_pagado`, el libro de hitos, con relleno desde los registros |
+| V22 | `habito_objetivo`, el historial de objetivos, con una versión por hábito existente |
+| V23 | `habito.unidad` y `minutos_objetivo`; `registro.cantidad`, `origen` y `clave_cliente` (todas con valor por defecto o nulas) |
+| V24 | `usuario_dispositivo`, un token por usuario y app, rellena con `usuario.fcm_token` |
+| V25 | la fila `enfoque` en `version_app`, a 1 |
+| V26 | `sesion_enfoque`, las sesiones de Norday Focus |
+
+### 0. Antes, una sola vez
+
+- **Repo de Focus en GitHub**: hecho el 15-nov-2026
+  (`jgrabalosa/enfoque_app_mobile`, rama `wip`).
+- **Firebase** (`habitos-app-5a054`): `com.norday.enfoque.prueba` está dado
+  de alta desde el 15-nov-2026, con la SHA-1 de depuración de la máquina de
+  Quim. Falta `com.norday.enfoque`, con las SHA-1 de depuración y de subida,
+  y volver a bajar el `google-services.json` con las dos (no se versiona).
+- **Google Cloud**: un cliente OAuth Android por paquete y huella (Firebase
+  sola no basta para Google Sign-In). Cuando Play genere la clave de firma
+  de apps de `com.norday.enfoque`, añadir también su SHA-1.
+- **Play Console**: crear `com.norday.enfoque` con su ficha, la política de
+  privacidad y la URL de borrado de cuenta: las mismas de Habits,
+  `https://norday.app/privacidad.html` y `https://norday.app/eliminar-cuenta.html`.
+  En `wip-enfoque` ya hablan de las dos apps (15-nov-2026), así que solo
+  valen para Focus una vez desplegado este backend en producción. Al
+  desplegar, poner en «Última actualización» la fecha real de publicación. El
+  borrador de los textos de la ficha está en el doc «Norday Focus — ficha de
+  Google Play (borrador)». Comprobar si la cuenta de
+  desarrollador exige prueba cerrada antes de Producción para una app nueva.
+- **Primer build de Focus**: hecho el 15-nov-2026, en debug y con el flavor
+  `prueba`. En el móvil ya funcionan el login, Inicio y el enlace desde
+  Habits. Faltan los avisos de gracia y de fin y una build de release (R8).
+
+### 1. El core: tag `v0.55.0`
+
+En `norday_flutter_core`, Quim mergea `wip` en `main`, comprueba con
+`git --no-pager log -1` que está en el commit del merge, pone el tag
+`v0.55.0` y lo sube. Anotar el commit: `git rev-parse v0.55.0^{commit}`.
+
+### 2. Las dos apps con el tag
+
+- **Norday Habits** (`wip-enfoque`): quitar `pubspec_overrides.yaml`,
+  `flutter pub upgrade norday_flutter_core`, comprobar que el `resolved-ref`
+  del `pubspec.lock` es el commit del paso 1, `flutter analyze` y
+  `flutter test`, y commitear el lock. Subir `version:` en el `pubspec.yaml`:
+  hoy es `1.1.0+5` y el versionCode 5 ya se usó en Play el 22-oct-2026, así
+  que el nuevo es **6 o más**.
+- **Norday Focus** (`wip`): lo mismo, y además quitar la línea `pubspec.lock`
+  (y su comentario) del `.gitignore` antes de commitear el lock.
+
+### 3. Staging
+
+1. Anotar en qué commit está staging y en qué versión está su Flyway, antes
+   de tocar nada:
+
+   ```bash
+   git -C /opt/norday-backend-staging --no-pager log -1 --oneline
+   sudo -u postgres psql -d habitos_db_staging -c "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;"
+   ```
+
+   En el VPS, PostgreSQL entra por «peer»: como `root`, `psql -U postgres`
+   falla; hay que pasar por el usuario `postgres` con `sudo -u postgres`.
+   Vale igual para todas las consultas de esta guía.
+
+2. Comprobar que existe el dump de esa madrugada, o hacer uno con
+   `/root/backup_bd.sh` (ver [`backups.md`](backups.md)).
+3. Desplegar `wip-enfoque` con el procedimiento de staging (arriba).
+4. Comprobar:
+   - la línea `Started NordayApplication` con la hora de ahora;
+   - Flyway en la 26 con `success = t` (la consulta de arriba);
+   - ningún hábito sin historial (debe dar 0):
+     `SELECT count(*) FROM habito h WHERE NOT EXISTS (SELECT 1 FROM habito_objetivo o WHERE o.habito_ref = h.habito_id);`
+   - `version_app` con `habitos` y `enfoque`:
+     `SELECT app_id, version_minima FROM version_app ORDER BY app_id;`
+   - la versión mínima de Focus, sin sesión:
+     `curl -s https://staging-api.norday.app/api/version/enfoque` →
+     `{"versionMinima":1}`.
+
+### 4. Prueba en staging con las dos apps de prueba
+
+Con «Norday PRUEBA» y «Norday Focus PRUEBA» en el mismo móvil y la misma
+cuenta:
+
+- **Habits**: un hábito de veces se comporta como antes; crear uno de
+  minutos, apuntar minutos desde el panel, deshacer, cambiar el objetivo
+  (y anular un cambio programado); pausar y reanudar; «Empezar sesión» abre Focus de prueba con el hábito.
+- **Focus**: una sesión de 10 minutos o más con destino suma sus minutos al
+  hábito (y paga el hábito, no Focus); una sin destino; una perdida (sale
+  `RECHAZADO` y no suma); una en modo avión, que se queda en la cola y se
+  envía al volver la red sin sumar dos veces.
+- **Los dos tokens**: `SELECT app_id FROM usuario_dispositivo WHERE
+  usuario_ref = <id>;` da dos filas, `habitos` y `enfoque`. En la prueba del
+  15-nov-2026 dio **0 filas** para la cuenta de prueba (usuario 9) aunque un
+  aviso push sí llegó al móvil: puede que saliera de la reserva
+  `usuario.fcm_token` y no de la tabla. Mirarlo antes de publicar: si la app
+  ya había enviado ese token antes de V24, la caché del móvil
+  (`fcm_token_enviado_<id>`) impide reenviarlo.
+- **La APK de la versión 5** (la 1.1.0 que está en Play): los hábitos de
+  veces siguen igual, y completar uno de minutos da **409** con el texto
+  «Actualiza Norday Habits» (`registro.minutos.actualizar.app`), nunca un
+  minuto por defecto. La APK de Play va contra producción, así que aquí hace
+  falta una build de ese commit con el flavor `prueba`. *A comprobar* que
+  ese commit ya tenía el flavor; si no, esta prueba se hace en producción
+  después del paso 5, con la APK de Play y un hábito de minutos creado desde
+  la versión nueva.
+
+### 5. Producción
+
+1. Quim mergea `wip-enfoque` en `main`.
+2. **Línea base de contrato antes de desplegar** (ver «Línea base de
+   contrato»): al menos `/api/habitos/usuario/{id}/resumen`, `/dashboard` y
+   `/semana` (con un `desde` fijo), `/api/habitos/{id}`,
+   `/api/habitos/{id}/detalle` y `/api/registros/habito/{id}`.
+3. El procedimiento de producción (arriba): backup, `git pull`, parar,
+   `mvn clean package`, arrancar.
+4. Comprobar el arranque y Flyway: de la 20 a la 26, las seis con
+   `success = t`. Las mismas consultas del paso 3, contra `habitos_db`.
+5. Capturar otra vez la línea base y comparar: **solo campos añadidos** (por
+   ejemplo `cantidad` y `origen` en los registros, `unidad` y
+   `minutosObjetivo` en los hábitos). Un campo que cambia de valor o
+   desaparece es un fallo de contrato para la APK instalada.
+6. **Prueba de restauración** con el primer dump posterior al despliegue:
+   está vencida desde el 24-oct-2026 y es obligatoria tras este despliegue
+   (ver [`backups.md`](backups.md)).
+
+### 6. Google Play
+
+- Las builds de release salen de `main` limpio, en los dos repos de apps.
+- **Habits con «Empezar sesión» no llega a Producción antes de que Focus sea
+  visible en Producción.** El botón abre `market://details?id=com.norday.enfoque`
+  a usuarios de producción, y una ficha que solo está en prueba cerrada no
+  la ven: llegarían a una ficha que no existe. Lo ideal es publicar las dos
+  a la vez, con Habits en lanzamiento por fases.
+- Comprobar desde un móvil **que no sea tester** que la ficha de Focus se ve
+  antes de soltar Habits.
+- **Pendiente de probar en cuanto exista la ficha**: «Empezar sesión» en un
+  móvil **sin** Focus instalada tiene que abrir esa ficha de Play. En la
+  prueba en staging del 15-nov-2026 no llevaba a Play, pero entonces la ficha
+  no existía y no se investigó. Con Focus PRUEBA instalada, el enlace abre
+  Focus con el hábito elegido y funciona.
+
+### 7. Versión mínima, solo cuando la nueva se vea en Play
+
+- `enfoque` se queda en 1 (V25): no hay builds de Focus anteriores.
+- `habitos`: opcional, lo decide Quim. La APK 5 no puede completar hábitos
+  de minutos y recibe 409; subir la mínima la obliga a actualizar. Nunca
+  antes de que la versión nueva se vea en Play:
+
+  ```sql
+  UPDATE version_app SET version_minima = <versionCode nuevo> WHERE app_id = 'habitos';
+  ```
+
+### 8. Después
+
+- `CHANGELOG`/`README` de Habits con lo que sale.
+- Quitar «Pendiente con el core 0.55.0» de los `CLAUDE.md` de Habits y de
+  Focus, y confirmar que no queda ningún `pubspec_overrides.yaml`.
+- En el `CLAUDE.md` del core, «Consumidores hoy» con Norday Focus.
+
+### Vuelta atrás
+
+**Apps.** Play no deja bajar el versionCode: o se para el lanzamiento por
+fases (quien ya la tiene se queda con ella), o se publica una build nueva con
+un versionCode mayor. La cola de Focus guarda las sesiones hasta 7 días: un
+backend caído o un 404 no las pierde (las reintenta), y las de más de 7 días
+las descarta la propia app porque el backend las rechazaría.
+
+**Backend.** Lo comprobado en el código:
+
+- **Flyway del jar viejo arranca sobre la base en la 26.** El jar de `main`
+  trae migraciones hasta la V20 y Flyway 10.20.1 (el de Spring Boot 3.4.5).
+  Su `ignoreMigrationPatterns` por defecto es `*:future`: las migraciones
+  aplicadas que el jar no conoce se ignoran al validar, en vez de fallar.
+  `application-staging.properties` no cambia ese valor. *A comprobar*: que el
+  `application.properties` de producción (no versionado) tampoco lo cambie
+  (`grep -i flyway` en la máquina), y el arranque real en staging.
+- **Hibernate `validate` no debería quejarse**: las entidades del jar viejo
+  usan un subconjunto de las columnas, y las columnas nuevas de V23 tienen
+  valor por defecto o admiten nulo, así que sus `INSERT` siguen valiendo.
+  *A comprobar en staging.*
+- **Pero el jar viejo rompe borrados**, porque no conoce las tablas nuevas y
+  sus FK no llevan `ON DELETE CASCADE`:
+  - **borrar un hábito falla para todos**: V22 dio a cada hábito una fila en
+    `habito_objetivo`, y `HabitoService.eliminar` de `main` no la borra;
+  - **la baja de cuenta falla** para quien tenga hábitos (`habito_objetivo`)
+    o token (`usuario_dispositivo`), y para quien tenga sesiones de Focus
+    (`sesion_enfoque`): el `LimpiadorHabitos` de `main` no conoce las dos
+    primeras y no hay `LimpiadorDispositivos` ni `LimpiadorEnfoque`. La baja
+    es obligatoria para Play: una vuelta atrás así tiene que ser corta;
+  - **deshacer un completado que pagó un hito falla** (FK
+    `hito_pagado.registro_ref`).
+- **Y deja datos que el jar nuevo lee distinto al volver a avanzar**
+  (deducido del código, *a comprobar en staging*):
+  - un cambio de objetivo hecho con el jar viejo en un hábito con historial
+    no queda en `habito_objetivo`, y el jar nuevo pone al día la copia del
+    hábito desde el historial: el cambio se pierde;
+  - un hito pagado con el jar viejo no queda en el libro, y podría volver a
+    pagarse si los días hechos bajan y vuelven a cruzarlo;
+  - los tokens: lo de la sección siguiente (V24), con su SQL de
+    resincronización.
+- **Una vez publicadas las apps, el backend no vuelve atrás.** Focus
+  recibiría 404 en `/api/enfoque` (sus sesiones esperarían en la cola) y
+  Habits nueva mandaría minutos que el jar viejo ignora. Se arregla hacia
+  delante.
+- **Restaurar el dump previo** devuelve la base a la V20 de verdad, pero
+  pierde todo lo escrito desde el backup: último recurso, y solo antes de
+  publicar las apps.
+
+## Volver al jar anterior a V24 (tokens de notificaciones)
+
+Desde V24 cada app guarda su token en `usuario_dispositivo`. El jar
+anterior no conoce esa tabla: lee y escribe solo `usuario.fcm_token`, que el
+jar nuevo sigue escribiendo para `habitos`. Volver atrás arranca y los
+recordatorios siguen saliendo, pero:
+
+- **Solo es seguro mientras Norday Focus no esté publicada.** El jar
+  anterior no distingue apps: el token de Enfoque pisaría la columna, igual
+  que antes de V24.
+- **Al volver a avanzar, la tabla está obsoleta** para quien cambió de token
+  durante la vuelta atrás: la fila de `habitos` conserva el token viejo y
+  manda sobre la columna. El jar nuevo usa la columna solo cuando no hay fila.
+  Hay que resincronizar `habitos` desde la columna justo después de arrancar
+  el jar nuevo:
+
+```sql
+BEGIN;
+-- La columna manda: quien tiene token en usuario.fcm_token, a la tabla.
+INSERT INTO usuario_dispositivo (usuario_ref, app_id, fcm_token, actualizado_en)
+SELECT usuario_id, 'habitos', fcm_token, (NOW() AT TIME ZONE 'UTC')
+FROM usuario
+WHERE fcm_token IS NOT NULL AND BTRIM(fcm_token) <> ''
+ON CONFLICT (usuario_ref, app_id) DO UPDATE
+SET fcm_token = EXCLUDED.fcm_token, actualizado_en = EXCLUDED.actualizado_en
+WHERE usuario_dispositivo.fcm_token IS DISTINCT FROM EXCLUDED.fcm_token;
+-- Quien se quedó sin token en la columna, también sin fila de habitos.
+DELETE FROM usuario_dispositivo d
+USING usuario u
+WHERE d.usuario_ref = u.usuario_id AND d.app_id = 'habitos'
+  AND (u.fcm_token IS NULL OR BTRIM(u.fcm_token) = '');
+COMMIT;
+```
+
+Las filas de otras apps no se tocan: el jar anterior no las escribe.
 
 ## Backups
 
@@ -262,8 +548,15 @@ resuelve todo dentro de un `route`, en este orden:
 
 1. Los enlaces cortos (`/ig`, `/threads`, `/web`, `/qr`, `/descargar`…):
    un `redir` 302 a la ficha de Google Play con sus UTM. `/web` es la
-   insignia de la landing y `/qr`, su QR.
+   insignia de la landing y `/qr`, su QR. Desde el 15-nov-2026, también
+   `/invitar`, el enlace que comparte la app al invitar a un amigo:
+   `referrer=utm_source%3Dcompartir%26utm_medium%3Dapp%26utm_campaign%3Dinvitar`,
+   y a `/iphone` si llega desde un iPhone.
 2. `/linkedin`: una página propia, servida desde `/var/www/norday-enlaces`.
+   Desde el 15-nov-2026, `/robots.txt` y `/sitemap.xml` salen de la misma
+   carpeta, con un `handle @seo`, para Google Search Console (la propiedad
+   de dominio `norday.app`, verificada por un registro TXT en Cloudflare
+   que no se borra). Así no se añaden rutas al `permitAll` del backend.
 3. La web: `reverse_proxy` al backend de producción **sólo** para `/`,
    `/index.html`, `/privacidad.html`, `/eliminar-cuenta.html`,
    `/favicon.ico`, `/img/*` y `/js/*`. La API no sale por `norday.app`.
@@ -300,11 +593,15 @@ Comprobación después de cualquier cambio:
     curl -sI https://norday.app/api/habitos | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/ | grep -i -E "^HTTP|^location"
     curl -sI https://api.norday.app/privacidad.html | grep -i "^HTTP"
+    curl -sI https://norday.app/robots.txt | grep -i "^HTTP"
+    curl -sI https://norday.app/sitemap.xml | grep -i "^HTTP"
+    curl -sI https://norday.app/invitar | grep -i -E "^HTTP|^location"
 
 La primera, 200 con la CSP; la de la letra, 200 (un 403 es que falta el
 `header_up -Origin`); la de `/api/habitos`, 302 a Google Play (la API no
 sale por `norday.app`); la de `api.norday.app/`, 301 a
-`https://norday.app/`; y la de `privacidad.html`, 200.
+`https://norday.app/`; la de `privacidad.html`, 200; `robots.txt` y
+`sitemap.xml`, 200; y `/invitar`, 302 a Google Play con su `referrer`.
 
 ## Staging en `staging-api.norday.app` (14-sep-2026)
 

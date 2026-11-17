@@ -185,42 +185,64 @@ public class MascotaService {
         int nivelDespues = calcularNivel(mascota.getExperiencia());
         boolean subioNivel = nivelDespues > nivelAntes;
 
-        // La fase no se guarda: se deriva del nivel en calcularFase. Compararla
-        // antes y después es lo que convierte un cálculo en un evento, y evita
-        // cablear aquí los niveles 3 y 11 —si calcularFase cambia sus umbrales,
-        // esto sigue siendo correcto sin tocarlo.
-        //
-        // El logro no viaja en ResultadoExperienciaDTO: aparecerá en la
-        // Colección al refrescar. La CelebracionNivel ya salta con subioNivel,
-        // así que el momento no se queda mudo.
-        if (subioNivel) {
-            String faseAntes = calcularFase(nivelAntes);
-            String faseDespues = calcularFase(nivelDespues);
-            if (!faseAntes.equals(faseDespues)) {
-                // Al evolucionar se descarta la elección: se muestra la fase
-                // nueva, que es como el usuario se entera de que ha cambiado.
-                // Después puede volver a elegir la que prefiera.
-                mascota.setFaseElegida(null);
-                mascotaDAO.update(mascota);
-
-                Usuario usuario = usuarioDAO.findById(usuarioId);
-                if (usuario != null) {
-                    if ("CRIA".equals(faseDespues)) {
-                        logroService.otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
-                    } else if ("ADULTO".equals(faseDespues)) {
-                        logroService.otorgarSiNoTiene(usuario, "MASCOTA_ADULTO");
-                    }
-                }
-            }
+        // La fase no se guarda: se deriva del nivel en calcularFase. Al cambiar
+        // de fase se descarta la elección: se muestra la fase nueva, que es
+        // como el usuario se entera de que ha cambiado. Después puede volver
+        // a elegir la que prefiera.
+        String faseDespues = calcularFase(nivelDespues);
+        if (subioNivel && !calcularFase(nivelAntes).equals(faseDespues)) {
+            mascota.setFaseElegida(null);
+            mascotaDAO.update(mascota);
         }
+
+        // Los logros de fase, cada vez que gana XP (ver revisarLogrosDeFase).
+        // No viajan en ResultadoExperienciaDTO: aparecerán en la Colección al
+        // refrescar. La CelebracionNivel ya salta con subioNivel, así que el
+        // momento no se queda mudo.
+        revisarLogrosDeFase(usuarioId, nivelDespues);
 
         return new ResultadoExperienciaDTO(subioNivel, nivelDespues, construirDTO(mascota));
     }
 
+    /**
+     * Los logros de fase: se tienen con esa fase o una superior (fase ≥ cría
+     * → MASCOTA_CRIA; adulta → también MASCOTA_ADULTO), y otorgarSiNoTiene
+     * los da una sola vez. Se miran cada vez que la mascota gana XP, no solo
+     * al cambiar de fase: deshacer puede retirar MASCOTA_CRIA (va en la
+     * reversión de quien lo dio) con la mascota todavía en cría por otra XP,
+     * y entonces la fase ya no cambia; y un salto de huevo a adulta de una
+     * vez pasa por la cría. Por índice de FASES, sin cablear los niveles 3 y
+     * 11.
+     *
+     * Público para quien da un paso que no da XP (minutos de más, un día ya
+     * hecho): también debe devolverlos si la fase los merece, y antes de
+     * cerrar lo que mide de ese paso, para que queden en su reversión.
+     *
+     * Al perder XP (restarExperiencia) no se miran: quien deshace no da
+     * logros, y lo siguiente que pase por aquí los devuelve.
+     */
+    public void revisarLogrosDeFase(int usuarioId) {
+        revisarLogrosDeFase(usuarioId, calcularNivel(obtenerOCrear(usuarioId).getExperiencia()));
+    }
+
+    private void revisarLogrosDeFase(int usuarioId, int nivel) {
+        int indiceFase = FASES.indexOf(calcularFase(nivel));
+        if (indiceFase < FASES.indexOf("CRIA")) return;
+        Usuario usuario = usuarioDAO.findById(usuarioId);
+        if (usuario == null) return;
+        logroService.otorgarSiNoTiene(usuario, "MASCOTA_CRIA");
+        if (indiceFase >= FASES.indexOf("ADULTO")) {
+            logroService.otorgarSiNoTiene(usuario, "MASCOTA_ADULTO");
+        }
+    }
+
+    // Poner nombre y elegir fase escriben solo su columna: no bloquean al
+    // usuario, y guardar la mascota entera pisaba la XP que se sumaba a la
+    // vez (un completado, una comida).
     public void ponerNombre(int usuarioId, String nuevoNombre) {
         Mascota mascota = obtenerOCrear(usuarioId);
+        mascotaDAO.actualizarNombre(mascota.getMascotaId(), nuevoNombre);
         mascota.setNombre(nuevoNombre);
-        mascotaDAO.update(mascota);
     }
 
     /**
@@ -233,8 +255,8 @@ public class MascotaService {
         if (!faseDesbloqueada(fase, calcularNivel(mascota.getExperiencia()))) {
             throw new IllegalArgumentException("Fase no válida o no desbloqueada");
         }
+        mascotaDAO.actualizarFaseElegida(mascota.getMascotaId(), fase);
         mascota.setFaseElegida(fase);
-        mascotaDAO.update(mascota);
     }
 
     /**
