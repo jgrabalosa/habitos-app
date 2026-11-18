@@ -51,6 +51,7 @@ class ProductoOfertasTest {
     @Mock private IUsuarioDAO usuarioDAO;
     @Mock private IOfertaDAO ofertaDAO;
     @Mock private RelojTienda reloj;
+    @Mock private com.norday.gamificacion.repository.IUsuarioEquipadoDAO usuarioEquipadoDAO;
     @Spy private ZonaUsuarioService zonaUsuarioService = new ZonaUsuarioService();
 
     @InjectMocks

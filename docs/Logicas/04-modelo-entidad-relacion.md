@@ -305,6 +305,10 @@ Un periodo en el que un producto se vende a un precio (tabla `oferta`, V28; Nori
 
 Relaciona al usuario con los productos adquiridos o disponibles para su cuenta y permite gestionar el equipamiento correspondiente.
 
+### UsuarioEquipado
+
+Lo que lleva puesto el usuario (tabla `usuario_equipado`, V29; Nori vestida, N-5): **una fila por usuario y sitio**, con clave primaria `(usuario_id, categoria)` (el sitio es la categoría del producto: `Tema`, `Cabeza`, `Cuerpo`…) y `usuario_producto_id` único, con FK a `usuario_producto`. Es la fuente de verdad de lo equipado: la base de datos impide dos cosas puestas en el mismo sitio. Cambiar de prenda es actualizar la fila del sitio (`INSERT … ON CONFLICT DO UPDATE`); quitarla, borrarla. `usuario_producto.equipado` se sigue escribiendo, coherente, porque el inventario y la exportación lo devuelven. Al borrar la cuenta, `LimpiadorGamificacion` la vacía antes que `usuario_producto`.
+
 El backend mantiene la información de productos/equipamiento como fuente de verdad.
 
 ### Mascota
@@ -346,6 +350,7 @@ Usuario
  ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
  ├── 1:N ── UsuarioProducto ── N:1 ── Producto ── 1:N ── Oferta
+ ├── 1:N ── UsuarioEquipado (una por sitio) ── 1:1 ── UsuarioProducto
  └── 1:1 ── Mascota
 ```
 

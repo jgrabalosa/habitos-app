@@ -50,21 +50,21 @@ public class UsuarioProductoDAO implements IUsuarioProductoDAO {
         }
     }
 
+    /**
+     * Lo puesto en esa categoría, de usuario_equipado (la fuente de verdad,
+     * V29): la clave primaria (usuario, categoría) impide que haya dos.
+     */
     @Override
     public UsuarioProducto findEquipadoPorCategoria(int usuarioId, String categoria) {
-        try {
-            return em.createQuery(
-                            "SELECT up FROM UsuarioProducto up " +
-                                    "WHERE up.usuario.usuarioId = :usuarioId " +
-                                    "AND up.producto.categoria = :categoria " +
-                                    "AND up.equipado = true",
-                            UsuarioProducto.class)
-                    .setParameter("usuarioId", usuarioId)
-                    .setParameter("categoria", categoria)
-                    .getSingleResult();
-        } catch (NoResultException e) {
-            return null;
-        }
+        return em.createQuery(
+                        "SELECT ue.usuarioProducto FROM UsuarioEquipado ue "
+                                + "WHERE ue.id.usuarioId = :usuarioId AND ue.id.categoria = :categoria",
+                        UsuarioProducto.class)
+                .setParameter("usuarioId", usuarioId)
+                .setParameter("categoria", categoria)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
     }
 
     @Override

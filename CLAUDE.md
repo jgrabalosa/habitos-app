@@ -122,7 +122,8 @@ Implementaciones actuales, seis:
   objetivos (`habito_objetivo`); luego los hábitos; luego las categorías
   propias. El libro de hitos va antes que los registros porque también
   apunta a ellos.
-- `LimpiadorGamificacion` — logros, monedas, productos, mascota.
+- `LimpiadorGamificacion` — logros, monedas, lo puesto (`usuario_equipado`)
+  antes que los productos (apunta a ellos), productos, mascota.
 - `LimpiadorRecuperacion` — códigos de recuperación de contraseña, que
   cuelgan del email y no del id.
 - `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría y
@@ -547,6 +548,12 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 
 ### Persistencia y entidades
 
+- **Lo que «solo puede haber uno» lo garantiza la base de datos, no la
+  lógica.** Dos móviles a la vez dejaban dos identidades equipadas en la misma
+  categoría, y `findEquipadoPorCategoria` (`getSingleResult`) fallaba para
+  siempre. Y con una tabla de una fila por sitio (`usuario_equipado`), no con
+  un índice único parcial: al cambiar de prenda, el índice se incumple a
+  mitad del cambio y Hibernate escribe las filas en el orden en que las cargó.
 - **`LAZY` en una asociación no basta para `open-in-view=false`**: los DAO son
   `@Transactional` por clase y las entidades salen desconectadas. Hace falta
   transacción en quien lee la asociación.
