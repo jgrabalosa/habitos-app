@@ -264,7 +264,9 @@ Cada módulo siembra lo suyo con su propio `CommandLineRunner`:
 `ProductosHabitosInitializer` (habitos; este último, la `PAUSA_HABITO` de la
 tienda, con `origenApp = habitos`), `LogrosEnfoqueInitializer` (enfoque: los
 21 logros de Norday Focus, con `origenApp = enfoque`) y
-`CatalogoGamificacionInitializer` (gamificacion).
+`CatalogoGamificacionInitializer` (gamificacion; también las cuatro prendas
+de Nori, genéricas, con su colección, la versión mínima del core y su
+oferta: ver «Catálogo de productos» en `docs/Logicas/03`).
 
 La comprobación de idempotencia de logros y productos es **por código,
 fila a fila** (`findByCodigo(...) != null` → saltar), no una guarda
