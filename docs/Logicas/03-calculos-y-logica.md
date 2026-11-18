@@ -587,6 +587,15 @@ Un producto puede venderse por temporadas (tabla `oferta`: desde, hasta y precio
 - **El catálogo** (`GET /gamificacion/productos/catalogo`) devuelve cada producto con `coleccion` y `ofertas`: las que aún no han terminado (`hasta >= hoy` **en UTC**), ordenadas por `desde`, cada una con `desde`, `hasta` y `precio`. Un producto con ofertas y todas terminadas no sale; sin ofertas, `ofertas` es una lista vacía. Las ofertas de todos los productos se leen en una sola consulta. El inventario no cambia: trae el producto (también lo que ya salió del catálogo), sin ofertas.
 - **Límite aceptado:** el catálogo cuenta en UTC y la compra en la zona del usuario. Cerca de medianoche alguien puede ver una oferta y recibir «Fuera de temporada» (409), o no verla todavía y poder comprarla. La app recarga el catálogo al recibir el 409.
 
+### Versión mínima del core
+
+Un producto puede pedir una versión mínima del core de Flutter (`producto.version_minima_core`, V30; Nori vestida, N-6): una app con un core más viejo no lo sabría pintar. El core manda su versión en la cabecera `X-Norday-Core` (`0.56.0`) en el catálogo de productos y en la compra.
+
+- **El catálogo** solo saca un producto con versión mínima si la cabecera existe, se lee (tres números, `0.56.0`; con sufijo como `0.56.0+1` o `0.56.0-beta` no se lee) y es igual o mayor, número a número (`0.10.0` es mayor que `0.9.0`). Sin cabecera o ilegible, no sale. Sin versión mínima, sale siempre, como hoy.
+- **La compra** de un producto que el catálogo no daría a ese cliente se rechaza con `409 «Actualiza la app»`, antes de mirar nada más.
+- **Las apps instaladas con el core 0.55.0 no mandan la cabecera**: no ven ni compran ningún producto con versión mínima, ni Habits ni Focus. Por eso las prendas se dan de alta con la versión mínima del core que las sabe pintar.
+- La versión mínima no viaja al cliente (`@JsonIgnore`).
+
 ### Identidades
 
 La identidad `Profundidad` es el producto por defecto utilizado por el sistema.

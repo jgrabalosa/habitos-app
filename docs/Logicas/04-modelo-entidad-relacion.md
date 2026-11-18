@@ -293,6 +293,8 @@ Los productos pueden estar relacionados con:
 
 `coleccion` (`varchar(50)`, nula, V28): la colección de temporada (`INVIERNO_2026`, `NAVIDAD_2026`…), que el cliente traduce por código para agrupar la tienda. Nula en todo lo que no es de temporada.
 
+`version_minima_core` (`varchar(20)`, nula, V30): desde qué versión del core de Flutter (cabecera `X-Norday-Core`) se ve y se vende el producto; nula = todos. No viaja al cliente. Las reglas, en `03`, «Versión mínima del core».
+
 ### Oferta
 
 Un periodo en el que un producto se vende a un precio (tabla `oferta`, V28; Nori vestida, N-4):
