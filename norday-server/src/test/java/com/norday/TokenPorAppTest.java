@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -355,5 +356,104 @@ class TokenPorAppTest {
 
         assertNull(tokenEnUsuario(usuario));
         assertEquals(largo, dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+    }
+
+    // ── Quitar el token al cerrar sesión (T-004a) ──────────
+
+    /**
+     * POST del cierre de sesión como lo hará el core: el token en el cuerpo,
+     * nunca en la URL; appId null = sin cabecera. cuerpo null = sin fcmToken.
+     */
+    private MockHttpServletRequestBuilder quitar(Usuario usuario, String appId, String cuerpo) {
+        MockHttpServletRequestBuilder peticion = post("/api/usuarios/" + usuario.getUsuarioId() + "/fcm-token/quitar")
+                .header("Authorization", "Bearer " + jwtUtil.generateToken(usuario.getUsuarioId(), usuario.getEmail()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo == null ? "{}" : "{\"fcmToken\":\"" + cuerpo + "\"}");
+        if (appId != null) {
+            peticion = peticion.header("X-Norday-App", appId);
+        }
+        return peticion;
+    }
+
+    @Test
+    void quitar_elDeEsaAppSiCoincide_yNoTocaElDeLaOtra() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        int id = usuario.getUsuarioId();
+        mockMvc.perform(registrar(usuario, "habitos", "token-habitos")).andExpect(status().isOk());
+        mockMvc.perform(registrar(usuario, "enfoque", "token-enfoque")).andExpect(status().isOk());
+
+        mockMvc.perform(quitar(usuario, "enfoque", "token-enfoque")).andExpect(status().isNoContent());
+
+        assertNull(dispositivoService.tokenDe(id, AppNorday.ENFOQUE));
+        assertEquals("token-habitos", dispositivoService.tokenDe(id, AppNorday.HABITOS));
+        assertEquals("token-habitos", tokenEnUsuario(usuario));
+    }
+
+    @Test
+    void quitar_otroToken_noCambiaNada_yDa204() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        int id = usuario.getUsuarioId();
+        // El móvil nuevo ya registró el suyo; el viejo cierra sesión con el que tenía.
+        mockMvc.perform(registrar(usuario, "enfoque", "token-movil-nuevo")).andExpect(status().isOk());
+
+        mockMvc.perform(quitar(usuario, "enfoque", "token-movil-viejo")).andExpect(status().isNoContent());
+
+        assertEquals("token-movil-nuevo", dispositivoService.tokenDe(id, AppNorday.ENFOQUE));
+    }
+
+    @Test
+    void quitar_sinTokenGuardado_da204() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+
+        mockMvc.perform(quitar(usuario, "enfoque", "token-cualquiera")).andExpect(status().isNoContent());
+
+        assertEquals(0L, filasDe(usuario));
+    }
+
+    @Test
+    void quitar_sinCabecera_esHabits_yVaciaLaColumnaDeTransicion() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        int id = usuario.getUsuarioId();
+        mockMvc.perform(registrar(usuario, null, "token-apk")).andExpect(status().isOk());
+        mockMvc.perform(registrar(usuario, "enfoque", "token-enfoque")).andExpect(status().isOk());
+
+        mockMvc.perform(quitar(usuario, null, "token-apk")).andExpect(status().isNoContent());
+
+        assertNull(dispositivoService.tokenDe(id, AppNorday.HABITOS));
+        assertNull(tokenEnUsuario(usuario));
+        assertEquals("token-enfoque", dispositivoService.tokenDe(id, AppNorday.ENFOQUE));
+    }
+
+    @Test
+    void quitar_appDesconocida_da400_yNoTocaNada() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        mockMvc.perform(registrar(usuario, "habitos", "token-habitos")).andExpect(status().isOk());
+
+        mockMvc.perform(quitar(usuario, "otra-app", "token-habitos")).andExpect(status().isBadRequest());
+
+        assertEquals("token-habitos", dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+        assertEquals("token-habitos", tokenEnUsuario(usuario));
+    }
+
+    @Test
+    void quitar_sinFcmTokenOVacio_da400_yNoTocaNada() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        mockMvc.perform(registrar(usuario, "habitos", "token-habitos")).andExpect(status().isOk());
+
+        mockMvc.perform(quitar(usuario, "habitos", null)).andExpect(status().isBadRequest());
+        mockMvc.perform(quitar(usuario, "habitos", "")).andExpect(status().isBadRequest());
+        mockMvc.perform(quitar(usuario, "habitos", "   ")).andExpect(status().isBadRequest());
+
+        assertEquals("token-habitos", dispositivoService.tokenDe(usuario.getUsuarioId(), AppNorday.HABITOS));
+        assertEquals("token-habitos", tokenEnUsuario(usuario));
+    }
+
+    @Test
+    void quitar_sinSesion_da401() throws Exception {
+        Usuario usuario = usuarioDePrueba();
+        mockMvc.perform(post("/api/usuarios/" + usuario.getUsuarioId() + "/fcm-token/quitar")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fcmToken\":\"t\"}"))
+                .andExpect(status().isUnauthorized());
     }
 }

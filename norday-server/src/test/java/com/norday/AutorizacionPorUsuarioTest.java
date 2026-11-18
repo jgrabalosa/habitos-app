@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 /**
- * Los 24 endpoints que llevan el id del usuario en la URL, contra la cadena
+ * Los 26 endpoints que llevan el id del usuario en la URL, contra la cadena
  * de seguridad de verdad: filtro JWT incluido.
  *
  * No siembra datos y no los necesita. JwtFilter construye el principal a
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *
  * Son dos afirmaciones, no una. La primera es la obvia: con el id de otro,
  * 403. La segunda es la que impide que la primera pase por casualidad — un
- * refactor que denegara a todo el mundo dejaria los 24 primeros en verde y
+ * refactor que denegara a todo el mundo dejaria los 26 primeros en verde y
  * la aplicacion inservible.
  *
  * Vive en norday-server y no en los modulos de los controladores por lo
@@ -72,6 +72,7 @@ class AutorizacionPorUsuarioTest {
                 Arguments.of("PUT",    "/api/usuarios/%d"),
                 Arguments.of("PUT",    "/api/usuarios/%d/contrasena"),
                 Arguments.of("PUT",    "/api/usuarios/%d/fcm-token"),
+                Arguments.of("POST",   "/api/usuarios/%d/fcm-token/quitar"),
                 Arguments.of("PUT",    "/api/usuarios/%d/origen"),
                 Arguments.of("DELETE", "/api/usuarios/%d"),
 
@@ -98,7 +99,7 @@ class AutorizacionPorUsuarioTest {
     }
 
     /**
-     * Todo lo que no es GET lleva cuerpo JSON vacio: seis de estos
+     * Todo lo que no es GET lleva cuerpo JSON vacio: siete de estos
      * endpoints declaran @RequestBody y sin cuerpo Spring devolveria 400
      * antes de llegar a la comprobacion de autorizacion, que es justo lo que
      * se quiere medir. En los que no lo declaran, el cuerpo se ignora.
