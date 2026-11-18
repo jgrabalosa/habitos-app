@@ -1,18 +1,24 @@
 package com.norday.gamificacion.config;
 
 import com.norday.gamificacion.model.Logro;
+import com.norday.gamificacion.model.Oferta;
 import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.repository.ILogroDAO;
+import com.norday.gamificacion.repository.IOfertaDAO;
 import com.norday.gamificacion.repository.IProductoDAO;
+import com.norday.gamificacion.service.RelojTienda;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Siembra el catálogo genérico de gamificación: los logros que no dependen
@@ -43,6 +49,12 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
 
     @Autowired
     private IProductoDAO productoDAO;
+
+    @Autowired
+    private IOfertaDAO ofertaDAO;
+
+    @Autowired
+    private RelojTienda reloj;
 
     // {codigo, nombre, descripcion, categoria, nivel, puntos}
     private static final String[][] LOGROS = {
@@ -126,6 +138,42 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
             {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "50"},
     };
+
+    /**
+     * Una prenda de Nori (Nori vestida, N-13): genérica, para todas las apps.
+     * El sitio es la categoría (una equipada por sitio, V29). Se vende con
+     * una sola oferta, a [precio], desde el día del alta hasta [hasta].
+     */
+    private record Prenda(String codigo, String nombre, String descripcion, String sitio,
+                          String coleccion, int precio, LocalDate hasta) {}
+
+    /**
+     * El core que sabe pintarlas (V30, T-024): una APK con un core anterior no
+     * las ve en el catálogo ni las puede comprar.
+     */
+    static final String VERSION_CORE_PRENDAS = "0.56.0";
+
+    // La primera temporada (decisiones 17 a 21 de Nori vestida y D-31,
+    // 18-nov-2026): Navidad e Invierno a la venta desde el día de salida.
+    // El gorro de Papá Noel es el regalo de toda la Navidad (D-29, D-30).
+    // Los códigos tienen que coincidir con los del core (CatalogosCore) y con
+    // el manifiesto del arte; las colecciones, con CatalogosCore.coleccion.
+    // Una prenda no se retira al acabar su temporada: deja de venderse porque
+    // su oferta caduca, y sigue siendo de quien la tiene.
+    static final List<Prenda> PRENDAS = List.of(
+            new Prenda("PRENDA_GORRO_LANA", "Gorro de lana",
+                    "Para las mañanas frías. El brote sigue asomando.",
+                    "Cabeza", "INVIERNO_2026", 200, LocalDate.of(2027, 2, 28)),
+            new Prenda("PRENDA_BUFANDA", "Bufanda de rayas",
+                    "Calentita, a rayas y con flecos.",
+                    "Cuerpo", "INVIERNO_2026", 250, LocalDate.of(2027, 2, 28)),
+            new Prenda("PRENDA_GORRO_NOEL", "Gorro de Papá Noel",
+                    "Con borla. Tapa el brote.",
+                    "Cabeza", "NAVIDAD_2026", 0, LocalDate.of(2027, 1, 6)),
+            new Prenda("PRENDA_TRAJE_NOEL", "Traje de Papá Noel",
+                    "Rojo, con cinturón y hebilla dorada. Se ve desde que Nori es cría.",
+                    "Cuerpo", "NAVIDAD_2026", 400, LocalDate.of(2027, 1, 6))
+    );
 
     @Override
     public void run(String... args) {
@@ -222,6 +270,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             creados++;
         }
 
+        creados += inicializarPrendas();
+
         if (creados > 0) {
             log.info("Productos nuevos creados: {}", creados);
         } else {
@@ -236,8 +286,11 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
         // Solo se tocan los genéricos del motor (origenApp null): los productos
         // propios de cada app no aparecen en esta lista y desactivarlos rompería
         // el catálogo de la otra app.
-        Set<String> codigosVigentes = Arrays.stream(PRODUCTOS)
-                .map(datos -> datos[0])
+        // Las prendas también son genéricas (origenApp null): si no estuvieran
+        // aquí, el siguiente arranque las retiraría.
+        Set<String> codigosVigentes = Stream.concat(
+                        Arrays.stream(PRODUCTOS).map(datos -> datos[0]),
+                        PRENDAS.stream().map(Prenda::codigo))
                 .collect(Collectors.toSet());
 
         List<Producto> candidatosRetirada = new ArrayList<>();
@@ -276,5 +329,40 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
         if (retirados > 0) {
             log.warn("Productos desactivados por no estar ya en el catálogo: {}", retirados);
         }
+    }
+
+    /**
+     * Crea las prendas que falten, con su colección, su versión mínima del
+     * core y su oferta. Una prenda que ya existe no se toca, salvo que no
+     * tenga ninguna oferta: entonces se le pone la suya (sin oferta se
+     * vendería a su precio para siempre).
+     *
+     * La oferta empieza el día anterior al del alta en UTC: así ya ha
+     * empezado en todas las zonas, también en las que van por detrás de UTC
+     * (la compra mira el día en la zona del usuario). Una APK anterior a
+     * 0.56.0 no la ve, así que empezar un día antes no adelanta nada.
+     *
+     * @return cuántas prendas se han creado.
+     */
+    private int inicializarPrendas() {
+        LocalDate desde = LocalDate.ofInstant(reloj.ahora(), ZoneOffset.UTC).minusDays(1);
+        int creadas = 0;
+        for (Prenda datos : PRENDAS) {
+            Producto producto = productoDAO.findByCodigo(datos.codigo());
+            if (producto == null) {
+                producto = new Producto(datos.codigo(), datos.nombre(), datos.descripcion(),
+                        datos.sitio(), "EQUIPABLE", datos.precio(), null);
+                producto.setColeccion(datos.coleccion());
+                producto.setVersionMinimaCore(VERSION_CORE_PRENDAS);
+                productoDAO.save(producto);
+                creadas++;
+            }
+            if (ofertaDAO.deProducto(producto.getProductoId()).isEmpty()) {
+                LocalDate inicio = desde.isAfter(datos.hasta()) ? datos.hasta() : desde;
+                ofertaDAO.save(new Oferta(producto, inicio, datos.hasta(), datos.precio()));
+                log.info("Oferta de {}: del {} al {}, a {}", datos.codigo(), inicio, datos.hasta(), datos.precio());
+            }
+        }
+        return creadas;
     }
 }
