@@ -592,7 +592,7 @@ Un producto puede venderse por temporadas (tabla `oferta`: desde, hasta y precio
 Un producto puede pedir una versión mínima del core de Flutter (`producto.version_minima_core`, V30; Nori vestida, N-6): una app con un core más viejo no lo sabría pintar. El core manda su versión en la cabecera `X-Norday-Core` (`0.56.0`) en el catálogo de productos y en la compra.
 
 - **El catálogo** solo saca un producto con versión mínima si la cabecera existe, se lee (tres números, `0.56.0`; con sufijo como `0.56.0+1` o `0.56.0-beta` no se lee) y es igual o mayor, número a número (`0.10.0` es mayor que `0.9.0`). Sin cabecera o ilegible, no sale. Sin versión mínima, sale siempre, como hoy.
-- **La compra** de un producto que el catálogo no daría a ese cliente se rechaza con `409 «Actualiza la app»`, antes de mirar nada más.
+- **La compra** de un producto que el catálogo no daría a ese cliente se rechaza con `409 «Actualiza la app»`, en cuanto se sabe que el producto existe y está activo: antes de la temporada, del saldo y del inventario.
 - **Las apps instaladas con el core 0.55.0 no mandan la cabecera**: no ven ni compran ningún producto con versión mínima, ni Habits ni Focus. Por eso las prendas se dan de alta con la versión mínima del core que las sabe pintar.
 - La versión mínima no viaja al cliente (`@JsonIgnore`).
 
