@@ -43,6 +43,16 @@ class ProductoServiceTest {
     @Mock
     private com.norday.core.repository.IUsuarioDAO usuarioDAO;
 
+    // Las ofertas (T-022): sin ofertas, la compra es la de siempre.
+    @Mock
+    private com.norday.gamificacion.repository.IOfertaDAO ofertaDAO;
+
+    @Mock
+    private com.norday.gamificacion.service.RelojTienda reloj;
+
+    @Mock
+    private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
+
     @InjectMocks
     private ProductoService productoService;
 

@@ -45,6 +45,14 @@ public class Producto {
     @Column(name = "origen_app", length = 30)
     private String origenApp;
 
+    /**
+     * La colección de temporada a la que pertenece (INVIERNO_2026,
+     * NAVIDAD_2026...): el cliente la traduce por código y agrupa la tienda
+     * por ella. NULL en todo lo que no es de temporada.
+     */
+    @Column(name = "coleccion", length = 50)
+    private String coleccion;
+
     // Constructor vacío — obligatorio para JPA
     public Producto() {}
 
@@ -97,6 +105,9 @@ public class Producto {
 
     public String getOrigenApp() { return origenApp; }
     public void setOrigenApp(String origenApp) { this.origenApp = origenApp; }
+
+    public String getColeccion() { return coleccion; }
+    public void setColeccion(String coleccion) { this.coleccion = coleccion; }
 
     @Override
     public String toString() {
