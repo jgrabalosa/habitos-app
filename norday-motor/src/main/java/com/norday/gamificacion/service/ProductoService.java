@@ -4,16 +4,25 @@ import com.norday.core.exception.ConflictoException;
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
+import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.Producto;
 import com.norday.gamificacion.model.UsuarioProducto;
+import com.norday.gamificacion.model.dto.OfertaDTO;
+import com.norday.gamificacion.model.dto.ProductoCatalogoDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
+import com.norday.gamificacion.repository.IOfertaDAO;
 import com.norday.gamificacion.repository.IProductoDAO;
 import com.norday.gamificacion.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductoService {
@@ -51,6 +60,15 @@ public class ProductoService {
 
     @Autowired
     private IUsuarioDAO usuarioDAO;
+
+    @Autowired
+    private IOfertaDAO ofertaDAO;
+
+    @Autowired
+    private ZonaUsuarioService zonaUsuarioService;
+
+    @Autowired
+    private RelojTienda reloj;
 
     /**
      * Bloquea al usuario hasta el final de la transacción (ver
@@ -116,6 +134,52 @@ public class ProductoService {
         return productoDAO.findActivosParaApp(appId);
     }
 
+    /**
+     * El catálogo que ve el cliente: cada producto con sus ofertas que aún no
+     * han terminado (hasta >= hoy en UTC), ordenadas por desde. Un producto
+     * con ofertas y todas terminadas no sale; uno sin ofertas sale con la
+     * lista vacía, como siempre. Las ofertas de todos los productos se leen en
+     * una sola consulta.
+     *
+     * Cuenta en UTC y la compra en la zona del usuario: cerca de medianoche
+     * alguien puede ver una oferta y recibir «Fuera de temporada» (03,
+     * «Ofertas»).
+     */
+    public List<ProductoCatalogoDTO> catalogoConOfertas(String appId) {
+        List<Producto> productos = catalogoActivo(appId);
+        Map<Integer, List<OfertaDTO>> ofertas = ofertaDAO.deProductos(
+                        productos.stream().map(Producto::getProductoId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(OfertaDTO::productoId));
+        LocalDate hoyUtc = ofertas.isEmpty() ? null : LocalDate.ofInstant(reloj.ahora(), ZoneOffset.UTC);
+        return productos.stream()
+                .<ProductoCatalogoDTO>mapMulti((producto, salida) -> {
+                    List<OfertaDTO> suyas = ofertas.getOrDefault(producto.getProductoId(), List.of());
+                    if (suyas.isEmpty()) {
+                        salida.accept(new ProductoCatalogoDTO(producto, List.of()));
+                        return;
+                    }
+                    List<OfertaDTO> abiertas = suyas.stream()
+                            .filter(o -> !o.hasta().isBefore(hoyUtc))
+                            .sorted(Comparator.comparing(OfertaDTO::desde))
+                            .toList();
+                    if (!abiertas.isEmpty()) {
+                        salida.accept(new ProductoCatalogoDTO(producto, abiertas));
+                    }
+                })
+                .toList();
+    }
+
+    /**
+     * La oferta vigente de una lista para un día: la que lo incluye y, si hay
+     * más de una, la de desde más reciente.
+     */
+    static Optional<OfertaDTO> vigente(List<OfertaDTO> ofertas, LocalDate dia) {
+        return ofertas.stream()
+                .filter(o -> o.incluye(dia))
+                .max(Comparator.comparing(OfertaDTO::desde));
+    }
+
     public List<UsuarioProducto> inventarioDeUsuario(Usuario usuario) {
         return usuarioProductoDAO.findByUsuario(usuario);
     }
@@ -139,9 +203,27 @@ public class ProductoService {
             throw new ConflictoException("Ya tienes este producto");
         }
 
-        int saldoActual = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
-        if (saldoActual < producto.getPrecio()) {
-            throw new RuntimeException("Saldo insuficiente");
+        // Con ofertas, solo dentro de una vigente (el día en la zona del
+        // usuario) y a su precio; sin ofertas, como siempre.
+        int precio = producto.getPrecio();
+        boolean regalo = false;
+        List<OfertaDTO> ofertas = ofertaDAO.deProducto(productoId);
+        if (!ofertas.isEmpty()) {
+            LocalDate hoy = LocalDate.ofInstant(reloj.ahora(), zonaUsuarioService.zonaDe(usuario));
+            OfertaDTO oferta = vigente(ofertas, hoy)
+                    .orElseThrow(() -> new ConflictoException("Fuera de temporada"));
+            precio = oferta.precio();
+            regalo = precio == 0;
+        }
+
+        // Un regalo no mira el saldo: puede ser negativo (deshacer un
+        // completado lo compensa con un movimiento de signo contrario) y
+        // «saldo < 0» lo rechazaría.
+        if (!regalo) {
+            int saldoActual = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
+            if (saldoActual < precio) {
+                throw new RuntimeException("Saldo insuficiente");
+            }
         }
 
         if (existente != null && "CONSUMIBLE".equals(producto.getTipo())) {
@@ -152,10 +234,17 @@ public class ProductoService {
             usuarioProductoDAO.save(nuevo);
         }
 
-        usuarioMonedaService.registrarMovimiento(
-                usuario, -producto.getPrecio(), "COMPRA", productoId,
-                "Compra: " + producto.getNombre()
-        );
+        if (regalo) {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, 0, "REGALO", productoId,
+                    "Regalo: " + producto.getNombre()
+            );
+        } else {
+            usuarioMonedaService.registrarMovimiento(
+                    usuario, -precio, "COMPRA", productoId,
+                    "Compra: " + producto.getNombre()
+            );
+        }
 
         return List.of();
     }

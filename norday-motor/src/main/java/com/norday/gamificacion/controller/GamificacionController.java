@@ -5,6 +5,7 @@ import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.model.Logro;
 import com.norday.gamificacion.model.Producto;
+import com.norday.gamificacion.model.dto.ProductoCatalogoDTO;
 import com.norday.gamificacion.model.UsuarioLogro;
 import com.norday.gamificacion.model.UsuarioProducto;
 import com.norday.gamificacion.service.LogroService;
@@ -69,9 +70,9 @@ public class GamificacionController extends ControladorAutorizado {
 
     /** Misma cabecera opcional que en el catálogo de logros. */
     @GetMapping("/productos/catalogo")
-    public ResponseEntity<List<Producto>> catalogoProductos(
+    public ResponseEntity<List<ProductoCatalogoDTO>> catalogoProductos(
             @RequestHeader(value = "X-Norday-App", required = false) String appId) {
-        return ResponseEntity.ok(productoService.catalogoActivo(appId));
+        return ResponseEntity.ok(productoService.catalogoConOfertas(appId));
     }
 
     @GetMapping("/productos/usuario/{usuarioId}")

@@ -291,6 +291,16 @@ Los productos pueden estar relacionados con:
 - la pausa de hábito (`PAUSA_HABITO`, ver Pausa);
 - otros elementos de equipamiento según el catálogo activo.
 
+`coleccion` (`varchar(50)`, nula, V28): la colección de temporada (`INVIERNO_2026`, `NAVIDAD_2026`…), que el cliente traduce por código para agrupar la tienda. Nula en todo lo que no es de temporada.
+
+### Oferta
+
+Un periodo en el que un producto se vende a un precio (tabla `oferta`, V28; Nori vestida, N-4):
+
+- `oferta_id` (serial), `producto_id` (FK a `producto`, con índice), `desde` y `hasta` (`date`, días de la zona del usuario, los dos incluidos, `CHECK (desde <= hasta)`) y `precio` (entero, `CHECK (precio >= 0)`; 0 es un regalo).
+- `Producto` no tiene relación JPA hacia sus ofertas: el catálogo, el inventario y la exportación devuelven la entidad tal cual, y una relación las metería en los tres (con `open-in-view` activo, una perezosa se cargaría al pasar a JSON, con una consulta por producto). El catálogo las añade con `ProductoCatalogoDTO`, en una sola consulta.
+- No cuelga del usuario: no tiene limpiador ni exportador. Las reglas, en `03`, «Ofertas por periodo».
+
 ### UsuarioProducto
 
 Relaciona al usuario con los productos adquiridos o disponibles para su cuenta y permite gestionar el equipamiento correspondiente.
@@ -335,7 +345,7 @@ Usuario
  ├── 1:N ── SesionEnfoque (destino_ref opaco, sin FK al hábito)
  ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
- ├── 1:N ── UsuarioProducto ── N:1 ── Producto
+ ├── 1:N ── UsuarioProducto ── N:1 ── Producto ── 1:N ── Oferta
  └── 1:1 ── Mascota
 ```
 
