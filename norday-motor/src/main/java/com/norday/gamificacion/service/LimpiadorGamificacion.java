@@ -3,6 +3,7 @@ package com.norday.gamificacion.service;
 import com.norday.core.model.Usuario;
 import com.norday.core.service.LimpiadorDatosUsuario;
 import com.norday.gamificacion.repository.IMascotaDAO;
+import com.norday.gamificacion.repository.IUsuarioEquipadoDAO;
 import com.norday.gamificacion.repository.IUsuarioLogroDAO;
 import com.norday.gamificacion.repository.IUsuarioMonedaDAO;
 import com.norday.gamificacion.repository.IUsuarioProductoDAO;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Borra los datos de gamificación de un usuario: logros conseguidos,
- * movimientos de monedas, productos poseídos y su mascota.
+ * movimientos de monedas, lo puesto, productos poseídos y su mascota.
  */
 @Component
 public class LimpiadorGamificacion implements LimpiadorDatosUsuario {
@@ -26,6 +27,9 @@ public class LimpiadorGamificacion implements LimpiadorDatosUsuario {
     private IUsuarioProductoDAO usuarioProductoDAO;
 
     @Autowired
+    private IUsuarioEquipadoDAO usuarioEquipadoDAO;
+
+    @Autowired
     private IMascotaDAO mascotaDAO;
 
     @Override
@@ -33,6 +37,8 @@ public class LimpiadorGamificacion implements LimpiadorDatosUsuario {
         int id = usuario.getUsuarioId();
         usuarioLogroDAO.deleteByUsuario(id);
         usuarioMonedaDAO.deleteByUsuario(id);
+        // Lo puesto apunta a usuario_producto: va antes.
+        usuarioEquipadoDAO.deleteByUsuario(id);
         usuarioProductoDAO.deleteByUsuario(id);
         mascotaDAO.deleteByUsuario(id);
     }

@@ -12,6 +12,7 @@ import com.norday.gamificacion.model.dto.ProductoCatalogoDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.repository.IOfertaDAO;
 import com.norday.gamificacion.repository.IProductoDAO;
+import com.norday.gamificacion.repository.IUsuarioEquipadoDAO;
 import com.norday.gamificacion.repository.IUsuarioProductoDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,9 @@ public class ProductoService {
 
     @Autowired
     private IOfertaDAO ofertaDAO;
+
+    @Autowired
+    private IUsuarioEquipadoDAO usuarioEquipadoDAO;
 
     @Autowired
     private ZonaUsuarioService zonaUsuarioService;
@@ -301,6 +305,9 @@ public class ProductoService {
             throw new RuntimeException("Este producto no es equipable");
         }
 
+        // Lo puesto vive en usuario_equipado, una fila por sitio: cambiar de
+        // prenda es actualizar esa fila. usuario_producto.equipado se deja
+        // coherente porque lo leen los clientes.
         UsuarioProducto equipadoActual = usuarioProductoDAO.findEquipadoPorCategoria(
                 usuario.getUsuarioId(), producto.getCategoria());
         if (equipadoActual != null
@@ -311,16 +318,26 @@ public class ProductoService {
 
         poseido.setEquipado(true);
         usuarioProductoDAO.update(poseido);
+        usuarioEquipadoDAO.poner(usuario.getUsuarioId(), producto.getCategoria(), poseido.getUsuarioProductoId());
 
         return otorgarLogroDeIdentidad(usuario, producto);
     }
 
+    /**
+     * Quita lo puesto: deja vacío su sitio en usuario_equipado (solo si lo
+     * puesto es esto) y equipado a false. Bloquea al usuario primero, como el
+     * resto de la tienda.
+     */
+    @Transactional
     public void desequiparProducto(Usuario usuario, int productoId) {
+        bloquearUsuario(usuario);
         UsuarioProducto poseido = usuarioProductoDAO.findByUsuarioYProducto(
                 usuario.getUsuarioId(), productoId);
         if (poseido == null) {
             throw new RuntimeException("No posees este producto");
         }
+        usuarioEquipadoDAO.quitar(usuario.getUsuarioId(), poseido.getProducto().getCategoria(),
+                poseido.getUsuarioProductoId());
         poseido.setEquipado(false);
         usuarioProductoDAO.update(poseido);
     }
@@ -432,6 +449,7 @@ public class ProductoService {
         UsuarioProducto nueva = new UsuarioProducto(usuario, producto, 1);
         nueva.setEquipado(true);
         usuarioProductoDAO.save(nueva);
+        usuarioEquipadoDAO.poner(usuario.getUsuarioId(), producto.getCategoria(), nueva.getUsuarioProductoId());
 
         usuarioMonedaService.registrarMovimiento(
                 usuario, 0, "REGALO", productoId,
@@ -511,6 +529,7 @@ public class ProductoService {
         UsuarioProducto nueva = new UsuarioProducto(usuario, porDefecto, 1);
         nueva.setEquipado(true);
         usuarioProductoDAO.save(nueva);
+        usuarioEquipadoDAO.poner(usuario.getUsuarioId(), porDefecto.getCategoria(), nueva.getUsuarioProductoId());
 
         usuarioMonedaService.registrarMovimiento(
                 usuario, 0, "REGALO", porDefecto.getProductoId(),

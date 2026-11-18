@@ -390,7 +390,7 @@ Lo que concede logros, monedas o XP sin cambiar un hábito bloquea solo al usuar
 | `HabitoService.crearHabito` | `PRIMER_HABITO`, activos, categorías |
 | `CategoriaService.crearCategoria` | `PRIMERA_CATEGORIA` |
 | `RegistroService.actualizarNota` (transaccional; también `actualizarValoracion`, que no concede nada) | `PRIMERA_NOTA` |
-| `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad y equipar | gasto, regalos, XP de la comida, logros de identidad |
+| `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad, equipar y desequipar | gasto, regalos, XP de la comida, logros de identidad |
 | `UsuarioService.actualizarPerfil` (transaccional) y `loginConGoogle` con un usuario que ya existe | `BIENVENIDO`, `LOGIN_GOOGLE` |
 | `SesionEnfoqueService.guardar` (el alta de una sesión de Norday Focus) | premio de la sesión, XP, logros de Focus y de fase |
 
@@ -583,7 +583,7 @@ Un producto puede venderse por temporadas (tabla `oferta`: desde, hasta y precio
 - **Sin ofertas**, todo es como siempre: se compra a su `precio` cuando se quiera.
 - **Con ofertas**, solo se compra dentro de una **vigente**: la que cumple `desde <= hoy <= hasta`, con los dos extremos incluidos y **hoy en la zona del usuario** (`ZonaUsuarioService`, con el reloj de la tienda, `RelojTienda`). Si hay más de una, manda la de `desde` más reciente. Se cobra el precio de la oferta, no el del producto. Sin ninguna vigente, `409 «Fuera de temporada»` sin tocar saldo ni inventario.
 - **Precio 0 es un regalo**: no mira el saldo (puede ser negativo, ver «Reversión de un completado», y `saldo < 0` lo rechazaría) y apunta un movimiento de 0 con origen `REGALO` y la descripción «Regalo: <nombre>», como `otorgarProducto`. Un equipable que ya se tiene da «Ya tienes este producto» antes de mirar la temporada.
-- **Equipar y desequipar no miran fechas**: lo comprado se puede poner todo el año.
+- **Equipar y desequipar no miran fechas**: lo comprado se puede poner todo el año. Lo puesto es una fila por sitio en `usuario_equipado` (V29): cambiar de prenda sustituye la del sitio.
 - **El catálogo** (`GET /gamificacion/productos/catalogo`) devuelve cada producto con `coleccion` y `ofertas`: las que aún no han terminado (`hasta >= hoy` **en UTC**), ordenadas por `desde`, cada una con `desde`, `hasta` y `precio`. Un producto con ofertas y todas terminadas no sale; sin ofertas, `ofertas` es una lista vacía. Las ofertas de todos los productos se leen en una sola consulta. El inventario no cambia: trae el producto (también lo que ya salió del catálogo), sin ofertas.
 - **Límite aceptado:** el catálogo cuenta en UTC y la compra en la zona del usuario. Cerca de medianoche alguien puede ver una oferta y recibir «Fuera de temporada» (409), o no verla todavía y poder comprarla. La app recarga el catálogo al recibir el 409.
 

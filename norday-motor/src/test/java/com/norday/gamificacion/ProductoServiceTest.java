@@ -53,6 +53,10 @@ class ProductoServiceTest {
     @Mock
     private com.norday.core.service.ZonaUsuarioService zonaUsuarioService;
 
+    // Lo puesto (T-023).
+    @Mock
+    private com.norday.gamificacion.repository.IUsuarioEquipadoDAO usuarioEquipadoDAO;
+
     @InjectMocks
     private ProductoService productoService;
 
