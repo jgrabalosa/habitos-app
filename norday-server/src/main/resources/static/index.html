@@ -22,6 +22,72 @@
 <meta property="og:image:alt" content="La pantalla Hoy de Norday Habits junto al lema «Constancia, no perfección».">
 <meta name="twitter:card" content="summary_large_image">
 
+<!-- Datos estructurados para buscadores. Es un bloque de datos, no se
+     ejecuta. Las preguntas de aquí y las de la sección «Preguntas» van
+     juntas: LandingDatosEstructuradosTest las vigila. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Norday Habits",
+      "operatingSystem": "Android",
+      "applicationCategory": "HealthApplication",
+      "description": "Marca lo que has hecho hoy y ya está. Sin rachas que se rompen, sin culpa y sin anuncios.",
+      "url": "https://norday.app/",
+      "installUrl": "https://play.google.com/store/apps/details?id=com.norday.habitos",
+      "image": "https://norday.app/img/og.jpg",
+      "inLanguage": ["es", "en", "pt"],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      },
+      "author": { "@id": "https://norday.app/#quim" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://norday.app/#quim",
+      "name": "Joaquim Grabalosa",
+      "alternateName": "Quim",
+      "sameAs": ["https://www.linkedin.com/in/labibliotecadequim/"],
+      "email": "mailto:hola@norday.app"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Es gratis?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Sí, y sin anuncios. Las identidades de la tienda se consiguen con los puntos que ganas marcando hábitos, no con dinero." }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Y si un día no llego?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No pasa nada: no hay racha que se rompa. El día se queda vacío, sin rojo, y tu ritmo baja poco a poco hasta tu siguiente paso." }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Necesito conexión?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Sí. Tus hábitos se guardan en tu cuenta y no solo en el móvil, así que si cambias de teléfono entras con tu cuenta y lo tienes todo." }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Hay versión para iPhone?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Todavía no. Por ahora Norday Habits es solo para Android." }
+        },
+        {
+          "@type": "Question",
+          "name": "¿En qué idiomas está?",
+          "acceptedAnswer": { "@type": "Answer", "text": "En español, inglés y portugués." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/img/icono-32.png" type="image/png" sizes="32x32">
 <link rel="icon" href="/img/icono-16.png" type="image/png" sizes="16x16">
