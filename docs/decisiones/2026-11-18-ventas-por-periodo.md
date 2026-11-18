@@ -35,9 +35,11 @@ comprado se puede poner todo el año.
 - **Un precio de temporada sin historia** (cambiar `producto.precio` a mano al
   empezar y acabar cada periodo): depende de que alguien lo haga a su hora y
   no deja rastro de lo que costaba cada día.
-- **Una relación `@OneToMany` de `Producto` a `Oferta`:** perezosa, revienta
-  al pasar a JSON con `open-in-view=false`; ansiosa, metería las ofertas
-  también en el inventario y en cada lectura de un producto.
+- **Una relación `@OneToMany` de `Producto` a `Oferta`:** el producto viaja
+  entero en el catálogo, el inventario y la exportación, así que las ofertas
+  saldrían en los tres. Perezosa, con `open-in-view` activo (como está), se
+  cargaría al pasar a JSON con una consulta por producto, y sin él
+  reventaría; ansiosa, se leerían en cada lectura de un producto.
 - **Un campo `@Transient` en `Producto` relleno por el servicio:** cambiaría
   la forma del inventario (saldría `ofertas` nulo) y mezcla en la entidad
   algo que no es suyo.

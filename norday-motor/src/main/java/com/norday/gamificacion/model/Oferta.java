@@ -13,8 +13,10 @@ import java.time.LocalDate;
  * días de la zona del usuario, los dos incluidos.
  *
  * Producto no tiene una relación JPA hacia sus ofertas a propósito: el
- * catálogo y el inventario devuelven la entidad tal cual y una relación
- * perezosa reventaría al pasar a JSON. Las ofertas del catálogo las pone
+ * catálogo, el inventario y la exportación devuelven la entidad tal cual, y
+ * una relación metería las ofertas en todos (con open-in-view, que está
+ * activo, una perezosa se cargaría al pasar a JSON, con una consulta por
+ * producto; sin él, reventaría). Las ofertas del catálogo las pone
  * ProductoService en una sola consulta.
  */
 @Entity

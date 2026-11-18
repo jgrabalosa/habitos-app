@@ -606,6 +606,7 @@ Hoy hay un único envío programado: los **recordatorios** de cada hábito.
 - **Si toca recordar**: el hábito no está hecho en su día (en un diario) ni cubierto en su semana (en un semanal), y la semana no está ya cumplida. Un hábito de minutos no está hecho hasta que el día llega a sus minutos: un paso a medias no calla el recordatorio.
 - **Un aviso por usuario**: si varios hábitos coinciden a la misma hora, el usuario recibe un solo aviso que los nombra.
 - **A qué token**: al de Norday Habits del usuario (`usuario_dispositivo` con `app_id = 'habitos'`), nunca al de otra app del ecosistema. Si no tiene, no se envía nada. Si FCM da el token por dado de baja (`UNREGISTERED`), se borra, solo si sigue siendo ese: si la app ya ha registrado otro, se queda el nuevo.
+- **Al cerrar sesión**: la app quita su token (`POST /api/usuarios/{id}/fcm-token/quitar`, con el token en el cuerpo y la cabecera `X-Norday-App`), **solo si sigue siendo el de ese móvil**, con la misma regla que el barrido (`DispositivoService.olvidarToken`): si la cuenta ya tiene el token de otro móvil, se queda. Solo el de esa app; en Habits, también la columna de transición. Responde 204 tanto si lo quita como si no. Sin red, el token se queda en el backend hasta que FCM lo dé por dado de baja.
 
 El aviso de racha en peligro (`NotificadorRachaEnPeligro`) existe, pero su programación está comentada: hoy no se envía. Su hora de referencia en el código es las 21:00 de la zona del usuario.
 

@@ -298,7 +298,7 @@ Los productos pueden estar relacionados con:
 Un periodo en el que un producto se vende a un precio (tabla `oferta`, V28; Nori vestida, N-4):
 
 - `oferta_id` (serial), `producto_id` (FK a `producto`, con índice), `desde` y `hasta` (`date`, días de la zona del usuario, los dos incluidos, `CHECK (desde <= hasta)`) y `precio` (entero, `CHECK (precio >= 0)`; 0 es un regalo).
-- `Producto` no tiene relación JPA hacia sus ofertas: el catálogo y el inventario devuelven la entidad tal cual, y una relación perezosa reventaría al pasar a JSON. El catálogo las añade con `ProductoCatalogoDTO`.
+- `Producto` no tiene relación JPA hacia sus ofertas: el catálogo, el inventario y la exportación devuelven la entidad tal cual, y una relación las metería en los tres (con `open-in-view` activo, una perezosa se cargaría al pasar a JSON, con una consulta por producto). El catálogo las añade con `ProductoCatalogoDTO`, en una sola consulta.
 - No cuelga del usuario: no tiene limpiador ni exportador. Las reglas, en `03`, «Ofertas por periodo».
 
 ### UsuarioProducto
