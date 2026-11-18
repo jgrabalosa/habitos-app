@@ -414,6 +414,38 @@ COMMIT;
 
 Las filas de otras apps no se tocan: el jar anterior no las escribe.
 
+## Las prendas de Nori (N-13): antes de desplegar y al volver atrás
+
+`CatalogoGamificacionInitializer` siembra las cuatro prendas
+(`PRENDA_GORRO_LANA`, `PRENDA_BUFANDA`, `PRENDA_GORRO_NOEL`,
+`PRENDA_TRAJE_NOEL`) con su oferta en el primer arranque que las vea. La
+oferta empieza el día anterior al del despliegue, en UTC: **desde ese día
+las compra cualquier app con el core 0.56.0** (los testers incluidos). En
+producción, desplegar el día de la salida.
+
+**Antes de desplegar**, en staging y en producción (usuario `postgres`, en
+el VPS): una prenda que ya exista no se toca, así que si alguna se metió a
+mano (sin `version_minima_core`, sin colección, con otro precio o inactiva)
+se quedaría así.
+
+```sql
+SELECT producto_id, codigo, activo, origen_app, coleccion, version_minima_core, precio
+FROM producto WHERE codigo LIKE 'PRENDA_%';
+SELECT o.* FROM oferta o JOIN producto p ON p.producto_id = o.producto_id
+WHERE p.codigo LIKE 'PRENDA_%';
+```
+
+Lo esperado antes del primer despliegue: ninguna fila.
+
+**Volver a un jar anterior a N-13 retira las prendas para siempre.** Ese jar
+no las tiene en su lista y las pone `activo = false` al arrancar; al volver a
+avanzar, el jar nuevo ve que existen y no las reactiva. Si pasa, justo
+después de arrancar otra vez el jar nuevo:
+
+```sql
+UPDATE producto SET activo = true WHERE codigo LIKE 'PRENDA_%';
+```
+
 ## Backups
 
 Documentados aparte, en [`backups.md`](backups.md). Antes de desplegar en
