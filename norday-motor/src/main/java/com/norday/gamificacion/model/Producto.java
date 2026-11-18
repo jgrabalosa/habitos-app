@@ -1,5 +1,6 @@
 package com.norday.gamificacion.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
@@ -52,6 +53,16 @@ public class Producto {
      */
     @Column(name = "coleccion", length = 50)
     private String coleccion;
+
+    /**
+     * Desde qué versión del core de Flutter (cabecera X-Norday-Core) se ve y
+     * se vende este producto (V30, Nori vestida N-6): una app con un core más
+     * viejo no lo sabría pintar. NULL = todos, como siempre. No viaja al
+     * cliente: el filtro lo hace el backend.
+     */
+    @JsonIgnore
+    @Column(name = "version_minima_core", length = 20)
+    private String versionMinimaCore;
 
     // Constructor vacío — obligatorio para JPA
     public Producto() {}
@@ -108,6 +119,9 @@ public class Producto {
 
     public String getColeccion() { return coleccion; }
     public void setColeccion(String coleccion) { this.coleccion = coleccion; }
+
+    public String getVersionMinimaCore() { return versionMinimaCore; }
+    public void setVersionMinimaCore(String versionMinimaCore) { this.versionMinimaCore = versionMinimaCore; }
 
     @Override
     public String toString() {

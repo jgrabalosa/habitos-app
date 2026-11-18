@@ -150,7 +150,18 @@ public class ProductoService {
      * «Ofertas»).
      */
     public List<ProductoCatalogoDTO> catalogoConOfertas(String appId) {
-        List<Producto> productos = catalogoActivo(appId);
+        return catalogoConOfertas(appId, null);
+    }
+
+    /**
+     * Igual, para un cliente con el core [versionCore] (cabecera
+     * X-Norday-Core): un producto con versión mínima solo sale si la cabecera
+     * se lee y la alcanza (VersionCore.alcanza). Sin cabecera, no sale.
+     */
+    public List<ProductoCatalogoDTO> catalogoConOfertas(String appId, String versionCore) {
+        List<Producto> productos = catalogoActivo(appId).stream()
+                .filter(p -> VersionCore.alcanza(versionCore, p.getVersionMinimaCore()))
+                .toList();
         Map<Integer, List<OfertaDTO>> ofertas = ofertaDAO.deProductos(
                         productos.stream().map(Producto::getProductoId).toList())
                 .stream()
@@ -192,12 +203,26 @@ public class ProductoService {
         return productoDAO.findById(productoId);
     }
 
+    /** Comprar sin decir la versión del core: como una app sin X-Norday-Core. */
     @Transactional
     public List<String> comprarProducto(Usuario usuario, int productoId) {
+        return comprarProducto(usuario, productoId, null);
+    }
+
+    /**
+     * Comprar desde un cliente con el core [versionCore] (cabecera
+     * X-Norday-Core). Lo que el catálogo no le daría tampoco se le vende:
+     * «Actualiza la app».
+     */
+    @Transactional
+    public List<String> comprarProducto(Usuario usuario, int productoId, String versionCore) {
         bloquearUsuario(usuario);
         Producto producto = productoDAO.findById(productoId);
         if (producto == null || !producto.isActivo()) {
             throw new RuntimeException("Producto no disponible");
+        }
+        if (!VersionCore.alcanza(versionCore, producto.getVersionMinimaCore())) {
+            throw new ConflictoException("Actualiza la app");
         }
 
         UsuarioProducto existente = usuarioProductoDAO.findByUsuarioYProducto(

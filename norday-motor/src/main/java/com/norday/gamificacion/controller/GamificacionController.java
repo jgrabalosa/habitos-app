@@ -71,8 +71,9 @@ public class GamificacionController extends ControladorAutorizado {
     /** Misma cabecera opcional que en el catálogo de logros. */
     @GetMapping("/productos/catalogo")
     public ResponseEntity<List<ProductoCatalogoDTO>> catalogoProductos(
-            @RequestHeader(value = "X-Norday-App", required = false) String appId) {
-        return ResponseEntity.ok(productoService.catalogoConOfertas(appId));
+            @RequestHeader(value = "X-Norday-App", required = false) String appId,
+            @RequestHeader(value = "X-Norday-Core", required = false) String versionCore) {
+        return ResponseEntity.ok(productoService.catalogoConOfertas(appId, versionCore));
     }
 
     @GetMapping("/productos/usuario/{usuarioId}")
@@ -90,6 +91,7 @@ public class GamificacionController extends ControladorAutorizado {
 
     @PostMapping("/productos/comprar/{usuarioId}/{productoId}")
     public ResponseEntity<?> comprarProducto(@PathVariable int usuarioId, @PathVariable int productoId,
+                                             @RequestHeader(value = "X-Norday-Core", required = false) String versionCore,
                                              Authentication authentication) {
         if (!esElUsuarioAutenticado(usuarioId, authentication)) {
             return prohibido();
@@ -98,7 +100,7 @@ public class GamificacionController extends ControladorAutorizado {
         if (usuario == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
-        List<String> logrosOtorgados = productoService.comprarProducto(usuario, productoId);
+        List<String> logrosOtorgados = productoService.comprarProducto(usuario, productoId, versionCore);
         return ResponseEntity.ok(Map.of(
                 "mensaje", "Producto comprado correctamente",
                 "logrosOtorgados", logrosOtorgados
