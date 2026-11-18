@@ -286,6 +286,37 @@ public class UsuarioController extends ControladorAutorizado {
     }
 
     /**
+     * Al cerrar sesión, la app quita su token de avisos para que los de esta
+     * cuenta dejen de llegar a ese móvil. Solo si sigue siendo ese token y
+     * solo el de esa app (la cabecera, igual que en el PUT): la cuenta guarda
+     * el token del último móvil que lo registró, y cerrar sesión en un móvil
+     * viejo no puede quitar el del nuevo. Si no coincide, o no hay, no cambia
+     * nada y responde igual (204).
+     *
+     * POST con el token en el cuerpo y no en la URL, porque la URL acaba en
+     * los registros de Caddy.
+     */
+    @PostMapping("/{id}/fcm-token/quitar")
+    public ResponseEntity<?> quitarFcmToken(@PathVariable int id,
+                                            @RequestBody Map<String, String> body,
+                                            @RequestHeader(value = "X-Norday-App", required = false) String cabeceraApp,
+                                            Authentication authentication) {
+        if (!esElUsuarioAutenticado(id, authentication)) {
+            return prohibido();
+        }
+        String appId = AppNorday.deCabecera(cabeceraApp);
+        if (appId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("App desconocida");
+        }
+        String fcmToken = body.get("fcmToken");
+        if (fcmToken == null || fcmToken.isBlank()) {
+            throw new IllegalArgumentException("Falta el campo fcmToken");
+        }
+        dispositivoService.olvidarToken(id, appId, fcmToken);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Origen de la instalación (Install Referrer de Google Play). La app lo
      * envía una sola vez; el primero manda y las llamadas siguientes no
      * cambian nada. Un referrer vacío es válido («instalación sin campaña»).
