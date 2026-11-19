@@ -150,6 +150,25 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
   desde el 25-sep-2026; antes era 403. El 403 queda para pedir datos de otro
   usuario.
 
+**`scripts/linea_base.py`** lo hace todo (20-nov-2026), sin dejar el secreto
+en disco: lo lee del `config/` del servicio o del jar en memoria y firma con
+el algoritmo que toca por el tamaño de la clave (comprobado contra jjwt).
+Pide, para un usuario, el resumen, el dashboard, la semana (desde el lunes
+16-nov-2026), tres hábitos con su detalle y sus registros, la mascota, el
+inventario y el catálogo, y los guarda en `/root/linea-base/<fase>/`. Como
+`root`, desde la carpeta del servicio:
+
+```bash
+python3 -I scripts/linea_base.py antes <usuarioId>     # con el backend viejo arrancado
+python3 -I scripts/linea_base.py despues <usuarioId>   # con el nuevo, el mismo día
+python3 -I scripts/linea_base.py comparar              # tiene que decir «SOLO AÑADE»
+```
+
+`comparar` marca como «ROMPE» una clave que desaparece, un tipo que cambia o
+un estado HTTP distinto; las claves nuevas solo se listan. Para staging:
+`LB_BASE=/opt/norday-backend-staging LB_API=https://staging-api.norday.app/api
+LB_BD=habitos_db_staging`. Al acabar, `rm -r /root/linea-base`.
+
 ## Despliegue conjunto: hábitos en minutos + Norday Focus
 
 Decidido por Quim: los hábitos en minutos y Norday Focus salen **juntos**, en
