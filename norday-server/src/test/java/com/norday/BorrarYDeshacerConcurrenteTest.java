@@ -82,9 +82,14 @@ class BorrarYDeshacerConcurrenteTest {
         if (usuarioId != null) usuarioService.eliminarCuenta(usuarioId);
     }
 
+    /**
+     * Si el fallo es un abrazo mortal de PostgreSQL ({@code deadlock_detected}, SQLSTATE
+     * 40P01). Por el código y no por el texto: el texto va en el idioma del servidor, y
+     * con otro idioma el test pasaría sin vigilar nada.
+     */
     private static boolean esAbrazo(Throwable fallo) {
         for (Throwable t = fallo; t != null; t = t.getCause()) {
-            if (t.getMessage() != null && t.getMessage().contains("deadlock")) return true;
+            if (t instanceof java.sql.SQLException sql && "40P01".equals(sql.getSQLState())) return true;
         }
         return false;
     }
