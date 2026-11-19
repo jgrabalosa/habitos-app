@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.Locale;
 import java.util.Map;
 
@@ -80,6 +81,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> manejarNoEncontrado(RecursoNoEncontradoException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("mensaje", mensajeSeguro(e)));
+    }
+
+    /**
+     * Un fichero o una ruta que no existe es un 404, no un fallo del servidor.
+     * Los robots de internet piden cosas como /js/config.js: antes caían en
+     * {@link #manejarExcepcionNoPrevista} y salían como 500 con la traza
+     * entera en el log (staging, 19-nov-2026). Sin log: no hay nada que mirar.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<?> manejarSinRecurso(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("mensaje", "No encontrado"));
     }
 
     @ExceptionHandler(ConflictoException.class)
