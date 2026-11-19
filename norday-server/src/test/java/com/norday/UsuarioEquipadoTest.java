@@ -18,6 +18,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -135,9 +136,9 @@ class UsuarioEquipadoTest {
         PersistenceException e = assertThrows(PersistenceException.class, () -> em.createNativeQuery(insertar)
                 .setParameter(1, usuario.getUsuarioId()).setParameter(2, tieneB.getUsuarioProductoId())
                 .executeUpdate());
-        assertTrue(String.valueOf(e.getCause()).toLowerCase().contains("constraint")
-                        || String.valueOf(e.getMessage()).toLowerCase().contains("duplicate"),
-                "falla por la restricción: " + e);
+        // Por el código SQL y no por el texto: el texto va en el idioma del servidor
+        // (en el del robot, «llave duplicada viola restricción de unicidad»).
+        assertEquals(CLAVE_DUPLICADA, estadoSql(e), "falla por la restricción: " + e);
     }
 
     @Test
@@ -249,5 +250,16 @@ class UsuarioEquipadoTest {
         assertEquals(List.of(tieneB.getUsuarioProductoId()), filas(usuario, "Cabeza"));
         assertEquals(List.of(tieneTema.getUsuarioProductoId()), filas(usuario, "Tema"));
         assertEquals(List.of(delOtro.getUsuarioProductoId()), filas(otro, "Cabeza"));
+    }
+
+    /** {@code unique_violation} de PostgreSQL. */
+    private static final String CLAVE_DUPLICADA = "23505";
+
+    /** El SQLSTATE de la primera {@link SQLException} de la cadena de causas, o null. */
+    private static String estadoSql(Throwable fallo) {
+        for (Throwable t = fallo; t != null; t = t.getCause()) {
+            if (t instanceof SQLException sql) return sql.getSQLState();
+        }
+        return null;
     }
 }

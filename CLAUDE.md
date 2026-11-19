@@ -561,6 +561,11 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 - **`LAZY` en una asociación no basta para `open-in-view=false`**: los DAO son
   `@Transactional` por clase y las entidades salen desconectadas. Hace falta
   transacción en quien lee la asociación.
+- **Un test no compara el texto de un error de PostgreSQL: mira su SQLSTATE**
+  (`23505` clave duplicada, `40P01` abrazo mortal). El texto va en el idioma
+  del servidor: en el del robot, «llave duplicada viola restricción de
+  unicidad». `UsuarioEquipadoTest` buscaba «duplicate» y fallaba allí, y los
+  tests de concurrencia que buscaban «deadlock» habrían dejado de vigilar.
 - **Nombres de columna, del repositorio, nunca de memoria.** La FK de
   `registro` es `habito_ref`, no `habito_id`.
 - **El nombre real de la base es `habitos_db`**, no `habitas_db`.
