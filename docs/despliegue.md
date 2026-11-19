@@ -65,7 +65,8 @@ Staging primero, siempre. Tres reglas sin excepción:
 - **Se anota el commit** que se va a compilar, con `git --no-pager log -1`.
 
 Staging compila una rama concreta sin rama local, con el HEAD suelto en el
-commit del remoto (hoy, `wip-enfoque`):
+commit del remoto. Desde el 19-nov-2026 es `main` (`9e5780a`); hasta entonces
+fue `wip-enfoque`:
 
 ```bash
 cd /opt/norday-backend-staging
@@ -445,6 +446,62 @@ después de arrancar otra vez el jar nuevo:
 ```sql
 UPDATE producto SET activo = true WHERE codigo LIKE 'PRENDA_%';
 ```
+
+## El arte de las prendas: `/arte/` en Caddy
+
+Las imágenes de las prendas y su manifiesto no pasan por Spring: los sirve
+Caddy desde una carpeta, en el dominio de cada backend. Así la app de prueba
+ve el arte de staging y la de Play, el de producción, sin configurar nada más
+(la dirección sale de `NORDAY_API_URL`, quitando `/api`).
+
+| | Staging | Producción |
+|---|---|---|
+| URL | `https://staging-api.norday.app/arte/` | `https://api.norday.app/arte/` |
+| Carpeta | `/var/www/norday-arte-staging` | `/var/www/norday-arte` |
+| Montado | 19-nov-2026 | el día de la salida |
+
+El bloque va dentro del de su dominio, **antes** del `handle @web` y del
+`handle` de la API (en producción, con su carpeta):
+
+```
+# El arte de las prendas de Nori (Q28): ficheros con huella, inmutables; el manifiesto, 5 minutos.
+handle_path /arte/* {
+	root * /var/www/norday-arte-staging
+	@manifiesto path /manifiesto-*.json
+	@fichero not path /manifiesto-*.json
+	header @manifiesto Cache-Control "public, max-age=300"
+	header @fichero Cache-Control "public, max-age=31536000, immutable"
+	header X-Content-Type-Options nosniff
+	file_server
+}
+```
+
+- **Las imágenes, un año e inmutables:** llevan la huella de sus píxeles en el
+  nombre. Si un dibujo cambia, cambia el nombre.
+- **El manifiesto, 5 minutos:** es lo único que cambia sin cambiar de nombre.
+- `nosniff` lo pone Caddy porque estos ficheros no pasan por Spring.
+- Sin `browse`: la carpeta da 404.
+- La carpeta y los ficheros, de `root`, con 755 y 644.
+
+Antes de recargar: copia del Caddyfile, `caddy validate` y comprobar que
+todos los logs de `/var/log/caddy/` siguen siendo de `caddy` (ver «Cabeceras
+y CSP»). Después:
+
+```bash
+curl -sI https://staging-api.norday.app/arte/manifiesto-v1.json | grep -i -E "^HTTP|cache-control|content-type"
+curl -sI https://staging-api.norday.app/arte/ | grep -i "^HTTP"
+curl -sI https://staging-api.norday.app/api/habitos | grep -i "^HTTP"
+```
+
+Esperado: 200 con `max-age=300` y `application/json`; 404; 401.
+
+**El contenido** sale de `tool/nori_canonica/publicar_arte.py`, en
+`norday_flutter_core` (cómo se usa, en su `docs/funcionamiento/arte-prendas.md`):
+WebP con el alfa sin pérdida y el manifiesto `manifiesto-v1.json`, con la
+nieve. Se genera en el PC, se copia con `scp` a `/root/` y de ahí a la
+carpeta. **Sin `--manifiesto`, el que se genera sustituye al del servidor:
+tiene que llevar todas las prendas.** Primero staging, se mira en la app de
+prueba, y luego producción.
 
 ## Backups
 
