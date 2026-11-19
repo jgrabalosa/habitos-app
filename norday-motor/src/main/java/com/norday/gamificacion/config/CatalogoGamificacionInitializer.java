@@ -169,10 +169,10 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
                     "Cuerpo", "INVIERNO_2026", 250, LocalDate.of(2027, 2, 28)),
             new Prenda("PRENDA_GORRO_NOEL", "Gorro de Papá Noel",
                     "Con borla. Tapa el brote.",
-                    "Cabeza", "NAVIDAD_2026", 0, LocalDate.of(2027, 1, 6)),
+                    "Cabeza", "NAVIDAD_2026", 0, LocalDate.of(2027, 1, 7)),
             new Prenda("PRENDA_TRAJE_NOEL", "Traje de Papá Noel",
                     "Rojo, con cinturón y hebilla dorada. Se ve desde que Nori es cría.",
-                    "Cuerpo", "NAVIDAD_2026", 400, LocalDate.of(2027, 1, 6))
+                    "Cuerpo", "NAVIDAD_2026", 400, LocalDate.of(2027, 1, 7))
     );
 
     @Override
