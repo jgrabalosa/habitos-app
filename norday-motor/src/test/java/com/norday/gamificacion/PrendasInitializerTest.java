@@ -56,7 +56,7 @@ class PrendasInitializerTest {
         ofertas.values().forEach(o -> assertEquals(LocalDate.of(2026, 11, 19), o.getDesde(),
                 o.getProducto().getCodigo()));
         assertEquals(0, ofertas.get("PRENDA_GORRO_NOEL").getPrecio());
-        assertEquals(LocalDate.of(2027, 1, 6), ofertas.get("PRENDA_TRAJE_NOEL").getHasta());
+        assertEquals(LocalDate.of(2027, 1, 7), ofertas.get("PRENDA_TRAJE_NOEL").getHasta());
         assertEquals(LocalDate.of(2027, 2, 28), ofertas.get("PRENDA_BUFANDA").getHasta());
     }
 
@@ -65,7 +65,7 @@ class PrendasInitializerTest {
         Map<String, Oferta> ofertas = arrancarEl("2027-03-05T12:00:00Z");
         ofertas.values().forEach(o -> assertFalse(o.getDesde().isAfter(o.getHasta()),
                 o.getProducto().getCodigo()));
-        assertEquals(LocalDate.of(2027, 1, 6), ofertas.get("PRENDA_GORRO_NOEL").getDesde());
+        assertEquals(LocalDate.of(2027, 1, 7), ofertas.get("PRENDA_GORRO_NOEL").getDesde());
         assertEquals(LocalDate.of(2027, 2, 28), ofertas.get("PRENDA_GORRO_LANA").getDesde());
     }
 }

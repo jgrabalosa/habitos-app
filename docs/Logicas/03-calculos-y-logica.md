@@ -574,8 +574,8 @@ Y las prendas de Nori (Nori vestida, N-13), genéricas (para todas las apps), co
 |---|---|---|---|---:|---|
 | `PRENDA_GORRO_LANA` | Gorro de lana | Cabeza | `INVIERNO_2026` | 200 | 28-feb-2027 |
 | `PRENDA_BUFANDA` | Bufanda de rayas | Cuerpo | `INVIERNO_2026` | 250 | 28-feb-2027 |
-| `PRENDA_GORRO_NOEL` | Gorro de Papá Noel | Cabeza | `NAVIDAD_2026` | 0 (regalo) | 6-ene-2027 |
-| `PRENDA_TRAJE_NOEL` | Traje de Papá Noel | Cuerpo | `NAVIDAD_2026` | 400 | 6-ene-2027 |
+| `PRENDA_GORRO_NOEL` | Gorro de Papá Noel | Cabeza | `NAVIDAD_2026` | 0 (regalo) | 7-ene-2027 |
+| `PRENDA_TRAJE_NOEL` | Traje de Papá Noel | Cuerpo | `NAVIDAD_2026` | 400 | 7-ene-2027 |
 
 Las siembra `CatalogoGamificacionInitializer` (lista `PRENDAS`) en el primer arranque que las vea. La oferta empieza **el día anterior al del alta en UTC**: así ya ha empezado en todas las zonas (la compra mira el día del usuario), y una APK con el core 0.55.0 no las ve, así que no se adelanta nada. Una prenda que ya existe no se toca, salvo que no tenga ninguna oferta: entonces se le pone la suya. Al acabar la temporada no se retiran: deja de venderse porque su oferta termina, y sigue siendo de quien la tiene. Por eso están también en la lista de vigentes de la retirada.
 
