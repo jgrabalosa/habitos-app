@@ -539,7 +539,9 @@ Consecuencias prácticas:
   páginas. Las que hay son las que hay.
 - Los estáticos no llevan JavaScript en línea: lo impide la CSP de Caddy
   (`script-src 'self'`, sin hashes). Cualquier `<script>` en línea o atributo
-  `onclick` nuevo se bloqueará en el navegador.
+  `onclick` nuevo se bloqueará en el navegador. El bloque
+  `<script type="application/ld+json">` de la landing no cuenta como
+  JavaScript en línea: es un dato, no se ejecuta y la CSP no lo bloquea.
 - Al cambiar un DTO de entrada, el único cliente que queda es la aplicación
   móvil, incluida **la APK ya instalada en los dispositivos**. La web ya no
   cuenta como cliente del contrato.

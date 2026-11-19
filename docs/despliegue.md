@@ -611,6 +611,11 @@ direcciones dadas de alta en Google Play Console: no se cambian sin
 cambiarlas antes en la consola. `og:url` y `og:image` de la landing
 apuntan a `norday.app`.
 
+**Datos estructurados (T-010).** La landing lleva en el `<head>` un único
+bloque JSON-LD (`SoftwareApplication`, `Person` y `FAQPage`) para buscadores.
+Las preguntas del bloque y las visibles de «Preguntas» van juntas: si se
+cambia una, hay que cambiar la otra, y `LandingDatosEstructuradosTest` falla si no.
+
 **La web pasa al backend sin la cabecera `Origin`.** El navegador pide
 siempre las letras de `@font-face` en modo CORS, con `Origin`, aunque
 sean del mismo origen. Spring tiene su propia lista de orígenes CORS
