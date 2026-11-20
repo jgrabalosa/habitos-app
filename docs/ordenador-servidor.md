@@ -1,6 +1,6 @@
 # Ordenador-Servidor
 
-_Actualizado el 21-sep-2026. Estado real del servidor local y de Hermes._
+_Actualizado el 20-nov-2026. Estado real del servidor local, de Hermes y del robot automatizador._
 
 ## 1. Qué es cada máquina
 
@@ -25,7 +25,9 @@ quim@192.168.1.135
 
 Funciones actuales:
 
-- **Hermes**, agente local conectado a Telegram.
+- **Hermes**, agente local conectado a Telegram (usuario `quim`).
+- **El robot automatizador** (usuario `robot`): otra instalación de Hermes,
+  con sus propios perfiles, más Claude Code. Ver la sección 15.
 - Clones locales de los repositorios de Norday.
 - Destino doméstico previsto para determinados backups.
 - Montaje de Google Drive mediante `rclone` para acceder a las notas de Obsidian/Conocimiento.
@@ -35,6 +37,16 @@ Hermes está actualmente orientado a convertirse en el **agente principal de Mar
 La arquitectura inicial mantiene **un único Hermes principal**. No se crean subagentes hasta que exista una necesidad real que justifique separarlos.
 
 Un futuro agente independiente de **Mantenimiento** podrá encargarse de la supervisión técnica de los repositorios. Su construcción queda para una fase posterior.
+
+En la máquina hay dos usuarios Linux con trabajo propio:
+
+| Usuario | Qué corre | Servicio |
+|---|---|---|
+| `quim` | Hermes de marketing | `hermes-gateway.service` (`systemd --user`) |
+| `robot` | Robot automatizador | `norday-robot-gateway.service` (de sistema) |
+
+Los dos no comparten nada: cada uno tiene su propia instalación de Hermes,
+sus propios clones y sus propias credenciales.
 
 ---
 
@@ -132,10 +144,13 @@ Cuando sea necesario, las acciones deben verificarse contra su fuente real:
 | `enfoque_app_mobile` | `C:\Dev\Norday\enfoque_app_mobile` | — |
 | `conocimiento_app_mobile` | `C:\Dev\Conocimiento\conocimiento_app_mobile` | `/home/quim/conocimiento_app_mobile` |
 
-Las rutas Linux anteriores son los clones locales conocidos en el servidor.
-`enfoque_app_mobile` (Norday Focus) no tiene clon conocido en el servidor ni,
-a 15-nov-2026, repositorio en GitHub: se sube antes del despliegue conjunto
-(ver `docs/despliegue.md`).
+Las rutas Linux anteriores son los clones locales conocidos en el servidor
+del usuario `quim`. `enfoque_app_mobile` (Norday Focus) tiene repositorio en
+GitHub desde el 15-nov-2026 (`jgrabalosa/enfoque_app_mobile`), pero no tiene
+clon conocido en el servidor.
+
+El robot tiene sus propios clones en `/home/robot/repos/` (ver la sección 15);
+no usa los de esta tabla.
 
 El repositorio `norday_investigation` ya no forma parte de esta arquitectura.
 
@@ -270,6 +285,11 @@ No se considera cerrado todavía:
 
 No se debe abrir directamente SSH a Internet como solución de acceso remoto.
 
+El usuario `robot` no es la puerta de entrada a la máquina: con el robot se
+trabaja desde Telegram, por su gateway de Hermes, y su servicio se gestiona
+desde el usuario `quim` con `sudo` (sección 15). `robot` no está en el grupo
+`sudo` ni en el de `quim`.
+
 ---
 
 ## 10. Backups
@@ -289,6 +309,12 @@ queda pendiente de comprobación.
 
 No se deben asumir como actuales las configuraciones descritas en documentación histórica hasta verificarlas en el servidor.
 
+Del robot hay una copia de su configuración, sin secretos, en `servidor/` del
+repositorio privado `norday-robot` (ver la sección 15): con ella se puede
+reconstruir. Sus clones salen de GitHub. Sus secretos no están en ese
+repositorio ni en este documento. Si el usuario `robot` entra o no en los
+backups del servidor queda pendiente (sección 14).
+
 ---
 
 ## 11. Seguridad y permisos
@@ -306,6 +332,19 @@ Los siguientes puntos requieren auditoría antes de considerarse cerrados:
 - [ ] Revisar acceso desde fuera de la red local.
 
 La separación de permisos debe diseñarse en función de las necesidades reales de Hermes y no heredarse automáticamente de la antigua arquitectura orientada a programación.
+
+### El robot
+
+El robot ya está separado del usuario `quim`:
+
+- Corre con su propio usuario Linux, `robot`, que solo está en los grupos
+  `robot` y `users`.
+- No usa la cuenta de GitHub CLI de la sección 4: se autentica con una
+  GitHub App propia, con tokens que caducan en una hora.
+- Hace push sin `--force`, a ramas `robot/…`, y abre los PR en borrador.
+  El merge a `main` es siempre de Quim.
+- Claude Code corre con un hook que bloquea lo peligroso (`robot-guard`).
+- Sus secretos viven solo en su `/home/robot`, fuera de los repositorios.
 
 ---
 
@@ -431,7 +470,95 @@ Las decisiones propias deben distinguirse de las recomendaciones oficiales.
 - [ ] Completar Ground Truth.
 - [ ] Construir Hermes Marketing/RRSS.
 
+### Robot
+
+- [x] Usuario `robot` propio, fuera del grupo `sudo`.
+- [x] Servicio `norday-robot-gateway.service` instalado como servicio de sistema.
+- [x] Configuración copiada, sin secretos, en `norday-robot/servidor/`.
+- [ ] Decidir si `/home/robot` entra en los backups del servidor.
+- [ ] Compilar Android: el servidor no puede; propuesta W-0 sin instalar.
+
 ### Arquitectura futura
 
 - [x] Mantener inicialmente un único Hermes principal.
 - [ ] Definir y construir agente de Mantenimiento en una fase posterior.
+
+---
+
+## 15. El robot automatizador
+
+### Qué es
+
+El robot programa las tareas de Norday que se le encargan. Es otra
+instalación de Hermes, independiente del Hermes de marketing, con cuatro
+perfiles, más Claude Code:
+
+| Perfil | Papel |
+|---|---|
+| `arquitecto` | Trocea cada tarea en tarjetas y lleva el turno. Su gateway es el que corre como servicio. |
+| `desarrollador` | Prepara el worktree de la tarjeta, lanza Claude Code y publica el PR en borrador. |
+| `revisor` | Comprueba la tarjeta en un clon limpio contra su criterio de hecho, pasa los tests y aprueba o devuelve. |
+| `revisor-n2` | Igual que `revisor`, para las tarjetas de nivel 2: las que fallaron en nivel 1 o cambian el contrato entre repos. |
+
+Claude Code es quien escribe el código; los perfiles de Hermes lo lanzan y
+lo revisan.
+
+### Usuario y ficheros
+
+Corre con el usuario Linux `robot`. Todo lo suyo vive en `/home/robot`:
+
+- **Hermes**, con sus cuatro perfiles.
+- **`~/repos`**: sus clones de los repositorios de su alcance (los dice
+  `ROADMAP_ROBOT.md`). Cada tarjeta trabaja en un worktree propio, en una rama
+  `robot/T-xxx-…`.
+- **`~/bin`**: los guiones del robot (`robot-noche`, `robot-preparar`,
+  `robot-programar`, `robot-publicar`, `robot-revisar`, etc.). Lo que hace cada
+  uno está en su cabecera.
+
+El servidor no compila Android. La propuesta para que lo compile GitHub
+Actions está en `w0/LEEME.md` de `norday-robot`, sin instalar.
+
+### Servicio y trabajos programados
+
+Un solo servicio, de sistema (no `systemd --user`), que corre como `robot`:
+
+```text
+norday-robot-gateway.service
+```
+
+Arranca el gateway de Hermes del perfil `arquitecto`. Ese gateway atiende
+Telegram y hace correr los dos trabajos programados del arquitecto:
+
+| Trabajo | Cuándo | Qué hace |
+|---|---|---|
+| `robot-turno` | Cada 30 minutos | Lo mecánico del turno: cierra lo terminado, relanza lo bloqueado y, si toca, despierta al arquitecto para trocear una tarea nueva. |
+| `robot-cierre` | A las 05:00 | Aparca lo que espera de la cola nocturna y saca el resumen. |
+
+Los dos los lanza `~/bin/robot-noche` (el cierre, con `--cierre`).
+
+### Pararlo y arrancarlo
+
+Hay dos niveles:
+
+- **Que deje de coger trabajo**, sin parar el servicio: desde Telegram,
+  `/parar` y `/arrancar`. `/estado` dice cómo está.
+- **Parar el servicio entero**: lo instaló Quim con `sudo` y solo se para o
+  arranca así, desde el usuario `quim`:
+
+```bash
+sudo systemctl stop norday-robot-gateway.service
+sudo systemctl start norday-robot-gateway.service
+sudo systemctl status norday-robot-gateway.service --no-pager
+```
+
+Con el servicio parado tampoco corren los trabajos programados.
+
+### Su documentación
+
+En el repositorio privado `norday-robot`:
+
+- `ROADMAP_ROBOT.md`: cómo funciona (colas, niveles, regla de documentación)
+  y la lista de tareas.
+- `servidor/LEEME.md`: qué hay instalado en el servidor y dónde. `servidor/`
+  es la copia de esa configuración, sin secretos; la fuente de verdad es el
+  servidor.
