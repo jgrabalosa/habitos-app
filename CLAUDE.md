@@ -493,9 +493,9 @@ hilos se cierran en `@AfterEach`.
 
 Qué cubre la suite y qué no: los tests unitarios de `norday-motor`,
 `habitos`, `conocimiento` y `enfoque` mockean los DAOs, así que no ven
-proxies de Hibernate ni validan JPQL. Los de `norday-server` (44 clases con
-`@SpringBootTest`: los de concurrencia y los de integración) sí tocan
-Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
+proxies de Hibernate ni validan JPQL. Los de `norday-server` (51 clases con
+`@SpringBootTest` a 20-nov-2026: los de concurrencia y los de integración) sí
+tocan Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
 pasan. Una consulta que ninguno de ellos recorre no está validada porque la
 suite esté verde.
 
@@ -521,7 +521,7 @@ suite esté verde.
 
 En `norday-server/src/main/resources/static/` sólo viven la landing
 (`index.html`), las dos páginas legales (`privacidad.html`,
-`eliminar-cuenta.html`), `js/landing.js`, `js/legal.js`, y en `img/` las imágenes y las letras.
+`eliminar-cuenta.html`), `favicon.ico`, `js/landing.js`, `js/legal.js`, y en `img/` las imágenes y las letras.
 
 El dashboard web antiguo —`app.html`, `login.html`, `habito.html`,
 `habito-detalle.html`, `logros.html` y sus `js/` y `css/`— se borró el
@@ -637,7 +637,8 @@ Errores que ya se cometieron una vez. No se vuelven a cometer.
 - **Un cambio de contrato también rompe a los clientes viejos.** Al cambiar un
   DTO de entrada, el cliente que queda es la aplicación móvil, incluida la APK
   ya instalada. Si el servidor ignora un campo desconocido, un `null` puede
-  borrar datos (`HabitoService:134`).
+  borrar datos (por eso `HabitoService.actualizar` trata un `null` como «sin
+  cambio»).
 - **Una línea base de contrato sólo se captura antes de desplegar.** Después
   ya no hay con qué comparar.
 

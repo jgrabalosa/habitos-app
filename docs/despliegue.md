@@ -16,9 +16,9 @@
 | Configuración | empaquetada en el jar | `config/application.properties`, fuera del jar |
 
 Los dos son clones de este repositorio que se compilan en el propio servidor.
-El `application.properties` de producción está en `.gitignore` —es la única
-ruta que el `.gitignore` excluye— y sólo existe en la máquina: hay que
-editarlo allí y el `git pull` nunca lo trae. El
+El `application.properties` de producción está en `.gitignore` —es el único
+fichero de configuración que el `.gitignore` excluye— y sólo existe en la
+máquina: hay que editarlo allí y el `git pull` nunca lo trae. El
 `application-staging.properties`, en cambio, **sí** está versionado: viaja en
 el repositorio y llega a la máquina con el `git pull`, así que se edita aquí y
 no allí.
@@ -173,12 +173,14 @@ LB_BD=habitos_db_staging`. Al acabar, `rm -r /root/linea-base`.
 
 Decidido por Quim: los hábitos en minutos y Norday Focus salen **juntos**, en
 la misma versión, cuando estén los arreglos pendientes. La línea de
-publicación es `wip-enfoque`, en este repo y en `habitos_app_mobile`; el core
-sale por su tag `v0.55.0` (desde su `wip`) y `enfoque_app_mobile`, desde su
-`wip`. Hasta entonces no se publica nada.
+publicación es `main`, en este repo y en `habitos_app_mobile` (aquí,
+`wip-enfoque` y `wip-focus-economia` se mergearon el 17-nov-2026, PR #8 y
+PR #9); `enfoque_app_mobile` sale desde su `wip`. Habits sale con la
+1.3.0+11 y el core `v0.59.1`; Focus sigue con el core `v0.55.0`. Hasta
+entonces no se publica nada.
 
-Lo que entra en el backend: seis migraciones, de V21 a V26 (producción está
-en V20, que es la última de `main`):
+Lo que entra en el backend: diez migraciones, de V21 a V30 (producción está
+en V20):
 
 | Migración | Qué hace |
 |---|---|
@@ -188,16 +190,18 @@ en V20, que es la última de `main`):
 | V24 | `usuario_dispositivo`, un token por usuario y app, rellena con `usuario.fcm_token` |
 | V25 | la fila `enfoque` en `version_app`, a 1 |
 | V26 | `sesion_enfoque`, las sesiones de Norday Focus |
+| V27 | `premio_monedas`, `premio_xp`, `premio_logros` y `premio_tope` en `sesion_enfoque` (todas con valor por defecto o nulas) |
+| V28 | `oferta`, las prendas por temporadas, y `producto.coleccion` |
+| V29 | `usuario_equipado`, una cosa puesta por sitio, rellena desde `usuario_producto.equipado` |
+| V30 | `producto.version_minima_core` |
 
-**Después de la salida A, la V27** (rama `wip-focus-economia`, 16-nov-2026):
-el premio propio de Norday Focus. Añade a `sesion_enfoque` `premio_monedas`,
+**La V27** (16-nov-2026, ya en `main` desde el 17-nov, PR #9): el premio
+propio de Norday Focus. Añade a `sesion_enfoque` `premio_monedas`,
 `premio_xp`, `premio_logros` y `premio_tope`, todas con valor por defecto o
 nulas: el jar de la V26 sigue funcionando sobre la base en la V27 (no las lee
 y su `INSERT` las deja con el valor por defecto). Siembra además los 21 logros
 de Focus al arrancar (`LogrosEnfoqueInitializer`, con `origen_app =
-enfoque`). Va a `main` cuando la salida A ya esté en `main`, y antes que
-Norday Focus a producción. Si Nori vestida llega antes a `main`, una de las
-dos renumera su migración antes del merge.
+enfoque`). Nori vestida entró después, de la V28 a la V30.
 
 ### 0. Antes, una sola vez
 
@@ -213,7 +217,7 @@ dos renumera su migración antes del merge.
 - **Play Console**: crear `com.norday.enfoque` con su ficha, la política de
   privacidad y la URL de borrado de cuenta: las mismas de Habits,
   `https://norday.app/privacidad.html` y `https://norday.app/eliminar-cuenta.html`.
-  En `wip-enfoque` ya hablan de las dos apps (15-nov-2026), así que solo
+  En `main` ya hablan de las dos apps (15-nov-2026), así que solo
   valen para Focus una vez desplegado este backend en producción. Al
   desplegar, poner en «Última actualización» la fecha real de publicación. El
   borrador de los textos de la ficha está en el doc «Norday Focus — ficha de
@@ -225,11 +229,17 @@ dos renumera su migración antes del merge.
 
 ### 1. El core: tag `v0.55.0`
 
+**Hecho (17 a 20-nov).** El tag `v0.55.0` existe; Habits ya va por un core
+posterior.
+
 En `norday_flutter_core`, Quim mergea `wip` en `main`, comprueba con
 `git --no-pager log -1` que está en el commit del merge, pone el tag
 `v0.55.0` y lo sube. Anotar el commit: `git rev-parse v0.55.0^{commit}`.
 
 ### 2. Las dos apps con el tag
+
+**Hecho (17 a 20-nov).** Habits, en `main` con la 1.3.0+11; Focus, en `wip`
+con el core `v0.55.0` y el lock versionado.
 
 - **Norday Habits** (`wip-enfoque`): quitar `pubspec_overrides.yaml`,
   `flutter pub upgrade norday_flutter_core`, comprobar que el `resolved-ref`
@@ -256,10 +266,10 @@ En `norday_flutter_core`, Quim mergea `wip` en `main`, comprueba con
 
 2. Comprobar que existe el dump de esa madrugada, o hacer uno con
    `/root/backup_bd.sh` (ver [`backups.md`](backups.md)).
-3. Desplegar `wip-enfoque` con el procedimiento de staging (arriba).
+3. Desplegar `main` con el procedimiento de staging (arriba).
 4. Comprobar:
    - la línea `Started NordayApplication` con la hora de ahora;
-   - Flyway en la 26 con `success = t` (la consulta de arriba);
+   - Flyway en la 30 con `success = t` (la consulta de arriba);
    - ningún hábito sin historial (debe dar 0):
      `SELECT count(*) FROM habito h WHERE NOT EXISTS (SELECT 1 FROM habito_objetivo o WHERE o.habito_ref = h.habito_id);`
    - `version_app` con `habitos` y `enfoque`:
@@ -277,7 +287,8 @@ cuenta:
   minutos, apuntar minutos desde el panel, deshacer, cambiar el objetivo
   (y anular un cambio programado); pausar y reanudar; «Empezar sesión» abre Focus de prueba con el hábito.
 - **Focus**: una sesión de 10 minutos o más con destino suma sus minutos al
-  hábito (y paga el hábito, no Focus); una sin destino; una perdida (sale
+  hábito (paga el hábito lo suyo y la sesión su premio: `aporte` y `premio`
+  en la respuesta); una sin destino; una perdida (sale
   `RECHAZADO` y no suma); una en modo avión, que se queda en la cola y se
   envía al volver la red sin sumar dos veces.
 - **Los dos tokens**: `SELECT app_id FROM usuario_dispositivo WHERE
@@ -298,14 +309,14 @@ cuenta:
 
 ### 5. Producción
 
-1. Quim mergea `wip-enfoque` en `main`.
+1. Hecho: `wip-enfoque` está en `main` desde el 17-nov-2026 (PR #8).
 2. **Línea base de contrato antes de desplegar** (ver «Línea base de
    contrato»): al menos `/api/habitos/usuario/{id}/resumen`, `/dashboard` y
    `/semana` (con un `desde` fijo), `/api/habitos/{id}`,
    `/api/habitos/{id}/detalle` y `/api/registros/habito/{id}`.
 3. El procedimiento de producción (arriba): backup, `git pull`, parar,
    `mvn clean package`, arrancar.
-4. Comprobar el arranque y Flyway: de la 20 a la 26, las seis con
+4. Comprobar el arranque y Flyway: de la 20 a la 30, las diez con
    `success = t`. Las mismas consultas del paso 3, contra `habitos_db`.
 5. Capturar otra vez la línea base y comparar: **solo campos añadidos** (por
    ejemplo `cantidad` y `origen` en los registros, `unidad` y
@@ -344,6 +355,9 @@ cuenta:
 
 ### 8. Después
 
+**Hecho (17 a 20-nov).** El `CHANGELOG` y el `README` de Habits ya traen la
+1.3.0, y el `CLAUDE.md` del core lista a Norday Focus.
+
 - `CHANGELOG`/`README` de Habits con lo que sale.
 - Quitar «Pendiente con el core 0.55.0» de los `CLAUDE.md` de Habits y de
   Focus, y confirmar que no queda ningún `pubspec_overrides.yaml`.
@@ -359,7 +373,7 @@ las descarta la propia app porque el backend las rechazaría.
 
 **Backend.** Lo comprobado en el código:
 
-- **Flyway del jar viejo arranca sobre la base en la 26.** El jar de `main`
+- **Flyway del jar viejo arranca sobre la base en la 30.** El jar de la V20
   trae migraciones hasta la V20 y Flyway 10.20.1 (el de Spring Boot 3.4.5).
   Su `ignoreMigrationPatterns` por defecto es `*:future`: las migraciones
   aplicadas que el jar no conoce se ignoran al validar, en vez de fallar.
@@ -373,12 +387,17 @@ las descarta la propia app porque el backend las rechazaría.
 - **Pero el jar viejo rompe borrados**, porque no conoce las tablas nuevas y
   sus FK no llevan `ON DELETE CASCADE`:
   - **borrar un hábito falla para todos**: V22 dio a cada hábito una fila en
-    `habito_objetivo`, y `HabitoService.eliminar` de `main` no la borra;
+    `habito_objetivo`, y `HabitoService.eliminar` del jar de la V20 no la
+    borra;
   - **la baja de cuenta falla** para quien tenga hábitos (`habito_objetivo`)
     o token (`usuario_dispositivo`), y para quien tenga sesiones de Focus
-    (`sesion_enfoque`): el `LimpiadorHabitos` de `main` no conoce las dos
-    primeras y no hay `LimpiadorDispositivos` ni `LimpiadorEnfoque`. La baja
-    es obligatoria para Play: una vuelta atrás así tiene que ser corta;
+    (`sesion_enfoque`): el `LimpiadorHabitos` del jar de la V20 no conoce las
+    dos primeras y no hay `LimpiadorDispositivos` ni `LimpiadorEnfoque`.
+    También para quien tenga algo en `usuario_equipado` (V29): sus FK a
+    `usuario` y a `usuario_producto` no llevan cascada, y el
+    `LimpiadorGamificacion` de ese jar no conoce la tabla y borra
+    `usuario_producto` sin quitarla antes. La baja es obligatoria para Play:
+    una vuelta atrás así tiene que ser corta;
   - **deshacer un completado que pagó un hito falla** (FK
     `hito_pagado.registro_ref`).
 - **Y deja datos que el jar nuevo lee distinto al volver a avanzar**
@@ -388,6 +407,10 @@ las descarta la propia app porque el backend las rechazaría.
     hábito desde el historial: el cambio se pierde;
   - un hito pagado con el jar viejo no queda en el libro, y podría volver a
     pagarse si los días hechos bajan y vuelven a cruzarlo;
+  - un cambio de identidad hecho con el jar viejo solo toca
+    `usuario_producto.equipado` y no llega a `usuario_equipado`, que es de
+    donde lee el jar nuevo lo puesto en cada sitio. Las prendas, además, se
+    retiran: ver «Las prendas de Nori (N-13)», más abajo;
   - los tokens: lo de la sección siguiente (V24), con su SQL de
     resincronización.
 - **Una vez publicadas las apps, el backend no vuelve atrás.** Focus
