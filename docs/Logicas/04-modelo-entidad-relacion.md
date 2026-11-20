@@ -12,13 +12,13 @@ El backend de Norday está organizado en módulos:
 
 - `norday-motor`: cuentas, autenticación, preferencias, gamificación, versión mínima por aplicación y funcionalidades compartidas del ecosistema.
 - `habitos`: hábitos, registros, ritmo, pausas, racha heredada, logros específicos de hábitos y notificaciones relacionadas.
-- `conocimiento`: categorías, píldoras de conocimiento, preferencias y valoraciones.
+- `conocimiento`: ramas (categorías), temarios, píldoras con sus tarjetas y retos, fuentes, preferencias, valoraciones, lecturas, repaso espaciado y respuestas.
 - `enfoque`: sesiones de concentración de Norday Focus.
 - `norday-server`: aplicación Spring Boot que integra y expone los módulos.
 
 La cuenta de usuario y la gamificación son compartidas por las aplicaciones del ecosistema.
 
-Este documento cubre el motor, el dominio de Norday Habits y las sesiones de Norday Focus (`enfoque`). Las entidades de `conocimiento` (`Categoria`, `Pildora`, `PildoraCategoria`, `UsuarioPildora`, `UsuarioCategoriaPreferencia` y `ValoracionPildora`) pertenecen a Norday Conocimiento y se describen en su propio módulo, en `conocimiento/src/main/java/com/norday/conocimiento/model/`.
+Este documento cubre el motor, el dominio de Norday Habits y las sesiones de Norday Focus (`enfoque`). De Norday Conocimiento describe las tablas del producto mínimo (V37-V39, apartado «Norday Conocimiento»); las de V4 y V5 (`Categoria`, `Pildora`, `PildoraCategoria`, `UsuarioPildora`, `UsuarioCategoriaPreferencia` y `ValoracionPildora`) se describen en su propio módulo, en `conocimiento/src/main/java/com/norday/conocimiento/model/`.
 
 ---
 
@@ -248,6 +248,55 @@ El resultado del aporte se apunta con precedencia: `PENDIENTE` lo acepta todo; d
 
 Deshacer en Norday Habits el registro que creó una sesión no toca la sesión: sus columnas `*_aportad*` se quedan como estaban (limitación conocida, ver 03).
 
+### Norday Conocimiento (V37-V39)
+
+Tablas del módulo `conocimiento` para el producto mínimo. El contenido (`temario`, `fuente`, `pildora_tarjeta`, `reto`, `reto_opcion` y las columnas nuevas de `pildora`) llega del repo `norday_conocimiento_contenido` por un importador que actualiza por `codigo`, nunca por id, y que **retira, nunca borra**: lo que sale del repo pasa a `activo`/`activa = false`, porque las filas de los usuarios siguen apuntando a ello. Las tablas por usuario (`lectura_pildora`, `usuario_reto` y `respuesta_reto`) cuelgan de `usuario` con FK `NOT NULL` y sin cascada.
+
+**`temario`** (V37). Un recorrido ordenado dentro de una rama.
+
+- `temario_id`: clave primaria. `codigo`: obligatorio, hasta 100 caracteres, único (`UK_temario_codigo`).
+- `categoria_id`: obligatoria, clave ajena a `categoria_conocimiento` (`FK_temario_categoria`), que es la rama.
+- `titulo` (200, obligatorio), `descripcion` (500), `orden` (obligatorio) y `activo` (por defecto verdadero).
+
+**`fuente`** (V37). El libro del «Para saber más» y las fuentes citables; la procedencia afirmación por afirmación se queda en el repo.
+
+- `fuente_id`: clave primaria. `codigo`: obligatorio, hasta 100 caracteres, único (`UK_fuente_codigo`).
+- `tipo`: obligatorio, `LIBRO`, `PAPER` o `DOMINIO_PUBLICO`. `titulo` (300, obligatorio), `autor` (200), `anio`, `url` (500) y `licencia` (30).
+
+**Columnas nuevas de `pildora`** (V37).
+
+- `codigo`: hasta 100 caracteres, único (`UK_pildora_codigo`). Admite nulo solo porque se añadió a una tabla existente; toda píldora importada lo trae.
+- `temario_id` (FK `FK_pildora_temario`) y `orden_temario`: nulos en las píldoras sueltas, que solo salen en el match. Índice (`temario_id`, `orden_temario`). El par no es único a propósito: al reordenar un temario se incumpliría a mitad del cambio; lo comprueba `validar.py`.
+- `nivel` y `version`: obligatorios, por defecto 1. `version` sube con cada cambio de texto en el repo; no es un `@Version` de JPA.
+- `fuente_id`: admite nulo, FK `FK_pildora_fuente`. `licencia`: hasta 30 caracteres, sin valor por defecto.
+- `preview_corto` pasa a ser el gancho y `contenido_completo` guarda las tarjetas unidas. `libro_origen` queda obsoleto.
+
+**`pildora_tarjeta`** (V38). Las 3-5 tarjetas de una píldora: `pildora_id` (FK), `orden` (desde 1) y `texto` (`TEXT`). (`pildora_id`, `orden`) es único (`UK_pildora_tarjeta_orden`): al rehacer las tarjetas hay que borrar y hacer flush antes de insertar.
+
+**`reto` y `reto_opcion`** (V38). La pregunta de opción múltiple de una píldora (1 o 2 por píldora).
+
+- `reto_id`: clave primaria. `codigo`: obligatorio, hasta 100 caracteres, único (`UK_reto_codigo`). `pildora_id`: obligatoria, FK `FK_reto_pildora`, con índice.
+- `enunciado` (500, obligatorio), `indice_correcta` (obligatorio, desde 0 sobre las opciones), `explicacion` (1000) y `activo`.
+- `reto_opcion`: las opciones en orden (2 a 4), un `@ElementCollection` con clave primaria (`reto_id`, `orden`) y `texto` (300).
+
+**`lectura_pildora`** (V39). Una fila por lectura terminada.
+
+- `usuario_id` y `pildora_id`: obligatorias, con FK. `clave`: UUID que genera la app, única (`UK_lectura_pildora_clave`): un reintento no crea otra fila ni paga dos veces. No se exporta.
+- `dia`: el día en la zona del usuario (racha y tope diario). `leida_en`: el instante, en UTC.
+- `premio_monedas`, `premio_xp` (por defecto 0), `premio_logros` (1000, códigos separados por comas) y `premio_tope`: lo que pagó la lectura, como en `sesion_enfoque`.
+- Índice (`usuario_id`, `dia`).
+
+**`usuario_reto`** (V39). El estado del repaso espaciado (FSRS) de cada reto para cada usuario; se crea al leer la píldora.
+
+- `usuario_id` y `reto_id`: obligatorias, con FK; el par es único (`UK_usuario_reto`).
+- `estabilidad` y `dificultad`: `DOUBLE PRECISION`, por defecto 0. Con `repasos = 0` (todavía sin responder) valen 0 y no significan nada.
+- `repasos` y `fallos` (por defecto 0), `ultimo_repaso` (nulo si nunca) y `vence_en` (obligatorio). Fechas en UTC.
+- El reto está en la bandeja si `vence_en` ya pasó y el reto sigue activo. Índice (`usuario_id`, `vence_en`).
+
+**`respuesta_reto`** (V39). Una fila por respuesta: `usuario_id` y `reto_id` (FK), `clave` (UUID único, `UK_respuesta_reto_clave`), `opcion` (desde 0), `acierto` (se guarda porque el reto puede cambiar), `dia`, `respondida_en` (UTC) y las mismas columnas `premio_*` que la lectura. Índice (`usuario_id`, `dia`).
+
+`usuario_pildora.estado` gana `EN_COLA` (match a la derecha) y `LEIDA` (lectura terminada); es un `VARCHAR(30)` sin CHECK (V4); V37 quita, si existe, el CHECK que lleva una tabla generada por Hibernate.
+
 ### Versión mínima (VersionApp)
 
 Tabla `version_app`, del módulo `norday-motor` (migración V20; la recomendada, V33). Tiene tres columnas:
@@ -256,7 +305,7 @@ Tabla `version_app`, del módulo `norday-motor` (migración V20; la recomendada,
 - `version_minima`: obligatoria. El `versionCode` de Android que la app necesita; por debajo, la app se bloquea y pide actualizar.
 - `version_recomendada` (V33): `INTEGER NULL`. El `versionCode` por debajo del cual la app enseña una tarjeta que invita a actualizar, sin obligar a nada. Nula = sin aviso (todas las filas existentes arrancan así).
 
-Una app sin fila tiene mínima 0 y recomendada nula, así que nunca se bloquea ni se avisa por un dato que falta. La migración V20 deja una fila para `habitos` con mínima 1, que no bloquea a nadie, y la V25 otra igual para `enfoque`.
+Una app sin fila tiene mínima 0 y recomendada nula, así que nunca se bloquea ni se avisa por un dato que falta. La migración V20 deja una fila para `habitos` con mínima 1, que no bloquea a nadie, la V25 otra igual para `enfoque` y la V40 otra para `conocimiento`.
 
 Se cambian a mano con un `UPDATE`, sin compilar ni reiniciar. El orden es siempre el mismo: primero se publica la versión nueva y se ve en Play; después se sube la recomendada y, si hace falta obligar, la mínima. La consulta es `GET /api/version/{appId}`, que devuelve `{"versionMinima":5,"versionRecomendada":9}`; sin recomendada, la clave sale con `null` (`"versionRecomendada":null`).
 
@@ -364,11 +413,23 @@ Usuario
  │
  ├── 1:N ── UsuarioDispositivo (una por app)
  ├── 1:N ── SesionEnfoque (destino_ref opaco, sin FK al hábito)
+ ├── 1:N ── LecturaPildora ── N:1 ── Pildora
+ ├── 1:N ── UsuarioReto ── N:1 ── Reto
+ ├── 1:N ── RespuestaReto ── N:1 ── Reto
  ├── 1:N ── UsuarioLogro ── N:1 ── Logro
  ├── 1:N ── UsuarioMoneda
  ├── 1:N ── UsuarioProducto ── N:1 ── Producto ── 1:N ── Oferta
  ├── 1:N ── UsuarioEquipado (una por sitio) ── 1:1 ── UsuarioProducto
  └── 1:1 ── Mascota
+```
+
+Y el contenido de Norday Conocimiento:
+
+```text
+Categoria (rama) ── 1:N ── Temario ── 1:N ── Pildora
+Fuente ── 1:N ── Pildora (el «Para saber más»)
+Pildora ── 1:N ── PildoraTarjeta
+Pildora ── 1:N ── Reto ── 1:N ── reto_opcion
 ```
 
 La relación exacta entre entidades y las tablas auxiliares se define en las clases JPA y en el esquema de base de datos desplegado.
@@ -423,6 +484,8 @@ El exportador de notificaciones (`ExportadorDispositivos`, sección `notificacio
 
 Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados`, `monedasAportadas`, `xpAportada`, `logrosAportados`, `premioMonedas`, `premioXp`, `premioLogros` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
 
+Lo de Norday Conocimiento lo borra `LimpiadorConocimiento` (estado de píldoras, preferencias, valoraciones, lecturas, repasos y respuestas; todas solo cuelgan de `usuario` y del contenido, que no se toca) y lo exporta `ExportadorConocimiento` (sección `conocimiento`: `pildoras`, `preferenciasCategorias`, `valoraciones`, `lecturas`, `repasos` y `respuestas`; sin las claves, el contenido completo ni las opciones de los retos).
+
 ---
 
 ## 6. Zona horaria e idioma
@@ -463,6 +526,8 @@ Esto es especialmente relevante para:
 - Un registro pertenece a un hábito.
 - Una clave del cliente identifica como mucho un registro (`clave_cliente` es único en `registro`).
 - Una clave de sesión identifica como mucho una sesión de enfoque (`clave` es único en `sesion_enfoque`). Las sesiones de un usuario no se solapan (lo comprueba el servicio al guardarlas).
+- Una clave identifica como mucho una lectura (`clave` es único en `lectura_pildora`) y como mucho una respuesta (`clave` es único en `respuesta_reto`). Un usuario tiene como mucho un repaso por reto (`usuario_id`, `reto_id` es único en `usuario_reto`).
+- El contenido de Norday Conocimiento se identifica por su `codigo` (único en `temario`, `fuente`, `pildora` y `reto`) y no se borra: se retira con `activo`/`activa = false`.
 - La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
 - Un hito se paga una sola vez por hábito: (`habito_ref`, `umbral`) es único en `hito_pagado`. Deshacer el completado que lo pagó borra la fila.

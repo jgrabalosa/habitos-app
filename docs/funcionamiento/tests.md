@@ -79,8 +79,8 @@ hilos se cierran en `@AfterEach`.
 
 Qué cubre la suite y qué no: los tests unitarios de `norday-motor`,
 `habitos`, `conocimiento` y `enfoque` mockean los DAOs, así que no ven
-proxies de Hibernate ni validan JPQL. Los de `norday-server` (51 clases con
-`@SpringBootTest` a 20-nov-2026: los de concurrencia y los de integración) sí
+proxies de Hibernate ni validan JPQL. Los de `norday-server` (58 clases con
+`@SpringBootTest` a 24-nov-2026: los de concurrencia y los de integración) sí
 tocan Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
 pasan. Una consulta que ninguno de ellos recorre no está validada porque la
 suite esté verde.
