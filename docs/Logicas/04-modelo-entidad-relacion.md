@@ -404,7 +404,7 @@ La exportación de datos se organiza mediante los exportadores correspondientes 
 
 El exportador de notificaciones (`ExportadorDispositivos`, sección `notificaciones`) dice en qué apps tiene el usuario un token registrado y desde cuándo (`app`, `actualizadoEn`), sin el token, como tampoco sale `usuario.fcm_token`.
 
-Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados`, `monedasAportadas`, `xpAportada`, `logrosAportados` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
+Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga de `usuario`) y las exporta `ExportadorEnfoque` (sección `enfoque`: `inicioUtc`, `duracionSeg`, `duracionObjetivoMin`, `estado`, `dia`, `minutos`, `destinoTipo`, `destinoId`, `aporteEstado`, `aporteMotivo`, `minutosAportados`, `monedasAportadas`, `xpAportada`, `logrosAportados`, `premioMonedas`, `premioXp`, `premioLogros` y `creadoEn`; sin la clave). Los minutos que una sesión llevó a un hábito son registros del hábito: los borra y exporta el módulo de hábitos.
 
 ---
 
