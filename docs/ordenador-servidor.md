@@ -495,7 +495,7 @@ perfiles, más Claude Code:
 
 | Perfil | Papel |
 |---|---|
-| `arquitecto` | Trocea cada tarea en tarjetas y lleva el turno. Su gateway es el que corre como servicio. |
+| `arquitecto` | Trocea cada tarea en tarjetas y lleva el turno. |
 | `desarrollador` | Prepara el worktree de la tarjeta, lanza Claude Code y publica el PR en borrador. |
 | `revisor` | Comprueba la tarjeta en un clon limpio contra su criterio de hecho, pasa los tests y aprueba o devuelve. |
 | `revisor-n2` | Igual que `revisor`, para las tarjetas de nivel 2: las que fallaron en nivel 1 o cambian el contrato entre repos. |
@@ -526,8 +526,9 @@ Un solo servicio, de sistema (no `systemd --user`), que corre como `robot`:
 norday-robot-gateway.service
 ```
 
-Arranca el gateway de Hermes del perfil `arquitecto`. Ese gateway atiende
-Telegram y hace correr los dos trabajos programados del arquitecto:
+Arranca un único gateway de Hermes, el del perfil `default`, que atiende
+Telegram y a todos los perfiles del robot. Ese gateway hace correr los dos
+trabajos programados, que son del perfil `arquitecto`:
 
 | Trabajo | Cuándo | Qué hace |
 |---|---|---|
