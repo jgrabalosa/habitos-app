@@ -16,6 +16,11 @@ import java.time.LocalTime;
  * La app ya instalada no los manda, y Jackson los deja en null: null es "sin
  * cambio" en el PUT (se conserva lo que tenía el hábito) y VECES en el POST.
  * No pasan por {@link #aHabito}: los resuelve HabitoService.
+ *
+ * {@code icono} es el código del icono, opcional: null, o de 1 a 40 caracteres
+ * de [a-zA-Z0-9] (lo valida HabitoService, 400 si no). Igual que lo anterior,
+ * null es "sin cambio" en el PUT: la app ya instalada no lo manda y no debe
+ * borrarlo al editar.
  */
 public class HabitoEntradaDTO {
 
@@ -30,6 +35,7 @@ public class HabitoEntradaDTO {
     private Integer categoriaId;
     private Unidad unidad;
     private Integer minutosObjetivo;
+    private String icono;
 
     /** Un Habito sin id, sin propietario y sin categoria: los pone quien llama. */
     public Habito aHabito() {
@@ -39,6 +45,7 @@ public class HabitoEntradaDTO {
         habito.setFrecuencia(frecuencia);
         habito.setMeta(meta);
         habito.setDiasSemana(diasSemana);
+        habito.setIcono(icono);
         habito.setRecordatorioActivo(recordatorioActivo);
         habito.setRecordatorioHora(recordatorioHora);
         return habito;
@@ -70,6 +77,9 @@ public class HabitoEntradaDTO {
 
     public Unidad getUnidad() { return unidad; }
     public void setUnidad(Unidad unidad) { this.unidad = unidad; }
+
+    public String getIcono() { return icono; }
+    public void setIcono(String icono) { this.icono = icono; }
 
     public Integer getMinutosObjetivo() { return minutosObjetivo; }
     public void setMinutosObjetivo(Integer minutosObjetivo) { this.minutosObjetivo = minutosObjetivo; }

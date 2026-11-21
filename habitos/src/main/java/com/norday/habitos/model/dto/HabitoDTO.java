@@ -16,12 +16,15 @@ import java.time.LocalTime;
  *
  * `unidad` y `minutosObjetivo` (null en VECES) son el objetivo de minutos,
  * como `frecuencia` y `meta`. La app ya instalada no los lee.
+ *
+ * `icono` es el código que dibuja la app (null si no tiene); no es del objetivo.
  */
 public class HabitoDTO {
 
     private final int habitoId;
     private final String nombre;
     private final String descripcion;
+    private final String icono;
     private final Frecuencia frecuencia;
     private final int meta;
     private final Unidad unidad;
@@ -39,6 +42,7 @@ public class HabitoDTO {
         this.habitoId = habito.getHabitoId();
         this.nombre = habito.getNombre();
         this.descripcion = habito.getDescripcion();
+        this.icono = habito.getIcono();
         this.frecuencia = habito.getFrecuencia();
         this.meta = habito.getMeta();
         this.unidad = habito.getUnidad();
@@ -61,6 +65,7 @@ public class HabitoDTO {
     public int getHabitoId() { return habitoId; }
     public String getNombre() { return nombre; }
     public String getDescripcion() { return descripcion; }
+    public String getIcono() { return icono; }
     public Frecuencia getFrecuencia() { return frecuencia; }
     public int getMeta() { return meta; }
     public Unidad getUnidad() { return unidad; }

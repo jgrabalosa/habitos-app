@@ -48,6 +48,12 @@ public class Habito {
     @Column(name = "minutos_objetivo")
     private Integer minutosObjetivo;
 
+    // Código del icono (lo que la app dibuja); el backend no sabe cuáles
+    // existen. No es parte del objetivo: no va en habito_objetivo y cambiarlo
+    // no crea versión. null = sin icono.
+    @Column(name = "icono", length = 40)
+    private String icono;
+
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 
@@ -128,6 +134,9 @@ public class Habito {
     public Integer getMinutosObjetivo() { return minutosObjetivo; }
     public void setMinutosObjetivo(Integer minutosObjetivo) { this.minutosObjetivo = minutosObjetivo; }
 
+    public String getIcono() { return icono; }
+    public void setIcono(String icono) { this.icono = icono; }
+
     public LocalDate getFechaInicio() { return fechaInicio; }
     public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
 
@@ -164,6 +173,7 @@ public class Habito {
         vista.habitoId = habitoId;
         vista.nombre = nombre;
         vista.descripcion = descripcion;
+        vista.icono = icono;
         vista.unidad = objetivo.unidad();
         vista.minutosObjetivo = objetivo.minutosObjetivo();
         vista.frecuencia = objetivo.frecuencia();
