@@ -3,7 +3,10 @@ package com.norday.habitos.repository;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.Registro;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface IRegistroDAO {
 
@@ -29,6 +32,20 @@ public interface IRegistroDAO {
     List<Registro> findByHabitoAndRango(Habito habito, LocalDate desde, LocalDate hasta);
     List<Registro> findByHabitosAndRango(List<Habito> habitos, LocalDate desde, LocalDate hasta);
     void update(Registro registro);
+
+    /**
+     * El día del último registro completado de cada usuario, en cualquiera de
+     * sus hábitos, en una sola consulta. Un usuario que nunca ha completado
+     * nada no está en el mapa.
+     */
+    Map<Integer, LocalDate> ultimaFechaCompletadaPorUsuario(Collection<Integer> usuarioIds);
+
+    /**
+     * Cuándo (UTC) se marcaron los registros completados del usuario desde ese
+     * instante, incluido, del más antiguo al más reciente. Es el momento en que
+     * lo marcó, no el día al que corresponde el registro.
+     */
+    List<LocalDateTime> creadosCompletadosDesde(int usuarioId, LocalDateTime desdeUtc);
 
     /**
      * Escribe solo la nota del registro (un UPDATE de esa columna) y relee el

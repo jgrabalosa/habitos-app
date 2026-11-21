@@ -8,6 +8,8 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -137,6 +139,33 @@ public class RegistroDAO implements IRegistroDAO {
     @Override
     public void update(Registro registro) {
         em.merge(registro);
+    }
+
+    @Override
+    public Map<Integer, LocalDate> ultimaFechaCompletadaPorUsuario(Collection<Integer> usuarioIds) {
+        if (usuarioIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> filas = em.createQuery(
+                        "SELECT r.habito.propietario.usuarioId, MAX(r.fecha) FROM Registro r "
+                                + "WHERE r.completado = true AND r.habito.propietario.usuarioId IN :ids "
+                                + "GROUP BY r.habito.propietario.usuarioId", Object[].class)
+                .setParameter("ids", usuarioIds)
+                .getResultList();
+        return filas.stream().collect(Collectors.toMap(
+                fila -> (Integer) fila[0],
+                fila -> (LocalDate) fila[1]));
+    }
+
+    @Override
+    public List<LocalDateTime> creadosCompletadosDesde(int usuarioId, LocalDateTime desdeUtc) {
+        return em.createQuery(
+                        "SELECT r.creadoEn FROM Registro r "
+                                + "WHERE r.completado = true AND r.habito.propietario.usuarioId = :usuarioId "
+                                + "AND r.creadoEn >= :desde ORDER BY r.creadoEn ASC", LocalDateTime.class)
+                .setParameter("usuarioId", usuarioId)
+                .setParameter("desde", desdeUtc)
+                .getResultList();
     }
 
     // Una columna y no el registro entero: la nota y la valoración llegan por

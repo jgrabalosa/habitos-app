@@ -621,7 +621,7 @@ Al conseguir una identidad mediante producto, el sistema deriva el logro corresp
 
 ## Notificaciones
 
-Hoy hay un único envío programado: los **recordatorios** de cada hábito.
+Hay dos envíos programados: los **recordatorios** de cada hábito (los pone el usuario) y los **avisos de la app** (los manda la app, ver la sección siguiente).
 
 - **Qué hábitos**: solo los activos (no los que están en pausa) con recordatorio activado y una hora elegida.
 - **Cuándo**: cada 5 minutos. La hora del hábito se redondea hacia arriba al múltiplo de 5 minutos siguiente, y se compara con la ventana de 5 minutos en curso en la hora local del dueño del hábito.
@@ -633,6 +633,36 @@ Hoy hay un único envío programado: los **recordatorios** de cada hábito.
 El aviso de racha en peligro (`NotificadorRachaEnPeligro`) existe, pero su programación está comentada: hoy no se envía. Su hora de referencia en el código es las 21:00 de la zona del usuario.
 
 Ningún otro envío programado existe en el backend.
+
+---
+
+## Avisos de la app
+
+Dos avisos que la app manda por iniciativa propia, aparte de los recordatorios: **la vuelta** y **el momento débil**. Nunca uno por hábito, y nunca «algo está en juego». Los manda `AvisosAppScheduler` (módulo `habitos`), cada hora en punto; las reglas puras están en `CalculoAvisos`. Por qué estos dos y no otros: `docs/decisiones/2026-11-21-avisos-de-la-app.md`.
+
+**A quién.** Cada usuario se evalúa con su hora local (`ZonaUsuarioService`), como los recordatorios. Solo a quien:
+
+- tiene `avisosApp = true` (por defecto sí; se apaga en Perfil, aparte de los recordatorios);
+- tiene token de Norday Habits (`DispositivoService.tokensDe(ids, AppNorday.HABITOS)`): son avisos de Habits y nunca van al token de Focus. Si FCM da el token por dado de baja, `olvidarToken` y el aviso no cuenta para los límites;
+- tiene al menos un hábito activo (los pausados no cuentan).
+
+**La vuelta.** A las **19:00 locales**. Los días sin nada son los días enteros entre el último registro completado (en cualquier hábito; cuenta su `fecha`) y hoy: la misma cuenta que pone triste a Nori (`ParametrosPremio.DIAS_SIN_HACER_PARA_VOLVER`, `CalculoPremio.esUnaVuelta`). Con último registro un lunes, el viernes ya son tres.
+
+- `VUELTA_1`: con 3 días o más, si no se ha mandado ya en esta ausencia.
+- `VUELTA_2`, la segunda y última: con 7 días o más, si no se ha mandado ya en esta ausencia.
+- Después, silencio hasta que vuelva a completar algo; entonces la ausencia siguiente vuelve a empezar. «En esta ausencia» es: enviada después del último registro completado.
+- Quien nunca ha completado nada no tiene a qué volver: no recibe la vuelta.
+
+**El momento débil.** Los **viernes a las 18:00 locales**, un solo aviso por semana que nombra los hábitos (con uno, su nombre; con varios, cuántos son). Cuenta un hábito si es **semanal** con el objetivo vigente hoy (`HistorialObjetivos`), activo, **sin recordatorio** (los que lo tienen ya reciben el suyo: activo y con hora), creado antes del lunes de esta semana (`fecha_inicio`), con unidades de su meta por hacer y lo que falta cabe en los días que quedan (`meta - hechos` entre 1 y 3: viernes, sábado y domingo). Lo hecho se cuenta en la unidad de la meta (`Objetivo.unidadesDelDia`): en un semanal de minutos, **días hechos**, no minutos, y cada día se juzga con el objetivo que tenía.
+
+**Límites, para todos los avisos de la app** (los recordatorios no cuentan):
+
+- Como mucho **dos por semana ISO local** (lunes a domingo del usuario) y **nunca dos el mismo día local**. El día de un aviso es el de su `enviado_en` (UTC) pasado a la zona del usuario.
+- **Se retira solo.** Si ninguno de los **3 últimos** avisos tiene un registro completado en las **48 h siguientes** (se mira cuándo se marcó el registro, `creado_en`, no el día al que corresponde; no se mide si se abrió la notificación), no se manda ninguno más hasta **30 días después de que se cierre la ventana del último**. Un último aviso que aún tiene ventana y no ha servido cuenta como sin efecto: se espera a ver si sirve. Pasados los 30 días sale uno de prueba; si tampoco sirve, otros 30. Si el usuario completa algo dentro de la ventana, el siguiente barrido ya no la ve retirada.
+
+**Textos.** `push.aviso.*` en `mensajes/habitos*.properties` (es, en y pt): `vuelta1` (3 variantes), `vuelta2` (2) y `momentodebil.uno` / `momentodebil.varios` (2 cada una). Se guarda la `variante` en `aviso_app`. **Nunca la misma dos veces seguidas** al mismo usuario: la variante nueva es la siguiente de la última del mismo tipo, por turno; sin anterior, una según el id del usuario (`CalculoAvisos.variante`). Las claves del momento débil se leen siempre con argumentos (pasan por `MessageFormat`, el apóstrofo se dobla); las de vuelta, sin ellos. Redacción: lo hecho al principio y lo que falta al final, el fallo no se nombra, se dice la causa, se invita y no se ordena. Sin deep link: tocar el aviso abre la app.
+
+**Qué no hace.** `NotificadorRachaEnPeligro` sigue sin programarse. El reloj del barrido se inyecta (`setReloj`) y `enviarAvisos(Instant)` lo ejecuta para un instante dado.
 
 ---
 

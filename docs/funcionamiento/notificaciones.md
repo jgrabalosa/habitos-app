@@ -17,8 +17,8 @@ mismo móvil tienen dos. Cada usuario tiene una fila por app en
   avisos del anterior llegarían al móvil del nuevo.
 - **Todo envío push pide el token de la app a la que va**, con
   `DispositivoService.tokenDe(usuarioId, appId)` (o `tokensDe` para muchos
-  usuarios). Nunca `usuario.getFcmToken()`. Los recordatorios de hábitos van
-  a `habitos`. Si FCM responde `UNREGISTERED`, `olvidarToken`.
+  usuarios). Nunca `usuario.getFcmToken()`. Los recordatorios de hábitos y los
+  avisos de la app (`AvisosAppScheduler`) van a `habitos`. Si FCM responde `UNREGISTERED`, `olvidarToken`.
 - **`usuario.fcm_token` es columna de transición**: se sigue escribiendo
   con el token de `habitos` para poder volver al jar anterior a V24, y
   `DispositivoService` la lee como reserva para `habitos` cuando no hay
