@@ -152,7 +152,7 @@ class EscriturasConcurrentesTest {
             return null;
         });
         assertTrue(leido.await(30, TimeUnit.SECONDS));
-        preferenciasService.actualizar(usuarioId, "en", null);
+        preferenciasService.actualizar(usuarioId, "en", null, null);
         cambiado.countDown();
         perfil.get(30, TimeUnit.SECONDS);
 
@@ -170,7 +170,7 @@ class EscriturasConcurrentesTest {
         Future<ResultadoLoginGoogle> login = leerEsperarYHacer(leido, cambiado,
                 () -> usuarioService.loginConGoogle(email, "Test Escrituras"));
         assertTrue(leido.await(30, TimeUnit.SECONDS));
-        preferenciasService.actualizar(usuarioId, "en", null);
+        preferenciasService.actualizar(usuarioId, "en", null, null);
         cambiado.countDown();
         login.get(30, TimeUnit.SECONDS);
 
