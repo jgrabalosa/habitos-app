@@ -6,6 +6,7 @@ import com.norday.gamificacion.service.CumplimientoDiarioPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Collections;
 import java.util.List;
 
 import static com.norday.gamificacion.model.AvanceDeHoy.*;
@@ -22,6 +23,9 @@ class CumplimientoCombinadoTest {
         @Override public boolean hoyCumplido(int usuarioId) { return avance == COMPLETO; }
         @Override public boolean enUso(int usuarioId) { return enUso; }
         @Override public AvanceDeHoy comoVaHoy(int usuarioId) { return avance; }
+        @Override public List<AvanceDeHoy> comoVaLosProximosDias(int usuarioId, int dias) {
+            return Collections.nCopies(dias, avance);
+        }
     }
 
     private static CumplimientoCombinado con(App... apps) {

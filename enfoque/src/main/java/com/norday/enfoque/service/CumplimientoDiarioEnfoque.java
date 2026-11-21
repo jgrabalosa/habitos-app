@@ -14,6 +14,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static com.norday.enfoque.model.ParametrosPremioEnfoque.DIAS_EN_USO;
 import static com.norday.enfoque.model.ParametrosPremioEnfoque.DIAS_SIN_SESION_PARA_AUSENTE;
@@ -78,14 +81,45 @@ public class CumplimientoDiarioEnfoque implements CumplimientoDiarioPort {
         if (minutosHoy >= ParametrosPremioEnfoque.MINUTOS_DIA_DE_ENFOQUE) return AvanceDeHoy.COMPLETO;
         if (minutosHoy > 0) return AvanceDeHoy.EMPEZADO;
 
-        LocalDate referencia = sesionDAO.ultimoDiaQueCuentaAntesDe(usuarioId, hoy);
+        return sinSesionEl(hoy, referencia(usuario, zona, sesionDAO.ultimoDiaQueCuentaAntesDe(usuarioId, hoy)));
+    }
+
+    /**
+     * Cómo irá cada uno de los próximos días si no hay más sesiones: ninguno
+     * tiene minutos, así que es la misma cuenta de ausencia que la de hoy
+     * ({@link #sinSesionEl}) con la referencia de ahora. Una sola lectura: la
+     * última sesión que cuenta hasta hoy, incluido hoy.
+     */
+    @Override
+    public List<AvanceDeHoy> comoVaLosProximosDias(int usuarioId, int dias) {
+        if (dias <= 0) return List.of();
+        Usuario usuario = usuarioDAO.findById(usuarioId);
+        if (usuario == null) return Collections.nCopies(dias, AvanceDeHoy.SIN_EMPEZAR);
+        ZoneId zona = zonaUsuarioService.zonaDe(usuario);
+        LocalDate hoy = LocalDate.ofInstant(reloj.ahora(), zona);
+        LocalDate referencia = referencia(usuario, zona, sesionDAO.ultimoDiaQueCuentaAntesDe(usuarioId, hoy.plusDays(1)));
+        List<AvanceDeHoy> avances = new ArrayList<>();
+        for (int i = 1; i <= dias; i++) {
+            avances.add(sinSesionEl(hoy.plusDays(i), referencia));
+        }
+        return avances;
+    }
+
+    /** Desde cuándo se cuentan los días sin sesión: la última sesión o, si el alta es posterior o no hay, el alta. */
+    private static LocalDate referencia(Usuario usuario, ZoneId zona, LocalDate ultimaSesion) {
+        LocalDate referencia = ultimaSesion;
         if (usuario.getFechaRegistro() != null) {
             // fechaRegistro se guarda en UTC; el día es el del usuario.
             LocalDate alta = usuario.getFechaRegistro().atZone(ZoneOffset.UTC).withZoneSameInstant(zona).toLocalDate();
             if (referencia == null || alta.isAfter(referencia)) referencia = alta;
         }
+        return referencia;
+    }
+
+    /** Un día sin minutos: ausente si lleva 3 días enteros sin sesión desde la referencia, y si no, sin empezar. */
+    private static AvanceDeHoy sinSesionEl(LocalDate dia, LocalDate referencia) {
         if (referencia == null) return AvanceDeHoy.SIN_EMPEZAR;
-        long diasSin = ChronoUnit.DAYS.between(referencia, hoy) - 1;
+        long diasSin = ChronoUnit.DAYS.between(referencia, dia) - 1;
         return diasSin >= DIAS_SIN_SESION_PARA_AUSENTE ? AvanceDeHoy.AUSENTE : AvanceDeHoy.SIN_EMPEZAR;
     }
 

@@ -20,7 +20,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
+import static com.norday.gamificacion.model.AvanceDeHoy.AUSENTE;
+import static com.norday.gamificacion.model.AvanceDeHoy.SIN_EMPEZAR;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -89,6 +92,59 @@ class CumplimientoDiarioEnfoqueTest {
         assertEquals(AvanceDeHoy.AUSENTE, cumplimiento.comoVaHoy(7), "alta hace meses, ninguna sesión");
         usuario.setFechaRegistro(LocalDateTime.of(2026, 10, 7, 10, 0));
         assertEquals(AvanceDeHoy.SIN_EMPEZAR, cumplimiento.comoVaHoy(7), "recién llegado: dormida, no triste");
+    }
+
+    private static final LocalDate SABADO = VIERNES.plusDays(1);
+
+    @Test
+    void proximosDias_conSesionHoy_cuentanDesdeHoy() {
+        // Hoy, viernes, 20 minutos: la última sesión es hoy. Sábado, domingo
+        // y lunes con 0, 1 y 2 días sin nada; el martes, el tercero.
+        when(sesionDAO.ultimoDiaQueCuentaAntesDe(7, SABADO)).thenReturn(VIERNES);
+        assertEquals(List.of(SIN_EMPEZAR, SIN_EMPEZAR, SIN_EMPEZAR, AUSENTE, AUSENTE, AUSENTE, AUSENTE),
+                cumplimiento.comoVaLosProximosDias(7, 7));
+    }
+
+    @Test
+    void proximosDias_sinSesionesYRecienDadoDeAlta_cuentanDesdeElAlta() {
+        // Alta el miércoles 7: el sábado lleva dos días enteros sin nada
+        // (jueves y viernes); el domingo, tres.
+        usuario.setFechaRegistro(LocalDateTime.of(2026, 10, 7, 10, 0));
+        assertEquals(List.of(SIN_EMPEZAR, AUSENTE, AUSENTE),
+                cumplimiento.comoVaLosProximosDias(7, 3));
+    }
+
+    @Test
+    void proximosDias_elDiaQuePasaAAusente_esElTerceroSinSesion() {
+        // Última sesión el jueves 8: viernes y sábado y domingo no llegan a
+        // tres; el lunes 12 sí.
+        when(sesionDAO.ultimoDiaQueCuentaAntesDe(7, SABADO)).thenReturn(VIERNES.minusDays(1));
+        assertEquals(List.of(SIN_EMPEZAR, SIN_EMPEZAR, AUSENTE, AUSENTE),
+                cumplimiento.comoVaLosProximosDias(7, 4));
+    }
+
+    @Test
+    void proximosDias_cadaDiaEsLoQueDariaComoVaHoyEseDia() {
+        when(sesionDAO.ultimoDiaQueCuentaAntesDe(eq(7), any())).thenAnswer(invocacion -> {
+            LocalDate antesDe = invocacion.getArgument(1);
+            LocalDate ultima = VIERNES.minusDays(2);
+            return ultima.isBefore(antesDe) ? ultima : null;
+        });
+        List<AvanceDeHoy> previstos = cumplimiento.comoVaLosProximosDias(7, 7);
+        assertEquals(7, previstos.size());
+        for (int i = 1; i <= 7; i++) {
+            when(reloj.ahora()).thenReturn(AHORA.plus(i, java.time.temporal.ChronoUnit.DAYS));
+            assertEquals(cumplimiento.comoVaHoy(7), previstos.get(i - 1), "día +" + i);
+        }
+        when(reloj.ahora()).thenReturn(AHORA);
+        assertTrue(previstos.contains(SIN_EMPEZAR) && previstos.contains(AUSENTE));
+    }
+
+    @Test
+    void proximosDias_sinDiasOSinUsuario() {
+        assertEquals(List.of(), cumplimiento.comoVaLosProximosDias(7, 0));
+        when(usuarioDAO.findById(7)).thenReturn(null);
+        assertEquals(List.of(SIN_EMPEZAR, SIN_EMPEZAR), cumplimiento.comoVaLosProximosDias(7, 2));
     }
 
     @Test
