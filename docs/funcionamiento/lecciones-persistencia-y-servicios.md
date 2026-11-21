@@ -94,5 +94,9 @@ trabajo siguen en el `CLAUDE.md` o en `lecciones-operacion.md`.
   ya instalada. Si el servidor ignora un campo desconocido, un `null` puede
   borrar datos (por eso `HabitoService.actualizar` trata un `null` como «sin
   cambio»).
+- **Un campo nuevo en la entrada se conserva al actualizar si no llega.** Las
+  APK antiguas no lo mandan y `update` hace merge de la entidad entera: sin
+  conservarlo, cada edición desde una APK vieja lo borra (`icono`, T-011a).
+  El test de «actualizar sin el campo» tiene que fallar si se quita esa línea.
 - **Una línea base de contrato sólo se captura antes de desplegar.** Después
   ya no hay con qué comparar.

@@ -116,8 +116,9 @@ por fichero):
   `RachaService`, lee `docs/funcionamiento/zona-horaria-y-rachas.md`.
 - Antes de tocar `RegistroService`, `ReversionRegistro` o `ReversionLogro`, lee
   `docs/funcionamiento/deshacer-completado.md`.
-- Antes de tocar `ProveedorMensajes`, `mensajes/*.properties` o
-  `BundlesMensajesTest`, lee `docs/funcionamiento/textos.md`.
+- Antes de tocar `ProveedorMensajes`, `mensajes/*.properties`,
+  `BundlesMensajesTest`, `EmailService`, `CorreoBienvenidaService` o la
+  plantilla `correo/`, lee `docs/funcionamiento/textos.md`.
 - Antes de tocar `norday-server/src/test/resources`, un test de concurrencia o la
   BD de test, lee `docs/funcionamiento/tests.md`.
 - Antes de tocar `norday-server/src/main/resources/static/` o `SecurityConfig`

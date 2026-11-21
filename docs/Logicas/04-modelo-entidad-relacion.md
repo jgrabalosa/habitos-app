@@ -64,6 +64,7 @@ El hábito contiene la `meta` que determina cuándo se considera cumplido el per
 
 - `unidad`: obligatorio, por defecto `VECES` (V23). `VECES` o `MINUTOS` (ver «Hábitos en minutos» en `03-calculos-y-logica.md`).
 - `minutos_objetivo`: admite nulo (V23); los minutos por día de un hábito de minutos, de 1 a 600. Nulo en los de veces.
+- `icono`: admite nulo, hasta 40 caracteres (V31). El código del icono que dibuja la app; el backend no sabe cuáles existen. Va solo en `habito`: no es parte del objetivo, no hay columna en `habito_objetivo` y cambiarlo no crea versión.
 
 Su campo `activo` dice si el hábito está en pausa: un hábito con `activo = false` está en pausa (ver Pausa).
 
