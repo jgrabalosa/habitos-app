@@ -229,6 +229,8 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - De minutos exige `minutosObjetivo` de 1 a 600 (si no, 400). En un diario, la meta pasa a 1; en un semanal, la meta son los días por semana (o el número de días fijos, como siempre).
 - Cambiar los minutos por día o pasar de veces a minutos se aplica por días (ver la tabla de «Regla de cambios»); de minutos a veces responde 409 con un texto del bundle.
 
+**Icono.** Ambos aceptan `icono`, opcional: el código del icono que dibuja la app (el catálogo vive en la app; el backend solo guarda el código). Nulo, o de 1 a 40 caracteres de `[a-zA-Z0-9]`; si no, 400 con `{"mensaje": ...}` como el resto de rechazos. En el `POST`, se guarda lo que llega, nulo incluido. En el `PUT`, nulo o ausente conserva el que tenía (la app ya instalada no lo manda). No es del objetivo: cambiarlo no crea versión en `habito_objetivo`. `HabitoDTO` (y por tanto `/hoy`, `/dashboard`, `/semana`, `/resumen`) y el detalle (`/{id}/detalle`) devuelven `icono`, nulo si no tiene.
+
 ## Norday Focus (módulo `enfoque`)
 
 Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Desde el 16-nov-2026 **cada sesión que cuenta paga lo suyo** (monedas, XP de Nori y logros propios de Focus), tenga hábito o no; si lleva hábito, el hábito paga además lo suyo, con sus reglas, y se suman (ver «Premio de una sesión»).
