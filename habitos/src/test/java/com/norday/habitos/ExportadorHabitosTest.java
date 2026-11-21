@@ -8,6 +8,9 @@ import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.model.AvisoApp;
+import com.norday.habitos.model.TipoAviso;
+import com.norday.habitos.repository.IAvisoAppDAO;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IHabitoObjetivoDAO;
@@ -53,6 +56,9 @@ class ExportadorHabitosTest {
 
     @Mock
     private IHitoPagadoDAO hitoPagadoDAO;
+
+    @Mock
+    private IAvisoAppDAO avisoAppDAO;
 
     @Mock
     private com.norday.habitos.service.ObjetivoService objetivoService;
@@ -219,6 +225,38 @@ class ExportadorHabitosTest {
 
         List<Map<String, Object>> hitos = (List<Map<String, Object>>) exportado.get("hitosPagados");
         assertEquals(List.of(Map.of("umbral", 3, "pagadoEn", "2026-09-03T20:00")), hitos);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exportar_incluyeLosAvisosDeLaAppDelUsuario() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(7);
+        AvisoApp aviso = new AvisoApp(usuario, TipoAviso.MOMENTO_DEBIL, 2);
+        aviso.setEnviadoEn(LocalDateTime.of(2026, 11, 3, 18, 30, 0));
+
+        when(habitoDAO.findByPropietario(usuario)).thenReturn(List.of());
+        when(categoriaDAO.findByCreador(usuario)).thenReturn(List.of());
+        when(avisoAppDAO.findByUsuario(7)).thenReturn(List.of(aviso));
+
+        Map<String, Object> datos = exportador.exportar(usuario);
+
+        List<Map<String, Object>> avisos = (List<Map<String, Object>>) datos.get("avisosApp");
+        assertEquals(List.of(Map.of("tipo", "MOMENTO_DEBIL", "variante", 2,
+                "enviadoEn", "2026-11-03T18:30")), avisos);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void exportar_sinAvisos_dejaLaListaVacia() {
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(7);
+        when(habitoDAO.findByPropietario(usuario)).thenReturn(List.of());
+        when(categoriaDAO.findByCreador(usuario)).thenReturn(List.of());
+
+        Map<String, Object> datos = exportador.exportar(usuario);
+
+        assertEquals(List.of(), datos.get("avisosApp"));
     }
 
     private static Map<String, Object> sinNulos(Map<String, Object> mapa) {

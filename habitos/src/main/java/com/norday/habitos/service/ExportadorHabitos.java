@@ -4,6 +4,7 @@ import com.norday.core.model.Usuario;
 import com.norday.core.service.ExportacionDatosService;
 import com.norday.core.service.ExportadorDatosUsuario;
 import com.norday.core.service.ZonaUsuarioService;
+import com.norday.habitos.model.AvisoApp;
 import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
@@ -12,6 +13,7 @@ import com.norday.habitos.model.HitoPagado;
 import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
+import com.norday.habitos.repository.IAvisoAppDAO;
 import com.norday.habitos.repository.ICategoriaDAO;
 import com.norday.habitos.repository.IHabitoDAO;
 import com.norday.habitos.repository.IHabitoObjetivoDAO;
@@ -30,7 +32,8 @@ import java.util.stream.Collectors;
 /**
  * Aporta los datos del dominio "hábitos" a la exportación RGPD: hábitos,
  * rachas, ritmos, historial de objetivos, hitos cobrados, registros y
- * categorías personalizadas del usuario.
+ * categorías personalizadas del usuario, y el registro de avisos de la app que
+ * se le han enviado (sección {@code avisosApp}).
  */
 @Component
 public class ExportadorHabitos implements ExportadorDatosUsuario {
@@ -55,6 +58,9 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
 
     @Autowired
     private IHitoPagadoDAO hitoPagadoDAO;
+
+    @Autowired
+    private IAvisoAppDAO avisoAppDAO;
 
     @Autowired
     private ObjetivoService objetivoService;
@@ -84,7 +90,18 @@ public class ExportadorHabitos implements ExportadorDatosUsuario {
         datos.put("categoriasPropias", categoriaDAO.findByCreador(usuario).stream()
                 .map(this::datosCategoria)
                 .collect(Collectors.toList()));
+        datos.put("avisosApp", avisoAppDAO.findByUsuario(usuario.getUsuarioId()).stream()
+                .map(this::datosAviso)
+                .collect(Collectors.toList()));
         return datos;
+    }
+
+    private Map<String, Object> datosAviso(AvisoApp aviso) {
+        Map<String, Object> mapa = new LinkedHashMap<>();
+        mapa.put("tipo", aviso.getTipo().name());
+        mapa.put("variante", aviso.getVariante());
+        mapa.put("enviadoEn", ExportacionDatosService.texto(aviso.getEnviadoEn()));
+        return mapa;
     }
 
     /** {@code deHoy} es la vista del hábito con el objetivo vigente hoy (no se guarda). */

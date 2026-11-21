@@ -33,6 +33,7 @@ Entre sus datos y relaciones se encuentran:
 - identidad de usuario y credenciales;
 - preferencias;
 - idioma y zona horaria;
+- `avisos_app` (V32): la preferencia «avisos de la app», `BOOLEAN NOT NULL DEFAULT TRUE`. Encendida para todos, incluidos los usuarios que ya existían. Es genérica (los avisos que manda la propia app, aparte de los recordatorios que el usuario pone a algo suyo) y solo cambia por `PUT /api/usuarios/{id}/preferencias` (ver «Preferencias de cuenta» en la sección 6);
 - tokens de notificaciones, uno por app (`UsuarioDispositivo`);
 - productos/equipamiento;
 - moneda y movimientos de gamificación;
@@ -207,6 +208,18 @@ Tabla `usuario_dispositivo`, del módulo `norday-motor` (paquete `core`, migraci
 (`usuario_ref`, `app_id`) es único: una fila por usuario y app, que el registro siguiente sustituye. Registrar un token para un usuario se lo quita a cualquier otro que lo tuviera en la misma app (en `habitos`, también de su `usuario.fcm_token`): es el mismo móvil con otra sesión, y los avisos del anterior no deben llegarle. La migración copió cada `usuario.fcm_token` no vacío como `habitos`.
 
 La columna `usuario.fcm_token` sigue existiendo como columna de transición: el backend la escribe con el token de `habitos` para poder volver al jar anterior, y la usa como reserva para `habitos` cuando el usuario no tiene fila (quien registró su token mientras corría el jar anterior). Los envíos salen de `DispositivoService`, con el token de la app a la que va el aviso.
+
+### AvisoApp
+
+Tabla `aviso_app`, del módulo `habitos` (migración V32). El registro de los avisos que la app ha mandado a un usuario: una fila por aviso enviado. Servirá al barrido de avisos para respetar el tope semanal y no repetir texto; esta tabla todavía no la escribe nadie en producción.
+
+- `id`: clave primaria.
+- `usuario_id`: obligatoria, clave ajena a `usuario` (`FK_aviso_app_usuario`), sin borrado en cascada.
+- `tipo`: obligatorio, hasta 20 caracteres: `VUELTA_1`, `VUELTA_2` o `MOMENTO_DEBIL` (`TipoAviso`, guardado por nombre).
+- `variante`: obligatoria, entero. Cuál de los textos del tipo se mandó.
+- `enviado_en`: obligatoria, en UTC.
+
+Índice `IX_aviso_app_usuario_enviado` sobre (`usuario_id`, `enviado_en`).
 
 ### SesionEnfoque
 
@@ -399,9 +412,11 @@ La eliminación de una cuenta sigue el patrón de limpieza por responsabilidades
 
 El limpiador de hábitos (`LimpiadorHabitos`) recorre los hábitos del usuario y borra, en este orden, el libro de hitos, las reversiones, los registros, la racha, el ritmo y el historial de objetivos de cada uno. Después borra los hábitos y, por último, las categorías personalizadas del usuario. El ritmo y el historial se borran antes que su hábito porque sus claves ajenas (`FK_ritmo_habito`, `FK_habito_objetivo_habito`) no tienen borrado en cascada; el libro de hitos, antes que los registros, porque también apunta a ellos. Eliminar un hábito suelto (`HabitoService.eliminar`) sigue el mismo orden.
 
+`LimpiadorHabitos` borra también el registro de avisos de la app (`aviso_app`), que solo cuelga del usuario, antes que nada del resto.
+
 Los tokens de notificaciones los borra `LimpiadorDispositivos`, del motor. La tabla solo cuelga de `usuario`, así que su orden respecto a los demás limpiadores da igual.
 
-La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`), su historial de objetivos (`objetivos`: `desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo` y `diasSemana`), los hitos cobrados (`hitosPagados`: `umbral` y `pagadoEn`) y sus registros (con `cantidad` y `origen`; la clave del cliente no se exporta), además de las categorías personalizadas. Cada hábito lleva su `unidad` y sus `minutosObjetivo`. El objetivo de cada hábito (`frecuencia`, `meta`, `unidad`, `minutosObjetivo`, `diasSemana`) es el vigente hoy según su historial, también si ha llegado un cambio programado que la copia todavía no tiene; se calcula sin escribir nada, porque la exportación corre en una transacción de solo lectura.
+La exportación de datos se organiza mediante los exportadores correspondientes a los dominios del sistema, con el objetivo de mantener separadas las responsabilidades y facilitar la portabilidad de los datos. El exportador de hábitos (`ExportadorHabitos`) incluye, por cada hábito, su racha (si existe), su ritmo (`valor`, `desde`, `valorPrevio`, `desdePrevio` y `cambio`), su historial de objetivos (`objetivos`: `desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo` y `diasSemana`), los hitos cobrados (`hitosPagados`: `umbral` y `pagadoEn`) y sus registros (con `cantidad` y `origen`; la clave del cliente no se exporta), además de las categorías personalizadas y los avisos de la app enviados al usuario (`avisosApp`: `tipo`, `variante` y `enviadoEn`, del más reciente al más antiguo). La preferencia `avisos_app` no se exporta aquí: es una columna de `usuario`. Cada hábito lleva su `unidad` y sus `minutosObjetivo`. El objetivo de cada hábito (`frecuencia`, `meta`, `unidad`, `minutosObjetivo`, `diasSemana`) es el vigente hoy según su historial, también si ha llegado un cambio programado que la copia todavía no tiene; se calcula sin escribir nada, porque la exportación corre en una transacción de solo lectura.
 
 El exportador de notificaciones (`ExportadorDispositivos`, sección `notificaciones`) dice en qué apps tiene el usuario un token registrado y desde cuándo (`app`, `actualizadoEn`), sin el token, como tampoco sale `usuario.fcm_token`.
 
@@ -414,6 +429,22 @@ Las sesiones de Norday Focus las borra `LimpiadorEnfoque` (la tabla solo cuelga 
 La zona horaria del usuario forma parte de la lógica funcional del sistema y se utiliza para interpretar fechas y periodos.
 
 El idioma y otras preferencias se sincronizan con el backend.
+
+### Preferencias de cuenta (contrato)
+
+`GET /api/usuarios/{id}/preferencias` devuelve:
+
+```json
+{ "idioma": "es", "zonaHoraria": "Europe/Madrid", "avisosApp": true }
+```
+
+`PUT /api/usuarios/{id}/preferencias` recibe un objeto JSON con cualquiera de esos tres campos y devuelve el mismo objeto que el `GET`. Solo el dueño de la cuenta puede llamarlos (403 si no).
+
+- **Cada campo es opcional; ausente o `null` es «sin cambio».** La APK ya instalada manda solo `idioma` y/o `zonaHoraria` (textos): sigue valiendo y no toca `avisosApp`.
+- `idioma`: texto, uno de `es`, `en`, `pt`. `zonaHoraria`: texto, una zona de IANA conocida por el JDK. Un valor que no sea texto o no sea válido da 400.
+- `avisosApp`: booleano. Se aceptan `true`/`false` y también los textos `"true"`/`"false"` (sin distinguir mayúsculas); cualquier otro valor (`"quizá"`, `0`) da 400 y no cambia nada, para que un valor raro no apague los avisos sin querer. Por defecto, encendido.
+- El cuerpo del `PUT` es `Map<String, Object>` en el controlador, no `Map<String, String>`, porque `avisosApp` es booleano. `PreferenciasService.texto` y `PreferenciasService.booleano` convierten cada campo.
+- `avisosApp` no se lee ni se escribe por el JSON del registro ni por `PUT /api/usuarios/{id}` (el perfil): `Usuario.avisosApp` va con `@JsonIgnore`.
 
 Esto es especialmente relevante para:
 

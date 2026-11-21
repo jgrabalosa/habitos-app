@@ -11,7 +11,8 @@ se recorren, y solo después se borra el `Usuario`.
 
 Implementaciones actuales, seis:
 
-- `LimpiadorHabitos` — por cada hábito, el libro de hitos (`hito_pagado`),
+- `LimpiadorHabitos` — primero el registro de avisos de la app (`aviso_app`,
+  que solo cuelga del usuario); luego, por cada hábito, el libro de hitos (`hito_pagado`),
   las reversiones, los registros, las rachas, los ritmos y el historial de
   objetivos (`habito_objetivo`); luego los hábitos; luego las categorías
   propias. El libro de hitos va antes que los registros porque también
@@ -41,6 +42,7 @@ limpiador sí importa.
 módulo. La interfaz `ExportadorDatosUsuario` vive en `core.service` y
 Spring recolecta sus implementaciones igual que con los limpiadores:
 `ExportadorGamificacion`, `ExportadorHabitos`, `ExportadorConocimiento`,
+`ExportadorHabitos` (incluye `avisosApp`, el registro de avisos enviados),
 `ExportadorDispositivos` (en qué apps hay token y desde cuándo; nunca el
 token, como tampoco sale `usuario.fcm_token`) y `ExportadorEnfoque` (sección
 `enfoque`: las sesiones, sin la clave).

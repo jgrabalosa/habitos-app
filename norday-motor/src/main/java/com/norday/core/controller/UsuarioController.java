@@ -194,23 +194,32 @@ public class UsuarioController extends ControladorAutorizado {
         }
         return ResponseEntity.ok(Map.of(
                 "idioma", usuario.getIdioma(),
-                "zonaHoraria", usuario.getZonaHoraria()
+                "zonaHoraria", usuario.getZonaHoraria(),
+                "avisosApp", usuario.isAvisosApp()
         ));
     }
 
-    /** Cada campo es opcional: se envía solo el que se quiere cambiar. */
+    /**
+     * Cada campo es opcional: se envía solo el que se quiere cambiar; ausente
+     * o null es «sin cambio». El cuerpo es Map&lt;String, Object&gt; porque
+     * {@code avisosApp} es booleano y la APK ya instalada sigue mandando solo
+     * textos (idioma, zonaHoraria).
+     */
     @PutMapping("/{id}/preferencias")
     public ResponseEntity<?> actualizarPreferencias(@PathVariable int id,
-                                                    @RequestBody Map<String, String> body,
+                                                    @RequestBody Map<String, Object> body,
                                                     Authentication authentication) {
         if (!esElUsuarioAutenticado(id, authentication)) {
             return prohibido();
         }
-        Usuario usuario = preferenciasService.actualizar(
-                id, body.get("idioma"), body.get("zonaHoraria"));
+        Usuario usuario = preferenciasService.actualizar(id,
+                PreferenciasService.texto(body.get("idioma"), "idioma"),
+                PreferenciasService.texto(body.get("zonaHoraria"), "zonaHoraria"),
+                PreferenciasService.booleano(body.get("avisosApp"), "avisosApp"));
         return ResponseEntity.ok(Map.of(
                 "idioma", usuario.getIdioma(),
-                "zonaHoraria", usuario.getZonaHoraria()
+                "zonaHoraria", usuario.getZonaHoraria(),
+                "avisosApp", usuario.isAvisosApp()
         ));
     }
 
