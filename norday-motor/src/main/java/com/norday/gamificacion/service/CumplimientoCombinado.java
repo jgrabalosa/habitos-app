@@ -36,6 +36,23 @@ public class CumplimientoCombinado {
         return combinar(cumplimientosQueCuentan(usuarioId).stream().map(c -> c.comoVaHoy(usuarioId)).toList());
     }
 
+    /**
+     * Cómo irá el usuario cada uno de los próximos {@code dias} días (0 =
+     * mañana), día a día con {@link #combinar} y la misma regla que
+     * {@link #comoVaHoy}. Las apps que cuentan se miran una sola vez, hoy, para
+     * todos los días: no se adivina si alguien dejará de usar una app.
+     */
+    public List<AvanceDeHoy> comoVaLosProximosDias(int usuarioId, int dias) {
+        List<List<AvanceDeHoy>> porApp = cumplimientosQueCuentan(usuarioId).stream()
+                .map(c -> c.comoVaLosProximosDias(usuarioId, dias)).toList();
+        List<AvanceDeHoy> resultado = new ArrayList<>();
+        for (int dia = 0; dia < dias; dia++) {
+            int i = dia;
+            resultado.add(combinar(porApp.stream().map(avances -> avances.get(i)).toList()));
+        }
+        return resultado;
+    }
+
     /** Si todo lo de hoy está hecho en todas las apps que cuentan: la misma regla que COMPLETO. */
     public boolean hoyCumplido(int usuarioId) {
         List<CumplimientoDiarioPort> cuentan = cumplimientosQueCuentan(usuarioId);

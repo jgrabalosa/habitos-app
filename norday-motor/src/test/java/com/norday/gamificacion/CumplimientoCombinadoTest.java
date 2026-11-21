@@ -73,6 +73,51 @@ class CumplimientoCombinadoTest {
         assertEquals(SIN_EMPEZAR, con(new App(true, AUSENTE), new App(true, SIN_EMPEZAR)).comoVaHoy(1));
     }
 
+    /** Una app de mentira con un avance distinto cada día. */
+    private record AppPorDias(boolean enUso, List<AvanceDeHoy> dias) implements CumplimientoDiarioPort {
+        @Override public boolean hoyCumplido(int usuarioId) { return false; }
+        @Override public boolean enUso(int usuarioId) { return enUso; }
+        @Override public AvanceDeHoy comoVaHoy(int usuarioId) { return SIN_EMPEZAR; }
+        @Override public List<AvanceDeHoy> comoVaLosProximosDias(int usuarioId, int n) { return dias.subList(0, n); }
+    }
+
+    private static CumplimientoCombinado conDias(AppPorDias... apps) {
+        CumplimientoCombinado combinado = new CumplimientoCombinado();
+        ReflectionTestUtils.setField(combinado, "cumplimientos", List.<CumplimientoDiarioPort>of(apps));
+        return combinado;
+    }
+
+    @Test
+    void proximosDias_combinaDiaADia() {
+        CumplimientoCombinado combinado = conDias(
+                new AppPorDias(true, List.of(COMPLETO, COMPLETO, AUSENTE)),
+                new AppPorDias(true, List.of(COMPLETO, SIN_EMPEZAR, AUSENTE)));
+        assertEquals(List.of(COMPLETO, EMPEZADO, AUSENTE), combinado.comoVaLosProximosDias(1, 3));
+    }
+
+    @Test
+    void proximosDias_soloCuentanLasAppsEnUso() {
+        CumplimientoCombinado combinado = conDias(
+                new AppPorDias(false, List.of(AUSENTE, AUSENTE)),
+                new AppPorDias(true, List.of(COMPLETO, SIN_EMPEZAR)));
+        assertEquals(List.of(COMPLETO, SIN_EMPEZAR), combinado.comoVaLosProximosDias(1, 2));
+    }
+
+    @Test
+    void proximosDias_conUnaSolaApp_esLaSuya() {
+        List<AvanceDeHoy> suyos = List.of(AUSENTE, SIN_EMPEZAR, EMPEZADO, COMPLETO);
+        assertEquals(suyos, conDias(new AppPorDias(true, suyos)).comoVaLosProximosDias(1, 4));
+        assertEquals(suyos, conDias(new AppPorDias(false, suyos)).comoVaLosProximosDias(1, 4));
+    }
+
+    @Test
+    void proximosDias_sinNingunaEnUso_cuentanTodas() {
+        CumplimientoCombinado combinado = conDias(
+                new AppPorDias(false, List.of(AUSENTE)),
+                new AppPorDias(false, List.of(AUSENTE)));
+        assertEquals(List.of(AUSENTE), combinado.comoVaLosProximosDias(1, 1));
+    }
+
     @Test
     void combinar_sinNada_esSinEmpezar() {
         assertEquals(SIN_EMPEZAR, CumplimientoCombinado.combinar(List.of()));
