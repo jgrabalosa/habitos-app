@@ -36,10 +36,7 @@ public class UsuarioService {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private TextosService textosService;
+    private CorreoBienvenidaService correoBienvenidaService;
 
     @Autowired
     private MotorLogrosService motorLogrosService;
@@ -73,12 +70,7 @@ public class UsuarioService {
         try {
             // El motor dispara el envío; el texto lo pone el bundle de la app
             // (mensajes/habitos), no esta clase.
-            emailService.enviarEmail(
-                    usuario.getEmail(),
-                    "email.bienvenida.asunto",
-                    "email.bienvenida.cuerpo",
-                    textosService.localeDe(usuario),
-                    usuario.getNombre());
+            correoBienvenidaService.enviar(usuario);
         } catch (Exception e) {
             log.warn("Error al enviar email de bienvenida a {}: {}", usuario.getEmail(), e.getMessage());
         }

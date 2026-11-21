@@ -2,11 +2,18 @@ package com.norday.core.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+import org.springframework.core.io.Resource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Envía emails. El motor pone el mecanismo; el texto viene siempre del
@@ -46,6 +53,35 @@ public class EmailService {
         mensaje.setTo(destinatario);
         mensaje.setSubject(textosService.texto(claveAsunto, locale));
         mensaje.setText(textosService.texto(claveCuerpo, locale, args));
+        mailSender.send(mensaje);
+    }
+
+    /**
+     * Correo en HTML con versión de texto plano e imágenes dentro del propio
+     * correo (multipart/related con Content-ID; nunca en base64 ni por URL).
+     * Estructura: related { alternative { text/plain, text/html }, imágenes }.
+     * El motor no sabe qué dicen los textos: llegan ya resueltos.
+     *
+     * @param nombreRemitente nombre visible; la dirección es siempre la misma.
+     *                        De {@code norday.mail.from} se toma solo la
+     *                        dirección: en staging y producción lleva nombre
+     *                        ({@code Norday <hola@norday.app>}).
+     * @param imagenes        identificador (el de {@code cid:}) → recurso
+     */
+    public void enviarHtml(String destinatario, String asunto, String html, String texto,
+                           String nombreRemitente, Map<String, ? extends Resource> imagenes)
+            throws MessagingException, UnsupportedEncodingException {
+        MimeMessage mensaje = mailSender.createMimeMessage();
+        MimeMessageHelper helper =
+                new MimeMessageHelper(mensaje, MimeMessageHelper.MULTIPART_MODE_RELATED, "UTF-8");
+        String direccion = new InternetAddress(remitente).getAddress();
+        helper.setFrom(new InternetAddress(direccion, nombreRemitente, "UTF-8"));
+        helper.setTo(destinatario);
+        helper.setSubject(asunto);
+        helper.setText(texto, html);
+        for (Map.Entry<String, ? extends Resource> imagen : imagenes.entrySet()) {
+            helper.addInline(imagen.getKey(), imagen.getValue(), "image/png");
+        }
         mailSender.send(mensaje);
     }
 }
