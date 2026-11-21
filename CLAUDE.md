@@ -395,6 +395,24 @@ módulo aporta su propio bundle y lo registra implementando
 `ProveedorMensajes`; `MensajesConfig` los recolecta. `EmailService` solo
 recibe claves, nunca frases.
 
+**El correo de bienvenida es HTML con Nori** (T-044). La plantilla es
+`norday-server/src/main/resources/correo/bienvenida.html` y sus imágenes
+(`nori.png`, `instagram.png`, `tiktok.png`, tal cual, sin redibujar) están en
+`correo/img/`, en el mismo módulo que los bundles. `CorreoBienvenidaService`
+(motor) sustituye los marcadores `{{...}}` con las claves `email.bienvenida.*`
+del bundle de `habitos` en el idioma del usuario y escapa todo valor que entra
+en el HTML (el nombre, el primero: lo escribe el usuario). Sin motor de
+plantillas ni dependencias nuevas. Lo manda `EmailService.enviarHtml`:
+`multipart/related` con las imágenes dentro del correo por `Content-ID`
+(`cid:nori`, `cid:instagram`, `cid:tiktok`), nunca en base64 ni por URL, y
+dentro una `multipart/alternative` con texto plano y HTML. Los enlaces (Play,
+Instagram, TikTok) son claves del bundle, no constantes del motor. Un texto
+nuevo de la plantilla es un marcador nuevo y una clave en los tres idiomas.
+**Apóstrofos:** solo el titular lleva argumentos (`{0}`) y pasa por
+`MessageFormat`, donde el apóstrofo se dobla (`I''m`); las demás claves se leen
+tal cual y llevan `'` simple. `enviarEmail` de texto plano no cambia
+(recuperación de contraseña). Tests: `CorreoBienvenidaTest`.
+
 Los ficheros `.properties` viven todos juntos en
 `norday-server/src/main/resources/mensajes/`, aunque cada uno lo aporte
 conceptualmente su módulo. En ejecución da igual: el jar los une en un
