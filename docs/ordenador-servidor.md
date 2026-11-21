@@ -498,7 +498,7 @@ perfiles, más Claude Code:
 | `arquitecto` | Trocea cada tarea en tarjetas y lleva el turno. |
 | `desarrollador` | Prepara el worktree de la tarjeta, lanza Claude Code y publica el PR en borrador. |
 | `revisor` | Comprueba la tarjeta en un clon limpio contra su criterio de hecho, pasa los tests y aprueba o devuelve. |
-| `revisor-n2` | Igual que `revisor`, para las tarjetas de nivel 2: las que fallaron en nivel 1 o cambian el contrato entre repos. |
+| `revisor-n2` | Igual que `revisor`, para las tarjetas de nivel 2: las que fallaron en nivel 1 o llevan «Nivel: 2» en su ficha. |
 
 Claude Code es quien escribe el código; los perfiles de Hermes lo lanzan y
 lo revisan.
