@@ -11,6 +11,7 @@ public class HabitoDetalleDTO {
     private int habitoId;
     private String nombre;
     private String descripcion;
+    private String icono; // null si el hábito no tiene
     private int rachaActual;
     private int rachaMaxima;
     private int totalCompletados;
@@ -44,6 +45,9 @@ public class HabitoDetalleDTO {
 
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
+
+    public String getIcono() { return icono; }
+    public void setIcono(String icono) { this.icono = icono; }
 
     public int getRachaActual() { return rachaActual; }
     public void setRachaActual(int rachaActual) { this.rachaActual = rachaActual; }

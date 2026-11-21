@@ -128,6 +128,15 @@ public class HabitoService {
         habito.setMinutosObjetivo(unidad == Unidad.MINUTOS ? minutosObjetivo : null);
     }
 
+    private static final java.util.regex.Pattern ICONO_VALIDO = java.util.regex.Pattern.compile("[a-zA-Z0-9]{1,40}");
+
+    /** El icono, si llega, es un código de 1 a 40 letras o cifras (400 si no). */
+    private void validarIcono(String icono, Usuario propietario) {
+        if (icono != null && !ICONO_VALIDO.matcher(icono).matches()) {
+            throw new IllegalArgumentException(textosService.texto("habito.icono.invalido", propietario));
+        }
+    }
+
     /**
      * Resuelve la categoría que pide el cliente. Solo valen las globales y
      * las del propio propietario. Una ajena responde lo mismo que una que no
@@ -163,6 +172,7 @@ public class HabitoService {
     public List<String> crearHabito(Habito habito, Integer categoriaId, Unidad unidad, Integer minutosObjetivo) {
         // Crear un hábito concede logros (activos, categorías): el usuario,
         // bloqueado antes que nada (ver bloquearUsuario).
+        validarIcono(habito.getIcono(), habito.getPropietario());
         bloquearUsuario(habito.getPropietario());
         aplicarUnidad(habito, unidad != null ? unidad : Unidad.VECES, minutosObjetivo);
         habito.setTipo(resolverCategoria(categoriaId, habito.getPropietario()));
@@ -299,6 +309,7 @@ public class HabitoService {
     @Transactional
     public LocalDate actualizar(Habito habito, Integer categoriaId, Unidad unidadPedida,
                                 Integer minutosPedidos) {
+        validarIcono(habito.getIcono(), habito.getPropietario());
         Habito existente = habitoDAO.findById(habito.getHabitoId());
         if (existente == null) {
             throw new RecursoNoEncontradoException("Hábito no encontrado");
@@ -329,6 +340,12 @@ public class HabitoService {
 
         habito.setFechaInicio(existente.getFechaInicio());
         habito.setActivo(existente.isActivo());
+        // El icono, con "ausente = sin cambio" como la unidad: la app ya
+        // instalada no lo manda, y update hace merge de la entidad entera, así
+        // que un null lo borraría. No es del objetivo: no crea versión.
+        if (habito.getIcono() == null) {
+            habito.setIcono(existente.getIcono());
+        }
         // Va antes de comparar porque en un semanal con días fijos el
         // objetivo sale de los días marcados.
         normalizarPlanificacion(habito);
@@ -498,6 +515,7 @@ public class HabitoService {
         dto.setHabitoId(habito.getHabitoId());
         dto.setNombre(habito.getNombre());
         dto.setDescripcion(habito.getDescripcion());
+        dto.setIcono(habito.getIcono());
         dto.setRachaActual(rachaService.rachaActualVigente(racha));
         dto.setRachaMaxima(racha != null ? racha.getRachaMaxima() : 0);
         dto.setRitmoNivel(CalculoRitmo.nivel(ritmo.valor()));
