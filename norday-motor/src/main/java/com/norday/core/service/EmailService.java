@@ -62,7 +62,10 @@ public class EmailService {
      * Estructura: related { alternative { text/plain, text/html }, imágenes }.
      * El motor no sabe qué dicen los textos: llegan ya resueltos.
      *
-     * @param nombreRemitente nombre visible; la dirección es siempre la misma
+     * @param nombreRemitente nombre visible; la dirección es siempre la misma.
+     *                        De {@code norday.mail.from} se toma solo la
+     *                        dirección: en staging y producción lleva nombre
+     *                        ({@code Norday <hola@norday.app>}).
      * @param imagenes        identificador (el de {@code cid:}) → recurso
      */
     public void enviarHtml(String destinatario, String asunto, String html, String texto,
@@ -71,7 +74,8 @@ public class EmailService {
         MimeMessage mensaje = mailSender.createMimeMessage();
         MimeMessageHelper helper =
                 new MimeMessageHelper(mensaje, MimeMessageHelper.MULTIPART_MODE_RELATED, "UTF-8");
-        helper.setFrom(new InternetAddress(remitente, nombreRemitente, "UTF-8"));
+        String direccion = new InternetAddress(remitente).getAddress();
+        helper.setFrom(new InternetAddress(direccion, nombreRemitente, "UTF-8"));
         helper.setTo(destinatario);
         helper.setSubject(asunto);
         helper.setText(texto, html);

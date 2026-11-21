@@ -37,6 +37,7 @@ class CorreoBienvenidaTest {
 
     private JavaMailSender mailSender;
     private CorreoBienvenidaService servicio;
+    private TextosService textos;
 
     @BeforeEach
     void preparar() {
@@ -46,7 +47,7 @@ class CorreoBienvenidaTest {
         ms.setFallbackToSystemLocale(false);
         ms.setUseCodeAsDefaultMessage(true);
 
-        TextosService textos = new TextosService();
+        textos = new TextosService();
         ReflectionTestUtils.setField(textos, "messageSource", ms);
 
         mailSender = mock(JavaMailSender.class);
@@ -198,6 +199,27 @@ class CorreoBienvenidaTest {
         assertTrue(cids.containsAll(List.of("<nori>", "<instagram>", "<tiktok>")), cids.toString());
 
         assertTrue(m.getContentType().toLowerCase().startsWith("multipart/related"), m.getContentType());
+    }
+
+    /**
+     * En staging y producción {@code norday.mail.from} lleva nombre
+     * ({@code Norday <hola@norday.app>}). El correo de bienvenida usa solo la
+     * dirección y le pone su propio nombre; antes salía
+     * {@code Nori de Norday Habits <Norday <hola@norday.app>>} y no se enviaba.
+     */
+    @Test
+    void remitenteConNombre_seUsaSoloLaDireccion() throws Exception {
+        EmailService email = new EmailService();
+        ReflectionTestUtils.setField(email, "mailSender", mailSender);
+        ReflectionTestUtils.setField(email, "textosService", textos);
+        ReflectionTestUtils.setField(email, "remitente", "Norday <hola@norday.test>");
+        new CorreoBienvenidaService(email, textos).enviar(usuario("Ana", "es"));
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+        InternetAddress from = (InternetAddress) captor.getValue().getFrom()[0];
+        assertEquals("hola@norday.test", from.getAddress());
+        assertEquals("Nori de Norday Habits", from.getPersonal());
     }
 
     private static boolean esTipo(Part p, String tipo) {
