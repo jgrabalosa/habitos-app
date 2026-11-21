@@ -22,492 +22,122 @@ genéricos (ej. `ganarExperiencia(usuarioId, cantidad)`, no
 comprueba primero si de verdad pertenece ahí o si en realidad es lógica
 específica de hábitos que se ha colado.
 
-## Estructura de paquetes (Nivel 1, ya aplicada)
+## Paquetes, dependencias y módulos (resumen)
 
-El código está reorganizado por dominio bajo `com.norday`. Cada paquete
-tiene dentro su propia estructura por capas (`config`, `controller`,
-`model`, `model.dto`, `repository`, `repository.impl`, `service`):
+Código por dominio bajo `com.norday`: `core` y `gamificacion` (motor, mismo
+módulo Maven `norday-motor`), `habitos`, `conocimiento` y `enfoque`
+(dominios, un módulo cada uno) y `norday-server` (el único jar arrancable).
+`NordayApplication` vive en la raíz `com.norday`.
 
-- **`com.norday`** — solo `NordayApplication`. Vive en la raíz, fuera de
-  los demás paquetes, para que el component scan los alcance a todos.
-- **`com.norday.core`** — motor de cuenta: auth/JWT y security, usuarios,
-  recuperación de contraseña, email, FCM, Firebase.
-- **`com.norday.gamificacion`** — motor de juego: puntos (UsuarioMoneda),
-  logros, tienda (Producto/UsuarioProducto), mascota.
-- **`com.norday.habitos`** — dominio: Habito, Registro, Racha, Categoria,
-  Frecuencia, sus schedulers, controllers y logros de dominio.
-- **`com.norday.conocimiento`** — dominio de la segunda app: píldoras de
-  microaprendizaje, preferencias de categoría y valoraciones. Hermano de
-  `habitos`, no descendiente suyo.
-- **`com.norday.enfoque`** — dominio de Norday Focus: sesiones de
-  concentración (`sesion_enfoque`), su resumen y su historial. Hermano de
-  `habitos` y `conocimiento`. Lleva minutos a los hábitos sin conocerlos, por
-  el puerto `DestinoMinutos` del motor (ver «Norday Focus: el puerto
-  DestinoMinutos»).
+- `habitos`, `conocimiento` y `enfoque` → pueden importar de `core` y
+  `gamificacion`.
+- `core` ↔ `gamificacion` → permitido en ambos sentidos.
+- `core` o `gamificacion` → `habitos`, `conocimiento` o `enfoque`: **PROHIBIDO**.
+- Entre `habitos`, `conocimiento` y `enfoque`: **PROHIBIDO** en los dos
+  sentidos. Si uno necesita algo de otro, el motor declara un puerto y el
+  otro lo implementa (`DestinoMinutos`, `CumplimientoDiarioPort`).
 
-### Regla de dependencias (obligatoria)
-
-- `habitos` → puede importar de `core` y `gamificacion`.
-- `conocimiento` → puede importar de `core` y `gamificacion`.
-- `enfoque` → puede importar de `core` y `gamificacion`.
-- `gamificacion` ↔ `core` → permitido en ambos sentidos. Los dos son
-  *motor* y viven en el mismo módulo Maven `norday-motor`; por eso entre
-  ellos no hay muro.
-- `core` → `habitos`, `conocimiento` o `enfoque` : **PROHIBIDO**.
-- `gamificacion` → `habitos`, `conocimiento` o `enfoque` : **PROHIBIDO**.
-- `habitos` ↔ `conocimiento` : **PROHIBIDO** en los dos sentidos. Son
-  hermanos y no se conocen: ninguno declara al otro en su `pom.xml`, así
-  que una importación cruzada tampoco compila.
-- `enfoque` ↔ `habitos` y `enfoque` ↔ `conocimiento` : **PROHIBIDO** en los
-  dos sentidos, por lo mismo. Cuando un dominio necesita algo de otro, el
-  motor declara un puerto y el otro lo implementa (`DestinoMinutos`,
-  `CumplimientoDiarioPort`).
-
-Desde el Nivel 2 esta regla ya no depende solo de la disciplina: Maven la
-impone. `norday-motor` no declara ninguna dependencia hacia `habitos`, así
-que una importación prohibida ni siquiera compila.
-
-Ningún archivo de `core` ni de `gamificacion` puede contener las palabras
-`Habito`, `Registro`, `Racha` o `Categoria` — ni siquiera en comentarios o
-texto de logs. Se verifica con dos greps que deben dar cero resultados:
+Maven lo impone (una importación prohibida no compila). Ningún archivo de
+`core` ni de `gamificacion` puede contener `Habito`, `Registro`, `Racha` o
+`Categoria`, ni en comentarios ni en logs. Dos greps, cero resultados:
 
 ```bash
 grep -rn "com\.norday\.habitos" norday-motor/src/main/java
 grep -rnE "\b(Habito|Registro|Racha|Categoria)\w*" norday-motor/src/main/java
 ```
 
-## Estructura de módulos Maven (Nivel 2, ya aplicada)
-
-El backend es un proyecto multi-módulo. El `pom.xml` de la raíz es un
-agregador (`packaging=pom`, sin dependencias propias) que hereda de
-`spring-boot-starter-parent` y declara cinco módulos:
-
-- **`norday-motor/`** — el motor: `com.norday.core` y
-  `com.norday.gamificacion`. Es una librería (sin
-  `spring-boot-maven-plugin`) y concentra **todas** las dependencias
-  técnicas: JPA, web, security, JWT, validación, bucket4j, mail, OAuth2,
-  Google/Firebase, Flyway, PostgreSQL. Es el módulo que comparten los tres
-  dominios.
-- **`habitos/`** — el dominio de Norday Habits: `com.norday.habitos`.
-  Librería también. Su única dependencia de producción es `norday-motor`,
-  y las hereda todas por transitividad.
-- **`conocimiento/`** — el dominio de Norday Conocimiento:
-  `com.norday.conocimiento`. Igual que `habitos`: librería, y su única
-  dependencia de producción es `norday-motor`.
-- **`enfoque/`** — el dominio de Norday Focus: `com.norday.enfoque`. Igual:
-  librería, y su única dependencia de producción es `norday-motor`.
-- **`norday-server/`** — el ensamblado ejecutable: `NordayApplication`
-  y `src/main/resources` (properties, `mensajes/`, `static/`,
-  `db/migration/`). Depende de `habitos`, `conocimiento` **y** `enfoque`, y lleva
-  el `spring-boot-maven-plugin` con
-  `mainClass com.norday.NordayApplication`. Es el único módulo que
-  produce un jar arrancable.
-
-La cadena **no** es lineal, es un abanico: `norday-server` cuelga de los
-tres módulos de dominio, y cada uno de ellos cuelga de `norday-motor`. Una
-app futura del ecosistema añadiría su propio módulo de dominio junto a
-`habitos`, `conocimiento` y `enfoque`, colgando igualmente de `norday-motor`.
-
-## Borrado de cuenta: patrón LimpiadorDatosUsuario
-
-`UsuarioService.eliminarCuenta()` **no** conoce las tablas de cada módulo.
-Declara la interfaz `LimpiadorDatosUsuario` (en `core.service`), Spring
-recolecta todas sus implementaciones en un `List<LimpiadorDatosUsuario>`,
-se recorren, y solo después se borra el `Usuario`.
-
-Implementaciones actuales, seis:
-
-- `LimpiadorHabitos` — por cada hábito, el libro de hitos (`hito_pagado`),
-  las reversiones, los registros, las rachas, los ritmos y el historial de
-  objetivos (`habito_objetivo`); luego los hábitos; luego las categorías
-  propias. El libro de hitos va antes que los registros porque también
-  apunta a ellos.
-- `LimpiadorGamificacion` — logros, monedas, lo puesto (`usuario_equipado`)
-  antes que los productos (apunta a ellos), productos, mascota.
-- `LimpiadorRecuperacion` — códigos de recuperación de contraseña, que
-  cuelgan del email y no del id.
-- `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría y
-  valoraciones.
-- `LimpiadorDispositivos` — los tokens de notificaciones de todas las apps
-  (`usuario_dispositivo`).
-- `LimpiadorEnfoque` — las sesiones de Norday Focus (`sesion_enfoque`). Los
-  minutos que llevaron a un hábito son registros del hábito y los borra
-  `LimpiadorHabitos`.
-
-**Cada módulo nuevo que guarde datos colgando de `Usuario` debe aportar su
-propio limpiador.** Esto sustituye a la regla frágil de "acordarse de
-añadir cada tabla nueva a `eliminarCuenta`": ese método ya no se toca.
-El orden entre limpiadores es indiferente (son árboles de FK
-independientes que solo apuntan a `Usuario`); el orden *dentro* de cada
-limpiador sí importa.
-
-## Exportación de datos: el mismo patrón
-
-`ExportacionDatosService.exportar(id)` tampoco conoce las tablas de cada
-módulo. La interfaz `ExportadorDatosUsuario` vive en `core.service` y
-Spring recolecta sus implementaciones igual que con los limpiadores:
-`ExportadorGamificacion`, `ExportadorHabitos`, `ExportadorConocimiento`,
-`ExportadorDispositivos` (en qué apps hay token y desde cuándo; nunca el
-token, como tampoco sale `usuario.fcm_token`) y `ExportadorEnfoque` (sección
-`enfoque`: las sesiones, sin la clave).
-
-Lo consume `GET /api/usuarios/{id}/exportar`, que comprueba que el
-autenticado es el dueño y devuelve el JSON con `Content-Disposition`. Es la
-portabilidad del RGPD (art. 20) y está prometida en la política de
-privacidad.
-
-**Un módulo nuevo que guarde datos del usuario aporta dos cosas: su
-limpiador y su exportador.** Si solo aporta el limpiador, la exportación
-mentirá por omisión.
-
-## Notificaciones: un token por app
-
-FCM da un token por instancia de app: Norday Habits y Norday Focus en el
-mismo móvil tienen dos. Cada usuario tiene una fila por app en
-`usuario_dispositivo` (motor, `core`), y nada más.
-
-- **Cada app registra su token con la cabecera `X-Norday-App`** en
-  `PUT /api/usuarios/{id}/fcm-token`. Sin cabecera, o vacía, es `habitos`:
-  la APK ya instalada no la manda. Una app que no está en `AppNorday` recibe
-  400 y no se guarda nada. **Una app nueva se añade a `AppNorday` antes de
-  publicarse.**
-- **Un token es de un solo usuario por app.** Si llega para otro (cerró
-  sesión y entró otra persona en el mismo móvil), se le quita al anterior:
-  su fila de esa app y, para `habitos`, su `usuario.fcm_token`. Si no, los
-  avisos del anterior llegarían al móvil del nuevo.
-- **Todo envío push pide el token de la app a la que va**, con
-  `DispositivoService.tokenDe(usuarioId, appId)` (o `tokensDe` para muchos
-  usuarios). Nunca `usuario.getFcmToken()`. Los recordatorios de hábitos van
-  a `habitos`. Si FCM responde `UNREGISTERED`, `olvidarToken`.
-- **`usuario.fcm_token` es columna de transición**: se sigue escribiendo
-  con el token de `habitos` para poder volver al jar anterior a V24, y
-  `DispositivoService` la lee como reserva para `habitos` cuando no hay
-  fila. Admite 255 caracteres y la tabla 4096: un token más largo va solo a
-  la tabla y deja la columna a null. Ningún envío la lee directamente. Volver al jar anterior solo es
-  seguro mientras Norday Focus no esté publicada, y al volver a avanzar hay
-  que resincronizar (SQL en `docs/despliegue.md`). No se quita hasta que no
-  haga falta volver atrás.
-
-## Norday Focus: el puerto DestinoMinutos
-
-Una sesión de Norday Focus puede llevar sus minutos a un hábito de minutos.
-`enfoque` no conoce los hábitos ni `habitos` conoce las sesiones: el motor
-declara el puerto `DestinoMinutos` (`gamificacion.service`, con los records
-`DestinoDisponible`, `ResultadoAporte` y `ProgresoDestino` en
-`gamificacion.model`) y `habitos`
-lo implementa en `DestinoMinutosHabitos` (tipo `habito`). `enfoque` recibe
-todos los destinos como `List<DestinoMinutos>` y elige por `tipo()`.
-
-- **El destino nunca lanza por sus reglas.** `DestinoMinutosHabitos.aportar`
-  valida antes de completar (dueño, que exista, que no esté en pausa, que el
-  día sea de minutos en la versión vigente ese día, semana en curso, no
-  futuro y no anterior al alta del hábito, de 1 a 600) y responde `RECHAZADO` con un código de motivo, que es
-  una clave de `mensajes/habitos`. Si completar lanza igualmente una
-  `ConflictoException` (una carrera), se traduce a `RECHAZADO`. Un fallo
-  técnico, o un `IllegalArgumentException` inesperado, sí sale: la sesión
-  queda `PENDIENTE`, `EnfoqueController` responde 503 y la app reintenta con
-  la misma clave (5xx o sin respuesta = reintentar; 400 y 409 = definitivo).
-  Una espera de bloqueo agotada también es 503, con el texto del resto de la
-  API (`error.bloqueo.reintentar`): el manejador de `EnfoqueController` va
-  antes que el global para todo `DataAccessException` y lo distingue. Si la
-  cuenta se borra mientras el alta espera el bloqueo del usuario, 404.
-- **Registrar una sesión son tres transacciones, no una**
-  (`SesionEnfoqueService.registrar`, sin `@Transactional`): guardar la sesión
-  (idempotente por clave, aporte `PENDIENTE` si hay destino), aportar en la
-  transacción propia del destino, apuntar el resultado. Es la lección de
-  `asegurarIdentidad`: con una transacción compartida, la excepción de
-  completar la marcaría para deshacer y la sesión se perdería con
-  `UnexpectedRollbackException`. Hay un test que lo demuestra
-  (`SesionEnfoqueTest.rechazoDentroDeCompletar_noSeLlevaPorDelanteLaSesion`).
-- **El adaptador corre en `REQUIRES_NEW` y captura fuera de la plantilla.**
-  Capturar dentro no sirve: completar ya habría marcado la transacción.
-  Sin transacción exterior, `REQUIRES_NEW` no pide una segunda conexión.
-- **Quien llama a `aportar` no puede tener una transacción abierta.**
-  Completar bloquea al usuario en su transacción, con otra conexión; si la
-  de fuera ya lo tuviera bloqueado (el alta de la sesión lo bloquea), las
-  dos se esperarían hasta agotar el tope, y Postgres no lo ve como abrazo
-  (son dos conexiones del mismo hilo). `DestinoMinutosHabitos.aportar`
-  lanza `IllegalStateException` si al entrar hay una transacción activa.
-- **La clave de la sesión es la clave del registro.** Un reintento no suma
-  ni paga dos veces, ni en `sesion_enfoque` ni en `registro`; una sesión que
-  quedó `PENDIENTE` (el proceso murió entre aportar y apuntar) se completa
-  al reintentar, con `REPETIDO`.
-- **El reintento devuelve el resultado original.** La sesión guarda lo que
-  pagó el hábito (`monedas_aportadas`, `xp_aportada`, `logros_aportados`) y
-  el 200 lo devuelve; el progreso del día se lee en el momento con
-  `DestinoMinutos.progreso`, que solo lee. Nunca se vuelve a llamar a
-  `aportar` para una sesión cerrada.
-- **El resultado se apunta con precedencia** (en el propio `UPDATE`):
-  `PENDIENTE` lo acepta todo, `ACEPTADO` gana a `REPETIDO` y `RECHAZADO`,
-  `REPETIDO` gana a `RECHAZADO`.
-- **Limitación conocida:** deshacer en Norday Habits un registro que vino de
-  una sesión no toca la sesión (sus `minutos_aportados` se quedan), y si la
-  sesión estaba `PENDIENTE`, un reintento posterior volvería a sumar.
-- **Enfoque paga lo suyo, aparte del hábito** (desde el 16-nov-2026,
-  `docs/decisiones/2026-11-16-focus-paga-lo-suyo.md`): cada sesión que cuenta
-  paga monedas y XP (`PremioEnfoqueService`, cifras en
-  `ParametrosPremioEnfoque`, tope de 120 monedas al día) y los logros de
-  Focus (`LogrosEnfoqueService`), tenga hábito o no. **Se paga en el paso 1**,
-  dentro de la transacción del alta y con el usuario ya bloqueado, y se guarda
-  en la sesión (`premio_*`, V27): el reintento devuelve el guardado. Si lleva
-  hábito, el hábito paga además lo suyo, con sus reglas, igual que el panel
-  de minutos, y la respuesta lo separa: `aporte` (hábito) y `premio` (sesión).
-- **El ánimo de Nori junta las apps** (`CumplimientoCombinado`, motor): cada
-  app implementa `CumplimientoDiarioPort` con `enUso`, y solo cuentan las que
-  el usuario usa. Con una sola, el ánimo es el suyo, sin cambios. Una app
-  nueva que mueva el ánimo aporta su implementación.
-
-## Siembra de catálogos
-
-Cada módulo siembra lo suyo con su propio `CommandLineRunner`:
-`CategoriasInitializer`, `LogrosHabitosInitializer` y
-`ProductosHabitosInitializer` (habitos; este último, la `PAUSA_HABITO` de la
-tienda, con `origenApp = habitos`), `LogrosEnfoqueInitializer` (enfoque: los
-21 logros de Norday Focus, con `origenApp = enfoque`) y
-`CatalogoGamificacionInitializer` (gamificacion; también las cuatro prendas
-de Nori, genéricas, con su colección, la versión mínima del core y su
-oferta: ver «Catálogo de productos» en `docs/Logicas/03`).
-
-La comprobación de idempotencia de logros y productos es **por código,
-fila a fila** (`findByCodigo(...) != null` → saltar), no una guarda
-todo-o-nada sobre la tabla entera: el catálogo de logros lo siembran dos
-módulos distintos, y una guarda global haría que el segundo en arrancar no
-sembrara nada.
-
-## Catálogos compartidos
-
-Los catálogos de logros y productos distinguen a qué app pertenecen con el
-campo `origenApp` de `Logro` y `Producto`. Ya no es un plan a futuro: está
-en producción y es carga estructural.
-
-⚠️ **Invariante crítico.** `CatalogoGamificacionInitializer` recorre en cada
-arranque todo `logroDAO.findAll()` y retira los que tengan
-`origenApp = null`, sigan activos y no aparezcan en su propia lista
-`LOGROS`. Es decir: **sembrar un logro genérico y registrarlo en esa lista
-son la misma acción.** Un initializer aparte que cree logros con
-`origenApp = null` es una bomba de relojería, porque el siguiente arranque
-los dará por retirados. Vale igual para productos.
-
-Hay un tope de seguridad: si los candidatos a retirada superan en número a
-los códigos vigentes, no se toca nada y se avisa por log. Está pensado
-justo para cazar a otro módulo sembrando sin `origenApp`.
-
-El saldo de puntos (UsuarioMoneda) es único y compartido entre todas las
-apps del ecosistema — no crear muros entre apps.
-
-## Lo retirado del catálogo
-
-Retirado no es borrado: si la fila ya existía, queda en la BD con
-`activo = false` y el cliente deja de recibirla. Cada retirada está
-comentada en su initializer con fecha y motivo.
-
-| Código | Retirado | Motivo |
-|---|---|---|
-| `ESCUDO_RACHA` | 24-ago-2026 | Se vendía sin estar implementado (migración V6) |
-| `INTERACCION_RESENA` | 24-ago-2026 | Premiar la reseña va contra la política de Google Play (V7). El diálogo de reseña sigue en la app; sólo se quita la recompensa |
-| `TEMA_ALBA` | 6-sep-2026 | Se sale a Google Play con tres identidades: Profundidad, Neotokyo+ y Dulce |
-| Los diez `AVATAR_*` | 15-sep-2026 | No encajaban con la app. El esqueleto sigue en `norday_flutter_core` |
-| `IDENTIDAD_ALBA` | 17-sep-2026 | Inalcanzable sin `TEMA_ALBA` |
-
-Para retirar un logro o producto genérico basta con sacarlo del array de
-`CatalogoGamificacionInitializer`: el siguiente arranque lo desactiva.
-
-**Reactivar no es simétrico.** Descomentar la fila no basta si ya existe en
-la BD con `activo = false`: `findByCodigo(...) != null` salta la creación y
-hace falta un `UPDATE` manual o una migración nueva. `ESCUDO_RACHA` e
-`INTERACCION_RESENA` los desactivó una migración (V6 y V7): nunca editar
-una migración ya aplicada, porque Flyway rechaza el cambio de checksum.
-Antes de reactivar, comprobar en la BD si la fila existe. A 24-sep-2026 no
-existe ninguna de las retiradas, ni en producción ni en staging: las BD se
-reiniciaron después de retirarlas, así que hoy bastaría con descomentar.
-
-## Elección de identidad en el onboarding
-
-El usuario elige identidad (tema visual) la primera vez que entra:
-`POST /api/gamificacion/identidad/elegir/{usuarioId}/{productoId}` →
-`otorgarIdentidadElegida`, que otorga **y** equipa en un solo paso.
-
-**No reutilizar `otorgarProducto` para esto.** Su guarda solo impide repetir
-el *mismo* producto: llamándola cuatro veces con códigos distintos se
-conseguían las cuatro identidades gratis (4000 monedas). La guarda correcta
-es "¿ya tiene *alguna* de categoría Tema?", y para eso está
-`poseeAlgunoDeCategoria` en el DAO.
-
-`asegurarIdentidad` es la red de seguridad: si un usuario llega sin ninguna
-identidad, le otorga `TEMA_PROFUNDIDAD`.
-
-**Se llama desde el controlador, nunca desde el servicio.** Dentro de
-`loginConGoogle`, que es `@Transactional`, una excepción marcaría la
-transacción como rollback-only y el commit reventaría después con
-`UnexpectedRollbackException`: el usuario recibiría un 401 de Google por un
-fallo de identidad. Cualquier red de seguridad que se añada en el futuro
-tiene el mismo problema y la misma solución.
-
-Tiene una **ventana de gracia de 24h** desde el alta, para que no dispare
-durante el onboarding y le robe la elección al usuario.
-
-## Zona horaria y locale
-
-Ningún cálculo de "hoy" de cara al usuario puede usar `LocalDate.now()` sin
-zona. La zona sale siempre del usuario, vía `ZonaUsuarioService`. Los sellos
-de auditoría (`fechaRegistro`, `UsuarioLogro`, `UsuarioMoneda`,
-`UsuarioProducto`) van en UTC explícito: no son días de usuario. Las
-caducidades absolutas (código de recuperación) son instantes, no días, y no
-se tocan.
-
-La JVM **no** fija zona por defecto — se eliminó el `TimeZone.setDefault`.
-Toma la del sistema operativo: en el VPS es `Europe/Madrid`. Nada del
-código debe depender de ese valor. Lo que necesite UTC lo pide explícito,
-como hacen los sellos de auditoría del párrafo anterior.
-
-La racha no depende de ningún cron: `Racha` guarda `periodoMetaAlcanzada`
-(el inicio del periodo en que se cumplió la meta) y el sello se autocaduca
-al cambiar de periodo. La rotura es perezosa y se normaliza al leer, en
-`RachaService.rachaActualVigente`. Ningún barrido decide sobre rachas; el
-scheduler solo avisa.
-
-## Deshacer un completado: ReversionRegistro
-
-Deshacer un completado revierte todos sus efectos. Al completar,
-`RegistroService` guarda una `ReversionRegistro` ligada al registro: las
-monedas y la XP que dio ese completado, el estado previo de la racha y del
-día completo de la mascota, y, en `ReversionLogro`, cada logro que
-desbloqueó, incluidos los que dispara la mascota.
-
-Al deshacer:
-
-- los logros se retiran, para que puedan volver a concederse;
-- las monedas no se borran, se compensan con un movimiento de signo
-  contrario: el libro de `UsuarioMoneda` es de sólo añadir, y se permite
-  saldo negativo;
-- la XP se resta en lo que dio el completado, sin volver al valor previo,
-  que borraría la ganada después;
-- la racha vuelve a su estado previo.
-
-**Todo efecto nuevo que se añada a un completado tiene que quedar en la
-reversión.** Si no, deshacer lo deja puesto y el usuario se queda con
-puntos, XP o logros que no le tocan.
-
-## Textos
-
-El motor no contiene texto de cara al usuario específico de una app. Cada
-módulo aporta su propio bundle y lo registra implementando
-`ProveedorMensajes`; `MensajesConfig` los recolecta. `EmailService` solo
-recibe claves, nunca frases.
-
-Los ficheros `.properties` viven todos juntos en
-`norday-server/src/main/resources/mensajes/`, aunque cada uno lo aporte
-conceptualmente su módulo. En ejecución da igual: el jar los une en un
-único classpath.
-
-De ahí que `BundlesMensajesTest` viva en `norday-server` y no en
-`norday-motor`: comprueba los bundles de `core`, `habitos` y `enfoque` (que
-cada idioma traduzca exactamente las claves del base, y que el motor no
-lleve textos de una app), y que cada motivo de rechazo de un aporte
-(`DestinoMinutosHabitos.MOTIVOS` y los de `MotivosEnfoque`) tenga texto en
-el bundle de quien lo pone y quepa en `sesion_enfoque.aporte_motivo` (40).
-`norday-server` es el único módulo que ve todos. Un test que cruce
-módulos pertenece al módulo que los reúne.
-
-El fichero base (sin sufijo de idioma) va en español, que es la caída
-acordada. Idiomas soportados: `es`, `en`, `pt`.
-
-Los catálogos viajan por `codigo`; el nombre en BD es solo caída para el
-cliente, que traduce por código.
-
-## Tests
-
-Los `@SpringBootTest` cargan la configuración de
-`norday-server/src/test/resources/application.properties`, que apunta a una
-base de datos dedicada `habitos_db_test`.
-
-Esto no es cosmético. Mientras ese fichero no existió, cualquier test que
-levantara contexto Spring cargaba `src/main/resources/application.properties`
-—que está en `.gitignore` y en cada máquina apunta a la BD real— y con él
-arrancaban Flyway y los `CommandLineRunner` **contra producción en cada
-build**.
-
-Reglas al tocar esa configuración:
-
-- **`src/test/resources` tapa por completo a `src/main/resources`**, no se
-  suman valores. Por eso el fichero declara también `jwt.secret`,
-  `jwt.expiration`, `norday.mail.from` y `spring.mail.host`. Toda propiedad
-  obligatoria que se añada en producción hay que añadirla aquí también.
-- **`spring.mail.host` es obligatoria aunque no se envíe correo.**
-  `MailSenderAutoConfiguration` solo crea el bean `JavaMailSender` si esa
-  propiedad existe, y `EmailService` lo inyecta como obligatorio. Sin ella el
-  contexto no arranca. `localhost` no abre ninguna conexión.
-- **Flyway va desactivado y el esquema lo genera Hibernate (`create-drop`).**
-  No existe una migración `V1__`: el histórico está *baselined* en la versión 1
-  sobre un esquema creado con `ddl-auto=update`, y las siguientes son índices y
-  `UPDATE`s sobre tablas que ya existen. Flyway no puede construir la BD de
-  test desde cero.
-- **Los initializers siguen corriendo bajo test**, y es deliberado: sobre una
-  BD desechable son inofensivos y siembran el catálogo. No hay guardas
-  `@Profile` y no hacen falta.
-- **El pool de conexiones de test es pequeño y se encoge** (5 como mucho, 1
-  ociosa, 10 s). Spring guarda un contexto por cada combinación de
-  `@MockitoSpyBean`/`@TestPropertySource`, y cada uno conserva su pool: con el
-  de por defecto (10 fijas) la suite agotaba las 100 conexiones de Postgres
-  («remaining connection slots are reserved»).
-- **Usuario y contraseña salen del entorno** si existe:
-  `${TEST_DB_USER:norday_test}`. Una máquina con otras credenciales las pone
-  por variable, sin tocar el fichero.
-
-Descartado, y por qué:
-
-- **Testcontainers** — los tests corren en el VPS en cada despliegue y esa
-  máquina ya carga Postgres más dos JVMs. Un demonio Docker y una imagen por
-  build no compensan con un solo desarrollador y Postgres ya instalado.
-- **`-Dspring.profiles.active=staging` en el build** — vive fuera del repo y
-  depende de que nadie lo olvide; desde el IDE se volvería a producción.
-
-**Prerrequisito de build.** El `package` va sin `-DskipTests`, así que toda
-máquina que compile necesita la BD:
-
-```bash
-psql -U postgres -c "CREATE USER norday_test WITH PASSWORD 'norday_test';"
-psql -U postgres -c "CREATE DATABASE habitos_db_test OWNER norday_test;"
-```
-
-`norday_test` tiene que ser **dueño**: en Postgres 15+ el esquema `public` no
-es escribible por cualquiera y `create-drop` crea tablas en cada ejecución.
-
-**Cuidado con `create-drop`:** si el `spring.datasource.url` de test apunta a
-una BD con datos, la vacía al arrancar.
-
-Para comprobar que el aislamiento funciona en una máquina nueva, los tests en
-verde **no** son prueba: pasarían igual contra la BD real. Lo que lo demuestra
-es el contador de transacciones de Postgres:
-
-```bash
-psql -U postgres -c "SELECT datname, xact_commit FROM pg_stat_database WHERE datname LIKE 'habitos_db%';"
-```
-
-Los tests de concurrencia (`*ConcurrenteTest`, `ConcesionesEnUnCompletadoTest`,
-`EscriturasConcurrentesTest`) fuerzan la intercalación con dos hilos y
-transacciones confirmadas de verdad, sin `@Transactional`. El hilo en pausa
-espera con `EsperaDeBloqueo` a que el otro termine o se quede esperando un
-bloqueo de su transacción (`pg_blocking_pids`), nunca un tiempo fijo, y los
-hilos se cierran en `@AfterEach`.
-
-Qué cubre la suite y qué no: los tests unitarios de `norday-motor`,
-`habitos`, `conocimiento` y `enfoque` mockean los DAOs, así que no ven
-proxies de Hibernate ni validan JPQL. Los de `norday-server` (51 clases con
-`@SpringBootTest` a 20-nov-2026: los de concurrencia y los de integración) sí
-tocan Postgres de verdad, en `habitos_db_test`, y validan las consultas por las que
-pasan. Una consulta que ninguno de ellos recorre no está validada porque la
-suite esté verde.
-
-## Documentación
+## Compilar y probar
+
+- **`./mvnw clean test`, no sólo `test`**, después de traer cambios del
+  remoto: si no, se ejecuta contra clases compiladas viejas.
+- El `package` va sin `-DskipTests`: toda máquina que compile necesita la BD
+  `habitos_db_test` (dueño `norday_test`; creación en `docs/funcionamiento/tests.md`).
+- Los `@SpringBootTest` leen `norday-server/src/test/resources/application.properties`,
+  que tapa por completo al de `src/main/resources` (que apunta a la BD real).
+  Toda propiedad obligatoria nueva de producción va también ahí.
+- **`create-drop`:** si el `spring.datasource.url` de test apunta a una BD con
+  datos, la vacía al arrancar. El nombre real de la base es `habitos_db`.
+- Tests en verde **no** prueban el aislamiento de la BD de test; ver
+  `docs/funcionamiento/tests.md`.
+- Los unitarios mockean los DAOs: no validan JPQL. Una consulta que ningún
+  `@SpringBootTest` recorre no está validada porque la suite esté verde.
+- `mvnw package` con el servicio vivo deja el apagado a medias: parar el
+  servicio antes de empaquetar.
+
+## Reglas cortas que valen siempre
+
+- **Datos del usuario:** `eliminarCuenta` y `exportar` no conocen tablas. Un
+  módulo que guarde datos colgando de `Usuario` aporta su `LimpiadorDatosUsuario`
+  **y** su `ExportadorDatosUsuario`.
+- **Push:** el token se pide con `DispositivoService.tokenDe(usuarioId, appId)`,
+  nunca con `usuario.getFcmToken()`. Una app nueva se añade a `AppNorday` antes
+  de publicarse.
+- **Catálogos:** sembrar un logro o producto genérico (`origenApp = null`) y
+  registrarlo en el array de `CatalogoGamificacionInitializer` son la misma
+  acción: si no, el siguiente arranque lo retira. Idempotencia por `codigo`,
+  fila a fila. Retirado no es borrado; reactivar no es simétrico.
+- **Identidad:** no reutilizar `otorgarProducto` para elegir identidad.
+  `asegurarIdentidad` se llama desde el controlador, nunca desde un servicio
+  `@Transactional`.
+- **Hora:** nunca `LocalDate.now()` sin zona; la zona sale del usuario
+  (`ZonaUsuarioService`). Los sellos de auditoría van en UTC explícito. La JVM
+  no fija zona por defecto.
+- **Completar y deshacer:** todo efecto nuevo de un completado debe quedar en
+  `ReversionRegistro`. Las monedas se compensan, no se borran.
+- **Bloqueos:** siempre usuario y después hábito (`HabitoService.bloquear`).
+  Todo lo que concede logros, monedas o XP bloquea al usuario como primera
+  escritura. Toda espera de bloqueo tiene tope y acaba en 503 traducido.
+- **Textos:** el motor no lleva texto específico de una app; cada módulo
+  aporta su bundle (`ProveedorMensajes`). Base en español; idiomas `es`, `en`, `pt`.
+- **Cliente:** el único cliente es la app móvil, incluida la APK ya instalada.
+  Un cambio de DTO de entrada la rompe; un `null` es «sin cambio».
+- **La web antigua no se toca:** en `static/` sólo la landing y las páginas
+  legales. Sin rutas nuevas en `permitAll`, sin JavaScript en línea (CSP).
+
+## Antes de tocar…, lee…
+
+Las reglas detalladas viven en `docs/`. Antes de tocar la parte del código
+indicada, lee el fichero (la carpeta `docs/funcionamiento/` agrupa un tema
+por fichero):
+
+- Antes de añadir un paquete o módulo, o de importar entre dominios, lee
+  `docs/funcionamiento/paquetes-y-modulos.md`.
+- Antes de tocar `UsuarioService.eliminarCuenta`, `ExportacionDatosService` o
+  cualquier `Limpiador*` / `Exportador*`, lee `docs/funcionamiento/datos-de-usuario.md`.
+- Antes de tocar `DispositivoService`, `AppNorday`, `fcm-token` o cualquier envío
+  push, lee `docs/funcionamiento/notificaciones.md`.
+- Antes de tocar `enfoque`, `SesionEnfoqueService`, `DestinoMinutos*`,
+  `PremioEnfoqueService` o `CumplimientoCombinado`, lee
+  `docs/funcionamiento/focus-destino-minutos.md`.
+- Antes de tocar un `*Initializer`, `Logro`/`Producto`, o la identidad del
+  onboarding (`otorgarIdentidadElegida`, `asegurarIdentidad`), lee
+  `docs/funcionamiento/catalogos.md`.
+- Antes de tocar cálculos de «hoy», `ZonaUsuarioService`, `Racha` o
+  `RachaService`, lee `docs/funcionamiento/zona-horaria-y-rachas.md`.
+- Antes de tocar `RegistroService`, `ReversionRegistro` o `ReversionLogro`, lee
+  `docs/funcionamiento/deshacer-completado.md`.
+- Antes de tocar `ProveedorMensajes`, `mensajes/*.properties` o
+  `BundlesMensajesTest`, lee `docs/funcionamiento/textos.md`.
+- Antes de tocar `norday-server/src/test/resources`, un test de concurrencia o la
+  BD de test, lee `docs/funcionamiento/tests.md`.
+- Antes de tocar `norday-server/src/main/resources/static/` o `SecurityConfig`
+  (`permitAll`), lee `docs/funcionamiento/web-estatica.md`.
+- Antes de escribir código de persistencia, bloqueos, entidades o servicios de
+  reglas de negocio, o de cambiar un DTO, lee
+  `docs/funcionamiento/lecciones-persistencia-y-servicios.md`.
+- Antes de desplegar, verificar contra staging o trabajar con otros agentes, lee
+  `docs/funcionamiento/lecciones-operacion.md`.
+
+Otros documentos:
 
 - [`README.md`](README.md) — qué es este repo, módulos y cómo compilar
-- [`docs/Logicas/03-calculos-y-logica.md`](docs/Logicas/03-calculos-y-logica.md) — rachas, puntos, experiencia, logros y catálogo de la tienda
+- [`docs/Logicas/03-calculos-y-logica.md`](docs/Logicas/03-calculos-y-logica.md) — rachas, puntos, experiencia, logros, catálogo de la tienda y «Bloqueos»
 - [`docs/Logicas/04-modelo-entidad-relacion.md`](docs/Logicas/04-modelo-entidad-relacion.md) — modelo de datos
 - [`docs/Logicas/05-diagramas-uml.md`](docs/Logicas/05-diagramas-uml.md) — diagramas de clases y flujos
 - [`docs/despliegue.md`](docs/despliegue.md) — producción y staging
 - [`docs/backups.md`](docs/backups.md) — copias de la base de datos y restauración
 - [`docs/ordenador-servidor.md`](docs/ordenador-servidor.md) — las máquinas de trabajo y el agente Hermes
+- `docs/decisiones/` — decisiones con alternativas descartadas
 
 ## Estilo de trabajo con el usuario
 
@@ -517,179 +147,37 @@ suite esté verde.
 - Nunca hacer push ni tocar sistemas externos —el VPS, la base de datos de
   producción, el repositorio remoto— sin confirmación explícita.
 
-## La web antigua no se toca
-
-En `norday-server/src/main/resources/static/` sólo viven la landing
-(`index.html`), las dos páginas legales (`privacidad.html`,
-`eliminar-cuenta.html`), `favicon.ico`, `js/landing.js`, `js/legal.js`, y en `img/` las imágenes y las letras.
-
-El dashboard web antiguo —`app.html`, `login.html`, `habito.html`,
-`habito-detalle.html`, `logros.html` y sus `js/` y `css/`— se borró el
-12-sep-2026. No lo enlazaba nadie, no se tocaba desde agosto, y seguía
-servido en producción: un `login.html` vivo que guardaba el token en
-`localStorage`.
-
-**Regla permanente: ahí no se trabaja.** Ni arreglos, ni refactors, ni
-"aprovechar que estamos". Si algún día hace falta la aplicación en formato
-web, se empieza de cero y en su sitio, no reanimando esto.
-
-Consecuencias prácticas:
-
-- No se añaden rutas nuevas al `permitAll` de `SecurityConfig` para servir
-  páginas. Las que hay son las que hay.
-- Los estáticos no llevan JavaScript en línea: lo impide la CSP de Caddy
-  (`script-src 'self'`, sin hashes). Cualquier `<script>` en línea o atributo
-  `onclick` nuevo se bloqueará en el navegador. El bloque
-  `<script type="application/ld+json">` de la landing no cuenta como
-  JavaScript en línea: es un dato, no se ejecuta y la CSP no lo bloquea.
-- Al cambiar un DTO de entrada, el único cliente que queda es la aplicación
-  móvil, incluida **la APK ya instalada en los dispositivos**. La web ya no
-  cuenta como cliente del contrato.
-
 ## Lecciones aprendidas
 
-Errores que ya se cometieron una vez. No se vuelven a cometer.
+Errores que ya se cometieron una vez. No se vuelven a cometer. Las de
+persistencia, servicios y contrato están en
+`docs/funcionamiento/lecciones-persistencia-y-servicios.md`; las de compilar,
+desplegar y método de trabajo, completas, en `docs/funcionamiento/lecciones-operacion.md`.
+Las que valen en cada sesión:
 
-### Persistencia y entidades
-
-- **Lo que «solo puede haber uno» lo garantiza la base de datos, no la
-  lógica.** Dos móviles a la vez dejaban dos identidades equipadas en la misma
-  categoría, y `findEquipadoPorCategoria` (`getSingleResult`) fallaba para
-  siempre. Y con una tabla de una fila por sitio (`usuario_equipado`), no con
-  un índice único parcial: al cambiar de prenda, el índice se incumple a
-  mitad del cambio y Hibernate escribe las filas en el orden en que las cargó.
-- **`LAZY` en una asociación no basta para `open-in-view=false`**: los DAO son
-  `@Transactional` por clase y las entidades salen desconectadas. Hace falta
-  transacción en quien lee la asociación.
-- **Un test no compara el texto de un error de PostgreSQL: mira su SQLSTATE**
-  (`23505` clave duplicada, `40P01` abrazo mortal). El texto va en el idioma
-  del servidor: en el del robot, «llave duplicada viola restricción de
-  unicidad». `UsuarioEquipadoTest` buscaba «duplicate» y fallaba allí, y los
-  tests de concurrencia que buscaban «deadlock» habrían dejado de vigilar.
-- **Nombres de columna, del repositorio, nunca de memoria.** La FK de
-  `registro` es `habito_ref`, no `habito_id`.
-- **El nombre real de la base es `habitos_db`**, no `habitas_db`.
-- **`em.find` con bloqueo sobre una entidad que ya está en la sesión no la
-  relee**: pide el bloqueo y deja los valores de antes de esperar. Con
-  open-in-view el controlador ya la ha cargado, así que lo que se decida
-  tras el bloqueo hay que decidirlo con `em.refresh(..., PESSIMISTIC_WRITE)`.
-  Un completado veía activo un hábito pausado en medio, y un `PUT` lo
-  reactivaba al guardar.
-
-### Servicios y reglas de negocio
-
-- **Una aserción sobre el objeto que ha construido el propio test no prueba
-  nada.** Para comprobar lo que el servicio guarda hace falta `ArgumentCaptor`
-  sobre el `save` del DAO.
-- **Una guarda de nulo sobre un campo inyectado es una señal de alarma.**
-  `if (dao == null) return ...` sólo existe para que los tests viejos no
-  revienten, y su efecto es que el camino nuevo no se prueba.
-- **Un `switch` sobre un valor exacto deja de valer en cuanto ese valor puede
-  saltar.** Los hitos de racha (3, 7, 30, 100, 365) eran seguros mientras la
-  racha subía de uno en uno; la comparación correcta no es `actual == umbral`.
-- **Al refactorizar, la regla perezosa se pierde sin hacer ruido.** La rotura
-  de racha (`sigueViva`) desapareció en un refactor y el efecto era una racha
-  muerta de 6 que seguía a 7 en vez de reiniciarse a 1, repartiendo puntos de
-  hito que no tocaban. Al mover lógica, enumerar qué reglas se aplicaban antes
-  y comprobar una a una que siguen aplicándose.
 - **Test en rojo antes del arreglo.** Si el test nuevo pasa contra el código
   sin arreglar, no demuestra nada: parar.
-- **Un «después − antes» solo es tuyo si nadie escribe en medio.** El
-  completado mide sus monedas y sus logros así, y solo bloqueaba el hábito:
-  el paso de otro hábito del mismo usuario se colaba en la cuenta, y
-  deshacer el primero devolvía lo del otro y le retiraba sus logros. Lo que
-  se mide sobre el usuario se protege bloqueando al usuario.
-- **Los bloqueos, siempre en el mismo orden: usuario y después hábito.**
-  Todo lo que cambia un hábito pasa por `HabitoService.bloquear` (completar,
-  deshacer, editar, pausar, reanudar, borrar, anular un cambio programado),
-  que bloquea los dos en ese orden y devuelve el hábito releído. No se
-  bloquea un hábito por otro camino. Ojo también con los bloqueos
-  implícitos: borrar o actualizar filas las bloquea. La baja de la cuenta y
-  el borrado de un hábito borraban las hijas antes que al usuario o al
-  hábito; por eso bloquean al empezar.
-- **Todo lo que concede logros, monedas o XP bloquea al usuario como
-  primera escritura** (Hoy, crear hábito o categoría, notas, perfil, login
-  con Google, toda la tienda). Si no, se cuela en el «después − antes» de
-  un completado a medias, y deshacerlo lo devuelve: una compra hecha en
-  medio salía gratis. Nunca dentro de `registrarMovimiento`: llegaría
-  después de leer el saldo y fuera de orden. La lista está en 03,
-  «Bloqueos».
-- **Una lectura que escribe, escribe solo sus columnas, y solo si no han
-  cambiado.** Poner al día la copia del objetivo se hace desde lecturas sin
-  bloqueo, con una copia del hábito que puede ser vieja; guardarlo entero
-  reactivaba hábitos pausados, y escribir sin condición deshacía un `PUT`
-  confirmado entretanto.
-- **Bloquear antes de leer, o escribir solo la columna que cambia.** Leer,
-  bloquear y guardar la entidad entera pisa lo confirmado mientras se
-  esperaba (el perfil pisaba las preferencias; la valoración, la
-  nota). `IUsuarioDAO.bloquearYReleer` para el usuario; un `UPDATE` de una
-  columna (nota, valoración, nombre de la mascota) donde no hay bloqueo.
-- **Toda espera de bloqueo tiene tope** (`norday.bloqueo.espera-maxima`, 10 s
-  por defecto, `lock_timeout` de la transacción) y acaba en 503 traducido.
-  No depender de la configuración de la base de datos: la de producción no
-  está versionada.
-- **Un logro de estado se mira cada vez, no solo en el instante del
-  cambio.** `MASCOTA_CRIA` se daba solo al cambiar de fase: si deshacer lo
-  retiraba con la mascota todavía en cría, no volvía nunca.
-
-### Contrato con los clientes
-
-- **Un cambio de contrato también rompe a los clientes viejos.** Al cambiar un
-  DTO de entrada, el cliente que queda es la aplicación móvil, incluida la APK
-  ya instalada. Si el servidor ignora un campo desconocido, un `null` puede
-  borrar datos (por eso `HabitoService.actualizar` trata un `null` como «sin
-  cambio»).
-- **Una línea base de contrato sólo se captura antes de desplegar.** Después
-  ya no hay con qué comparar.
-
-### Compilar y desplegar
-
-- **`./mvnw clean test`, no sólo `test`**, después de traer cambios del
-  remoto: si no, se ejecuta contra clases compiladas viejas.
-- **`mvnw package` con el servicio vivo deja el apagado a medias.** Parar el
-  servicio antes de empaquetar.
-- **Staging puede estar por detrás de lo que se da por hecho.** Antes de
-  verificar nada contra staging, comprobar en qué commit está desplegado, no
-  suponerlo.
-- **Spring lee `./application.properties` y `./config/application.properties`**
-  respecto al `WorkingDirectory` del servicio. Un `application.properties` en
-  `./src/main/resources/` no lo lee nadie; dos niveles más arriba habría
-  pisado la configuración entera de producción.
-- **`mvnw` ya es ejecutable (`100755`)**: la lección antigua de que
-  «`./mvnw` no ejecuta en Linux» ya no aplica tal cual.
-
-### Método de trabajo (vale para los cinco repos)
-
-- **La primera línea de un prompt se comprueba, no se recuerda.** Cuatro
-  repos están en `C:\Dev\Norday\` (`habitos-app`, `habitos_app_mobile`,
-  `norday_flutter_core`, `enfoque_app_mobile`) y `conocimiento_app_mobile`
-  está en `C:\Dev\Conocimiento\`.
-- **Un solo agente por repo a la vez.** Codex hizo `dart format` y mergeó a
-  `main` sin revisión aunque el prompt lo prohibía. Todo lo que haga otro
-  agente se revisa en el remoto antes de mergear.
+- **Una aserción sobre el objeto que ha construido el propio test no prueba
+  nada.** Hace falta `ArgumentCaptor` sobre el `save` del DAO.
+- **Nombres de columna, del repositorio, nunca de memoria.** La FK de
+  `registro` es `habito_ref`, no `habito_id`.
+- **Un test no compara el texto de un error de PostgreSQL: mira su SQLSTATE**
+  (`23505`, `40P01`).
+- **Staging puede estar por detrás de lo que se da por hecho.** Comprobar en
+  qué commit está desplegado.
+- **Un solo agente por repo a la vez.** Todo lo que haga otro agente se revisa
+  en el remoto antes de mergear.
+- **La primera línea de un prompt se comprueba, no se recuerda** (repos en
+  `C:\Dev\Norday\`, salvo `conocimiento_app_mobile` en `C:\Dev\Conocimiento\`).
 - **Las cifras de verificación se cuentan contra el repositorio**, nunca se
-  copian del roadmap. Y son cifras exactas, no adjetivos.
-- **Enumerar sin asumir el patrón**: buscar por la forma que ya has visto sólo
-  encuentra lo que ya sabías.
-- **Un filtro que no encuentra nada no es un resultado.** El `grep` de
-  resúmenes de surefire con `$` final no casó y parecía que los tests no
-  habían corrido. Ante una salida vacía, mirar el log completo antes de
-  concluir.
-- **Un fichero de diagnóstico no prueba nada por existir.** Abrirlo y
-  comprobar que contiene el fallo antes de darlo por documentado.
-- **La base de una rama `wip` envejece.** Antes de dar una cifra, comprobar de
-  qué commit sale la rama.
-- **Al sustituir un bloque, incluir el comentario de encima.** Si no, el
-  comentario queda sobre otra declaración y describe algo que ya no es cierto.
+  copian del roadmap. Cifras exactas, no adjetivos.
+- **Un filtro que no encuentra nada no es un resultado.** Ante una salida
+  vacía, mirar el log completo antes de concluir.
+- **Al sustituir un bloque, incluir el comentario de encima.**
 - **No escribir en el código el término cuya ausencia se va a verificar.**
-- **Mirar dónde se pega cada bloque.** Un bloque para la máquina local,
-  lanzado en el VPS, llegó a `git push` y pidió credenciales.
+- **Mirar dónde se pega cada bloque** (local o VPS): uno llegó a `git push`.
 - **`git diff` y `git log` abren paginador**: `git --no-pager`.
-- **`git diff HEAD~1` compara con el directorio de trabajo**: incluye lo no
-  commiteado. Para ver sólo el commit, `git diff HEAD~1 HEAD` o el remoto.
-- **Git se niega a operar en un repositorio de otro propietario**
-  (`dubious ownership`), como los que deja el sandbox de Codex. En vez de
-  añadir `safe.directory`, traer los commits con
+- **`git diff HEAD~1` compara con el directorio de trabajo**: para ver sólo el
+  commit, `git diff HEAD~1 HEAD` o el remoto.
+- **`dubious ownership`**: no añadir `safe.directory`; traer los commits con
   `git fetch "<ruta>" rama:rama` desde el repo propio.
-- **PowerShell 5.1 lee los `.ps1` sin BOM como ANSI**: scripts sin acentos, o
-  guardados con BOM.
