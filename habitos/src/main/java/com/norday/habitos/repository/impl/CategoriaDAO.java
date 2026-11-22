@@ -51,6 +51,26 @@ public class CategoriaDAO implements ICategoriaDAO {
     }
 
     @Override
+    public long contarPropias(Usuario creador) {
+        return em.createQuery(
+                        "SELECT COUNT(c) FROM Categoria c WHERE c.creador = :creador AND c.esGlobal = false", Long.class)
+                .setParameter("creador", creador)
+                .getSingleResult();
+    }
+
+    @Override
+    public boolean existeNombre(Usuario creador, String nombre, int excluirId) {
+        Long coincidencias = em.createQuery(
+                        "SELECT COUNT(c) FROM Categoria c WHERE (c.esGlobal = true OR c.creador = :creador) "
+                                + "AND lower(trim(c.nombre)) = :nombre AND c.categoriaId <> :excluirId", Long.class)
+                .setParameter("creador", creador)
+                .setParameter("nombre", nombre.trim().toLowerCase(java.util.Locale.ROOT))
+                .setParameter("excluirId", excluirId)
+                .getSingleResult();
+        return coincidencias > 0;
+    }
+
+    @Override
     public void update(Categoria categoria) {
         em.merge(categoria);
     }

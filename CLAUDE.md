@@ -112,6 +112,8 @@ por fichero):
 - Antes de tocar un `*Initializer`, `Logro`/`Producto`, o la identidad del
   onboarding (`otorgarIdentidadElegida`, `asegurarIdentidad`), lee
   `docs/funcionamiento/catalogos.md`.
+- Antes de tocar `CategoriaController`, `CategoriaService` o el borrado de
+  categorías, lee `docs/funcionamiento/categorias.md`.
 - Antes de tocar cálculos de «hoy», `ZonaUsuarioService`, `Racha` o
   `RachaService`, lee `docs/funcionamiento/zona-horaria-y-rachas.md`.
 - Antes de tocar `RegistroService`, `ReversionRegistro` o `ReversionLogro`, lee
@@ -172,6 +174,9 @@ Las que valen en cada sesión:
   `C:\Dev\Norday\`, salvo `conocimiento_app_mobile` en `C:\Dev\Conocimiento\`).
 - **Las cifras de verificación se cuentan contra el repositorio**, nunca se
   copian del roadmap. Cifras exactas, no adjetivos.
+- **Los endpoints devuelven DTO, nunca la entidad con sus relaciones.**
+  `GET /api/categorias/usuario/{id}` devolvía la entidad y con ella el
+  `Usuario` entero (`creador`) de cada categoría propia.
 - **Un filtro que no encuentra nada no es un resultado.** Ante una salida
   vacía, mirar el log completo antes de concluir.
 - **Al sustituir un bloque, incluir el comentario de encima.**

@@ -24,6 +24,14 @@ public interface IHabitoDAO {
     Habito bloquear(int habitoId);
 
     /**
+     * Deja «sin categoría» (tipo = null) todos los hábitos que usan esa
+     * categoría, activos o no, pausados o no: un solo UPDATE de la columna
+     * {@code tipo_id}, sin tocar nada más. Para borrar una categoría sin que
+     * la clave ajena lo impida. Devuelve cuántos hábitos cambió.
+     */
+    int quitarCategoria(int categoriaId);
+
+    /**
      * Escribe en la copia del objetivo del hábito (unidad, minutos,
      * frecuencia, meta y días) el objetivo dado, y solo eso: un UPDATE de
      * esas columnas, sin tocar el resto, y solo si en la base de datos siguen

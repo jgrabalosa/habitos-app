@@ -60,6 +60,13 @@ public class HabitoDAO implements IHabitoDAO {
     }
 
     @Override
+    public int quitarCategoria(int categoriaId) {
+        return em.createQuery("UPDATE Habito h SET h.tipo = null WHERE h.tipo.categoriaId = :categoriaId")
+                .setParameter("categoriaId", categoriaId)
+                .executeUpdate();
+    }
+
+    @Override
     public List<Habito> findTodosActivos() {
         // JOIN FETCH del propietario a propósito: los dos schedulers que usan
         // este método (NotificacionScheduler, NotificadorRachaEnPeligro) leen
