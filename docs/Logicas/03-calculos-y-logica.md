@@ -432,6 +432,14 @@ El ánimo (y el estado antiguo) sale de `CumplimientoCombinado` (motor), que jun
 
 Con una sola app, el ánimo es el suyo, sin cambios: quien solo usa Habits ve a Nori igual que antes. Para Focus: `COMPLETO` con 50 minutos o más hoy (el «día de enfoque»), `EMPEZADO` con alguna sesión hoy, `AUSENTE` con 3 días seguidos o más sin sesión antes de hoy (desde la última o, si no hay, desde el alta), la misma cuenta que Habits. Focus no escribe el día completo de la mascota (`registrarDiaCompleto`): esa fecha la guarda y la restaura la reversión de Habits.
 
+### `animosSiguientes`: el ánimo de los próximos 7 días
+
+`MascotaDTO.animosSiguientes` es una lista de 7 elementos `{"fecha": "2026-11-14", "animo": "dormida"}`, de mañana a dentro de 7 días (el «mañana» del usuario, en su zona; la fecha con el mismo formato que `fechaUltimaComida`). Los códigos son los de `animo`: `triste`, `dormida`, `feliz`, `exultante`. Es un campo nuevo: los que ya existían no cambian.
+
+Sirve para el widget de Nori (T-009), que pinta a la mascota sin abrir la app, también al cambiar de día, y no calcula nada: cada día lo da el backend. Más allá del séptimo día, el widget se queda con el último.
+
+Usa la misma regla que el ánimo de hoy, con las apps juntas: cada app contesta cómo irá cada día (`CumplimientoDiarioPort.comoVaLosProximosDias`, con los datos de ahora) y `CumplimientoCombinado.comoVaLosProximosDias` las junta día a día con `combinar`. Las apps que cuentan (`enUso`) se miran una sola vez, hoy, para los 7 días: no se adivina si alguien dejará de usar una app. Con una sola app en uso, el resultado es el de esa app. La traducción de `AvanceDeHoy` a código sale del mismo sitio que la de `animo` (`MascotaService.codigoDeAnimo`).
+
 Poner nombre a la mascota y elegir la fase que se ve escriben solo su columna (`IMascotaDAO.actualizarNombre`, `actualizarFaseElegida`): no bloquean al usuario, y guardar la mascota entera pisaba la XP que se sumaba a la vez.
 
 Estos logros son independientes de los logros específicos del dominio de hábitos.

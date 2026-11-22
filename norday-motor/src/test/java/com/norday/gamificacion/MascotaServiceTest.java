@@ -5,6 +5,7 @@ import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.model.Mascota;
+import com.norday.gamificacion.model.dto.AnimoDiaDTO;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
 import com.norday.gamificacion.service.CumplimientoCombinado;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -391,6 +393,23 @@ class MascotaServiceTest {
 
         when(cumplimientoDiario.comoVaHoy(1)).thenReturn(AvanceDeHoy.COMPLETO);
         assertEquals("exultante", dtoConXp(0).getAnimo());
+    }
+
+    @Test
+    void animosSiguientes_sonSieteDiasSeguidosDesdeManana_enLaZonaDelUsuario() {
+        when(cumplimientoDiario.comoVaLosProximosDias(1, 7)).thenReturn(List.of(
+                AvanceDeHoy.AUSENTE, AvanceDeHoy.SIN_EMPEZAR, AvanceDeHoy.EMPEZADO, AvanceDeHoy.COMPLETO,
+                AvanceDeHoy.AUSENTE, AvanceDeHoy.SIN_EMPEZAR, AvanceDeHoy.EMPEZADO));
+
+        List<AnimoDiaDTO> animos = dtoConXp(0).getAnimosSiguientes();
+
+        LocalDate manana = LocalDate.now(ZONA).plusDays(1);
+        assertEquals(7, animos.size());
+        for (int i = 0; i < 7; i++) {
+            assertEquals(manana.plusDays(i), animos.get(i).fecha());
+        }
+        assertEquals(List.of("triste", "dormida", "feliz", "exultante", "triste", "dormida", "feliz"),
+                animos.stream().map(AnimoDiaDTO::animo).toList());
     }
 
     @Test

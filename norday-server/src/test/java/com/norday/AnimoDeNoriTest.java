@@ -6,6 +6,7 @@ import com.norday.core.service.UsuarioService;
 import com.norday.enfoque.service.CumplimientoDiarioEnfoque;
 import com.norday.enfoque.service.RelojEnfoque;
 import com.norday.gamificacion.model.AvanceDeHoy;
+import com.norday.gamificacion.service.CumplimientoCombinado;
 import com.norday.gamificacion.service.MascotaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
@@ -148,6 +149,45 @@ class AnimoDeNoriTest {
                 .andReturn().getResponse().getContentAsString();
         int desde = json.indexOf("\"animo\":\"") + 9;
         return json.substring(desde, json.indexOf('"', desde));
+    }
+
+    private String json(int usuarioId) throws Exception {
+        return mockMvc.perform(get("/api/mascota/" + usuarioId)
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken(usuarioId, "animo@example.com")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private static String codigo(AvanceDeHoy avance) {
+        return switch (avance) {
+            case AUSENTE -> "triste";
+            case SIN_EMPEZAR -> "dormida";
+            case EMPEZADO -> "feliz";
+            case COMPLETO -> "exultante";
+        };
+    }
+
+    // ── Los días siguientes ──────────────────────────────────────
+
+    @Test
+    void animosSiguientes_conLasDosApps_salenCombinadosDiaADia() throws Exception {
+        int a = usuario(60);
+        habitoDeVecesDiario(a);
+        sesionHoy(a, 9, 25);
+        assertTrue(cumplimientoHabitos.enUso(a));
+        assertTrue(cumplimientoEnfoque.enUso(a));
+
+        List<AvanceDeHoy> habits = cumplimientoHabitos.comoVaLosProximosDias(a, 7);
+        List<AvanceDeHoy> focus = cumplimientoEnfoque.comoVaLosProximosDias(a, 7);
+        assertNotEquals(habits, focus, "si las dos apps dieran lo mismo, el test no distinguiría combinar de copiar una");
+
+        String cuerpo = json(a);
+        for (int i = 0; i < 7; i++) {
+            String esperado = codigo(CumplimientoCombinado.combinar(List.of(habits.get(i), focus.get(i))));
+            String entrada = "{\"fecha\":\"" + hoy.plusDays(i + 1L) + "\",\"animo\":\"" + esperado + "\"}";
+            assertTrue(cuerpo.contains(entrada), "falta " + entrada + " en " + cuerpo);
+        }
+        assertTrue(cuerpo.contains("\"animosSiguientes\":[{\"fecha\":\"" + hoy.plusDays(1) + "\""), cuerpo);
     }
 
     // ── Solo Norday Habits: igual que antes ──────────────────────

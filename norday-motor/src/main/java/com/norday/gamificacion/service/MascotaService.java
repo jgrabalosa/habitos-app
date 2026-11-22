@@ -5,6 +5,7 @@ import com.norday.core.repository.IUsuarioDAO;
 import com.norday.core.service.ZonaUsuarioService;
 import com.norday.gamificacion.model.AvanceDeHoy;
 import com.norday.gamificacion.model.Mascota;
+import com.norday.gamificacion.model.dto.AnimoDiaDTO;
 import com.norday.gamificacion.model.dto.MascotaDTO;
 import com.norday.gamificacion.model.dto.ResultadoExperienciaDTO;
 import com.norday.gamificacion.repository.IMascotaDAO;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -124,13 +126,35 @@ public class MascotaService {
      * Código, no texto: el cliente lo traduce.
      */
     private String calcularAnimo(int usuarioId) {
-        return switch (cumplimientoDiario.comoVaHoy(usuarioId)) {
+        return codigoDeAnimo(cumplimientoDiario.comoVaHoy(usuarioId));
+    }
+
+    /** De AvanceDeHoy al código del ánimo: el único sitio, para hoy y para los días siguientes. */
+    private static String codigoDeAnimo(AvanceDeHoy avance) {
+        return switch (avance) {
             case AUSENTE -> "triste";
             case SIN_EMPEZAR -> "dormida";
             case EMPEZADO -> "feliz";
             case COMPLETO -> "exultante";
         };
     }
+
+    /**
+     * El ánimo de cada uno de los próximos días, de mañana (el del usuario, en
+     * su zona) en adelante, con las apps juntas y la misma regla que el de hoy.
+     */
+    private List<AnimoDiaDTO> calcularAnimosSiguientes(int usuarioId, ZoneId zona) {
+        LocalDate manana = LocalDate.now(zona).plusDays(1);
+        List<AvanceDeHoy> avances = cumplimientoDiario.comoVaLosProximosDias(usuarioId, DIAS_ANIMOS_SIGUIENTES);
+        List<AnimoDiaDTO> animos = new ArrayList<>();
+        for (int i = 0; i < avances.size(); i++) {
+            animos.add(new AnimoDiaDTO(manana.plusDays(i), codigoDeAnimo(avances.get(i))));
+        }
+        return animos;
+    }
+
+    /** Más allá de una semana, el widget se queda con el último. */
+    private static final int DIAS_ANIMOS_SIGUIENTES = 7;
 
     /** La zona del dueño de la mascota: su "hoy" no es el del servidor. */
     private ZoneId zonaDeMascota(Mascota mascota) {
@@ -167,7 +191,8 @@ public class MascotaService {
                         mascota.getUsuario().getFechaRegistro(),
                         zonaDeMascota(mascota)),
                 calcularAnimo(mascota.getUsuario().getUsuarioId()),
-                mascota.getFechaUltimaComida()
+                mascota.getFechaUltimaComida(),
+                calcularAnimosSiguientes(mascota.getUsuario().getUsuarioId(), zonaDeMascota(mascota))
         );
     }
 

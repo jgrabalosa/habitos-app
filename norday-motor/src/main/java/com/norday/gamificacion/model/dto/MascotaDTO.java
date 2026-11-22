@@ -1,6 +1,7 @@
 package com.norday.gamificacion.model.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class MascotaDTO {
 
@@ -27,9 +28,17 @@ public class MascotaDTO {
     private String animo;
     private LocalDate fechaUltimaComida;
 
+    /**
+     * El ánimo de los próximos 7 días, de mañana en adelante, para quien pinta
+     * a la mascota sin abrir la app (el widget). Mismos códigos y misma regla
+     * que "animo", con las apps juntas. Campo nuevo: los anteriores no cambian.
+     */
+    private List<AnimoDiaDTO> animosSiguientes;
+
     public MascotaDTO(String nombre, int xp, int nivel, int xpEnNivelActual,
                       int xpParaSiguienteNivel, String fase, String faseReal, String estado,
-                      String animo, LocalDate fechaUltimaComida) {
+                      String animo, LocalDate fechaUltimaComida, List<AnimoDiaDTO> animosSiguientes) {
+        this.animosSiguientes = animosSiguientes;
         this.nombre = nombre;
         this.xp = xp;
         this.nivel = nivel;
@@ -71,4 +80,7 @@ public class MascotaDTO {
 
     public LocalDate getFechaUltimaComida() { return fechaUltimaComida; }
     public void setFechaUltimaComida(LocalDate fechaUltimaComida) { this.fechaUltimaComida = fechaUltimaComida; }
+
+    public List<AnimoDiaDTO> getAnimosSiguientes() { return animosSiguientes; }
+    public void setAnimosSiguientes(List<AnimoDiaDTO> animosSiguientes) { this.animosSiguientes = animosSiguientes; }
 }
