@@ -70,6 +70,15 @@ public class Usuario {
             columnDefinition = "varchar(64) default 'Europe/Madrid'")
     private String zonaHoraria = ZONA_POR_DEFECTO;
 
+    // Avisos de la app (los que manda la propia app, no los recordatorios que
+    // el usuario pone a algo suyo). Encendido por defecto; se apaga en Perfil.
+    // @JsonIgnore: solo cambia por el endpoint de preferencias, nunca por el
+    // JSON de registro o de perfil.
+    @JsonIgnore
+    @Column(name = "avisos_app", nullable = false,
+            columnDefinition = "boolean default true")
+    private boolean avisosApp = true;
+
     // Medición de marketing. Solo los escriben los servicios de origen y de
     // último acceso; nunca el cliente por JSON. Todo nullable.
     @JsonIgnore
@@ -140,6 +149,9 @@ public class Usuario {
 
     public String getZonaHoraria() { return zonaHoraria; }
     public void setZonaHoraria(String zonaHoraria) { this.zonaHoraria = zonaHoraria; }
+
+    public boolean isAvisosApp() { return avisosApp; }
+    public void setAvisosApp(boolean avisosApp) { this.avisosApp = avisosApp; }
 
     public String getUtmSource() { return utmSource; }
     public void setUtmSource(String utmSource) { this.utmSource = utmSource; }

@@ -10,7 +10,7 @@ import java.time.ZoneId;
 import java.util.Set;
 
 /**
- * Preferencias de cuenta: idioma y zona horaria. Son dos campos
+ * Preferencias de cuenta: idioma, zona horaria y avisos de la app. Son campos
  * independientes — el idioma no implica la zona ni al revés.
  *
  * Motor: no conoce ningún concepto de dominio.
@@ -34,10 +34,49 @@ public class PreferenciasService {
     }
 
     /**
-     * Actualiza las preferencias del usuario. Cada campo es opcional: se
-     * envía solo el que se quiere cambiar.
+     * Un valor de texto del cuerpo del PUT. Ausente o null es «sin cambio»; lo
+     * que no sea texto es un error (antes el cuerpo era Map&lt;String, String&gt; y
+     * Jackson lo rechazaba igual).
      */
-    public Usuario actualizar(int usuarioId, String idioma, String zonaHoraria) {
+    public static String texto(Object valor, String campo) {
+        if (valor == null) {
+            return null;
+        }
+        if (valor instanceof String s) {
+            return s;
+        }
+        throw new IllegalArgumentException("«" + campo + "» debe ser un texto");
+    }
+
+    /**
+     * Un valor booleano del cuerpo del PUT. Ausente o null es «sin cambio».
+     * Se acepta {@code true}/{@code false} y también los textos «true» y
+     * «false» (sin distinguir mayúsculas); cualquier otra cosa es un error: un
+     * valor raro no debe apagar los avisos por casualidad.
+     */
+    public static Boolean booleano(Object valor, String campo) {
+        if (valor == null) {
+            return null;
+        }
+        if (valor instanceof Boolean b) {
+            return b;
+        }
+        if (valor instanceof String s) {
+            if (s.equalsIgnoreCase("true")) {
+                return true;
+            }
+            if (s.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        throw new IllegalArgumentException("«" + campo + "» debe ser true o false");
+    }
+
+    /**
+     * Actualiza las preferencias del usuario. Cada campo es opcional: se
+     * envía solo el que se quiere cambiar; null es «sin cambio».
+     */
+    public Usuario actualizar(int usuarioId, String idioma, String zonaHoraria, Boolean avisosApp) {
         Usuario usuario = usuarioDAO.findById(usuarioId);
         if (usuario == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
@@ -56,6 +95,10 @@ public class PreferenciasService {
                 throw new IllegalArgumentException("Zona horaria no válida: " + zonaHoraria);
             }
             usuario.setZonaHoraria(zonaHoraria);
+        }
+
+        if (avisosApp != null) {
+            usuario.setAvisosApp(avisosApp);
         }
 
         usuarioDAO.update(usuario);

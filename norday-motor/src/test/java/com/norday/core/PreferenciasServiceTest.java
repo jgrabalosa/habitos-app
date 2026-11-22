@@ -37,6 +37,11 @@ class PreferenciasServiceTest {
     }
 
     @Test
+    void porDefecto_losAvisosDeLaAppEstanEncendidos() {
+        assertTrue(usuario.isAvisosApp());
+    }
+
+    @Test
     void seAceptanLosTresIdiomasSoportados() {
         assertTrue(PreferenciasService.idiomaValido("es"));
         assertTrue(PreferenciasService.idiomaValido("en"));
@@ -48,7 +53,7 @@ class PreferenciasServiceTest {
         when(usuarioDAO.findById(1)).thenReturn(usuario);
 
         assertThrows(IllegalArgumentException.class,
-                () -> preferenciasService.actualizar(1, "fr", null));
+                () -> preferenciasService.actualizar(1, "fr", null, null));
 
         verify(usuarioDAO, never()).update(any());
     }
@@ -58,7 +63,7 @@ class PreferenciasServiceTest {
         when(usuarioDAO.findById(1)).thenReturn(usuario);
 
         assertThrows(IllegalArgumentException.class,
-                () -> preferenciasService.actualizar(1, null, "Marte/Olympus"));
+                () -> preferenciasService.actualizar(1, null, "Marte/Olympus", null));
 
         verify(usuarioDAO, never()).update(any());
     }
@@ -68,15 +73,66 @@ class PreferenciasServiceTest {
         when(usuarioDAO.findById(1)).thenReturn(usuario);
 
         // Solo idioma: la zona no se toca
-        preferenciasService.actualizar(1, "pt", null);
+        preferenciasService.actualizar(1, "pt", null, null);
         assertEquals("pt", usuario.getIdioma());
         assertEquals("Europe/Madrid", usuario.getZonaHoraria());
 
         // Solo zona: el idioma se mantiene en pt. Un brasileño habla portugués
         // pero está cuatro horas por detrás de Portugal.
-        preferenciasService.actualizar(1, null, "America/Sao_Paulo");
+        preferenciasService.actualizar(1, null, "America/Sao_Paulo", null);
         assertEquals("pt", usuario.getIdioma());
         assertEquals("America/Sao_Paulo", usuario.getZonaHoraria());
+    }
+
+    @Test
+    void avisosApp_seApagaYSeEnciende_sinTocarIdiomaNiZona() {
+        when(usuarioDAO.findById(1)).thenReturn(usuario);
+
+        preferenciasService.actualizar(1, null, null, false);
+        assertFalse(usuario.isAvisosApp());
+        assertEquals("es", usuario.getIdioma());
+        assertEquals("Europe/Madrid", usuario.getZonaHoraria());
+
+        preferenciasService.actualizar(1, null, null, true);
+        assertTrue(usuario.isAvisosApp());
+        verify(usuarioDAO, times(2)).update(usuario);
+    }
+
+    @Test
+    void avisosApp_nullEsSinCambio_tambienSiSeCambiaOtraPreferencia() {
+        when(usuarioDAO.findById(1)).thenReturn(usuario);
+        usuario.setAvisosApp(false);
+
+        // Lo que manda la app instalada: solo textos, sin avisosApp.
+        preferenciasService.actualizar(1, "en", "Europe/London", null);
+
+        assertFalse(usuario.isAvisosApp(), "un campo ausente no vuelve a encender los avisos");
+        assertEquals("en", usuario.getIdioma());
+    }
+
+    @Test
+    void booleano_aceptaBooleanosYLosTextosTrueFalse() {
+        assertEquals(Boolean.TRUE, PreferenciasService.booleano(true, "avisosApp"));
+        assertEquals(Boolean.FALSE, PreferenciasService.booleano(false, "avisosApp"));
+        assertEquals(Boolean.TRUE, PreferenciasService.booleano("true", "avisosApp"));
+        assertEquals(Boolean.FALSE, PreferenciasService.booleano("FALSE", "avisosApp"));
+        assertNull(PreferenciasService.booleano(null, "avisosApp"));
+    }
+
+    @Test
+    void booleano_rechazaCualquierOtroValor() {
+        assertThrows(IllegalArgumentException.class,
+                () -> PreferenciasService.booleano("quizá", "avisosApp"));
+        assertThrows(IllegalArgumentException.class,
+                () -> PreferenciasService.booleano(0, "avisosApp"));
+    }
+
+    @Test
+    void texto_aceptaTextoYNull_ynoUnNumero() {
+        assertEquals("es", PreferenciasService.texto("es", "idioma"));
+        assertNull(PreferenciasService.texto(null, "idioma"));
+        assertThrows(IllegalArgumentException.class,
+                () -> PreferenciasService.texto(5, "idioma"));
     }
 
     @Test
@@ -84,7 +140,7 @@ class PreferenciasServiceTest {
         when(usuarioDAO.findById(99)).thenReturn(null);
 
         assertThrows(RuntimeException.class,
-                () -> preferenciasService.actualizar(99, "en", null));
+                () -> preferenciasService.actualizar(99, "en", null, null));
 
         verify(usuarioDAO, never()).update(any());
     }
