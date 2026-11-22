@@ -390,7 +390,7 @@ Lo que concede logros, monedas o XP sin cambiar un hábito bloquea solo al usuar
 |---|---|
 | `HoyService.obtenerHoy` (`HabitoService.bloquearUsuario`, antes de poner al día objetivos y ritmos) | logros de ritmo |
 | `HabitoService.crearHabito` | `PRIMER_HABITO`, activos, categorías |
-| `CategoriaService.crearCategoria` | `PRIMERA_CATEGORIA` |
+| `CategoriaService.crear` | `PRIMERA_CATEGORIA` |
 | `RegistroService.actualizarNota` (transaccional; también `actualizarValoracion`, que no concede nada) | `PRIMERA_NOTA` |
 | `ProductoService`: comprar, usar, gastar una unidad, otorgar, otorgar la identidad elegida, asegurar la identidad, equipar y desequipar | gasto, regalos, XP de la comida, logros de identidad |
 | `UsuarioService.actualizarPerfil` (transaccional) y `loginConGoogle` con un usuario que ya existe | `BIENVENIDO`, `LOGIN_GOOGLE` |
