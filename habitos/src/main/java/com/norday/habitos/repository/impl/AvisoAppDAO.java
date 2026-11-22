@@ -8,7 +8,11 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @Transactional
@@ -41,6 +45,25 @@ public class AvisoAppDAO implements IAvisoAppDAO {
                 .setParameter("usuarioId", usuarioId)
                 .setParameter("desde", desdeUtc)
                 .getResultList();
+    }
+
+    // Se pide el id del usuario junto al aviso para agrupar sin tocar el
+    // proxy LAZY de a.usuario (las entidades salen desconectadas).
+    @Override
+    public Map<Integer, List<AvisoApp>> findByUsuarios(Collection<Integer> usuarioIds) {
+        if (usuarioIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> filas = em.createQuery(
+                        "SELECT a.usuario.usuarioId, a FROM AvisoApp a WHERE a.usuario.usuarioId IN :ids "
+                                + "ORDER BY a.enviadoEn DESC, a.id DESC", Object[].class)
+                .setParameter("ids", usuarioIds)
+                .getResultList();
+        Map<Integer, List<AvisoApp>> porUsuario = new HashMap<>();
+        for (Object[] fila : filas) {
+            porUsuario.computeIfAbsent((Integer) fila[0], id -> new ArrayList<>()).add((AvisoApp) fila[1]);
+        }
+        return porUsuario;
     }
 
     @Override

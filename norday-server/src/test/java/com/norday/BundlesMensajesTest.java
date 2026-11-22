@@ -1,6 +1,9 @@
 package com.norday;
 
 import com.norday.enfoque.model.MotivosEnfoque;
+import com.norday.habitos.model.CalculoAvisos;
+import com.norday.habitos.model.TipoAviso;
+import com.norday.habitos.service.AvisosAppScheduler;
 import com.norday.habitos.service.DestinoMinutosHabitos;
 import org.junit.jupiter.api.Test;
 
@@ -8,10 +11,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -66,6 +71,56 @@ class BundlesMensajesTest {
                 "El motor no debe llevar textos de push de una app concreta");
         assertTrue(clavesCore.stream().noneMatch(c -> c.startsWith("email.bienvenida")),
                 "La bienvenida habla de hábitos: pertenece al bundle de la app");
+    }
+
+    @Test
+    void cadaAvisoDeLaApp_tieneTodasSusVariantes_enLosTresIdiomas() throws IOException {
+        // CalculoAvisos.VARIANTES dice cuántos textos hay de cada aviso; si el
+        // bundle tiene menos, el barrido pediría una clave que no existe.
+        for (String recurso : List.of("habitos", "habitos_en", "habitos_pt")) {
+            Properties props = cargar("mensajes/" + recurso + ".properties");
+            for (TipoAviso tipo : TipoAviso.values()) {
+                int variantes = CalculoAvisos.VARIANTES.get(tipo);
+                List<String> bases = tipo == TipoAviso.MOMENTO_DEBIL
+                        ? List.of(AvisosAppScheduler.claveBase(tipo, 1), AvisosAppScheduler.claveBase(tipo, 2))
+                        : List.of(AvisosAppScheduler.claveBase(tipo, 0));
+                for (String base : bases) {
+                    for (int n = 1; n <= variantes; n++) {
+                        for (String parte : List.of("titulo", "cuerpo")) {
+                            String clave = base + "." + n + "." + parte;
+                            String texto = props.getProperty(clave);
+                            assertNotNull(texto, "Falta " + clave + " en " + recurso);
+                            assertFalse(texto.isBlank(), "Vacía: " + clave + " en " + recurso);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void losAvisosDeLaApp_tratanBienElApostrofo() throws IOException {
+        // Las claves del momento débil se leen siempre con argumentos, así que
+        // pasan por MessageFormat: un apóstrofo simple se come lo que sigue,
+        // incluido el {0}. Las de vuelta se leen tal cual: un '' saldría doble.
+        for (String recurso : List.of("habitos", "habitos_en", "habitos_pt")) {
+            Properties props = cargar("mensajes/" + recurso + ".properties");
+            for (String clave : props.stringPropertyNames()) {
+                if (!clave.startsWith("push.aviso.")) continue;
+                String texto = props.getProperty(clave);
+                if (clave.startsWith("push.aviso.momentodebil.")) {
+                    assertFalse(Pattern.compile("(?<!')'(?!')").matcher(texto).find(),
+                            "Apóstrofo sin doblar en " + clave + " (" + recurso + ")");
+                    if (texto.contains("{0}")) {
+                        assertTrue(new MessageFormat(texto).format(new Object[]{"Leer"}).contains("Leer"),
+                                "Se pierde el argumento en " + clave + " (" + recurso + ")");
+                    }
+                } else {
+                    assertFalse(texto.contains("''"), "Apóstrofo doblado en " + clave + " (" + recurso + ")");
+                    assertFalse(texto.contains("{"), "Una clave de vuelta no lleva argumentos: " + clave);
+                }
+            }
+        }
     }
 
     @Test
