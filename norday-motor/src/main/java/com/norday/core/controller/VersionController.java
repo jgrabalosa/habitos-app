@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -21,7 +22,13 @@ public class VersionController {
     private IVersionAppDAO versionAppDAO;
 
     @GetMapping("/{appId}")
-    public Map<String, Integer> versionMinima(@PathVariable String appId) {
-        return Map.of("versionMinima", versionAppDAO.versionMinima(appId));
+    public Map<String, Integer> versiones(@PathVariable String appId) {
+        IVersionAppDAO.Versiones v = versionAppDAO.versiones(appId);
+        // Map.of no admite nulos y la recomendada puede serlo: la clave sale
+        // siempre, con null cuando no hay aviso. versionMinima no cambia.
+        Map<String, Integer> respuesta = new LinkedHashMap<>();
+        respuesta.put("versionMinima", v.minima());
+        respuesta.put("versionRecomendada", v.recomendada());
+        return respuesta;
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,6 +45,30 @@ class VersionMinimaTest {
     void sinSesion_appSinFila_devuelveCero() throws Exception {
         mockMvc.perform(get("/api/version/otra"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.versionMinima").value(0));
+                .andExpect(jsonPath("$.versionMinima").value(0))
+                .andExpect(jsonPath("$.versionRecomendada").value(nullValue()));
+    }
+
+    @Test
+    void sinSesion_conRecomendada_laDevuelveYLaMinimaNoCambia() throws Exception {
+        em.persist(new VersionApp("habitos", 5, 9));
+        em.flush();
+
+        mockMvc.perform(get("/api/version/habitos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionMinima").value(5))
+                .andExpect(jsonPath("$.versionRecomendada").value(9));
+    }
+
+    @Test
+    void sinSesion_sinRecomendada_laClaveSaleConNull() throws Exception {
+        em.persist(new VersionApp("habitos", 5));
+        em.flush();
+
+        mockMvc.perform(get("/api/version/habitos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionMinima").value(5))
+                .andExpect(jsonPath("$", hasKey("versionRecomendada")))
+                .andExpect(jsonPath("$.versionRecomendada").value(nullValue()));
     }
 }

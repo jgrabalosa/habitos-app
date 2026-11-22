@@ -250,14 +250,15 @@ Deshacer en Norday Habits el registro que creó una sesión no toca la sesión: 
 
 ### Versión mínima (VersionApp)
 
-Tabla `version_app`, del módulo `norday-motor` (migración V20). Tiene dos columnas:
+Tabla `version_app`, del módulo `norday-motor` (migración V20; la recomendada, V33). Tiene tres columnas:
 
 - `app_id`: clave primaria, texto de hasta 30 caracteres.
 - `version_minima`: obligatoria. El `versionCode` de Android que la app necesita; por debajo, la app se bloquea y pide actualizar.
+- `version_recomendada` (V33): `INTEGER NULL`. El `versionCode` por debajo del cual la app enseña una tarjeta que invita a actualizar, sin obligar a nada. Nula = sin aviso (todas las filas existentes arrancan así).
 
-Una app sin fila tiene mínima 0, así que nunca se bloquea por un dato que falta. La migración V20 deja una fila para `habitos` con mínima 1, que no bloquea a nadie, y la V25 otra igual para `enfoque`.
+Una app sin fila tiene mínima 0 y recomendada nula, así que nunca se bloquea ni se avisa por un dato que falta. La migración V20 deja una fila para `habitos` con mínima 1, que no bloquea a nadie, y la V25 otra igual para `enfoque`.
 
-Se cambia a mano con un `UPDATE`, sin compilar ni reiniciar. El orden es siempre el mismo: primero se publica la versión nueva y se ve en Play; después se sube la mínima. La consulta es `GET /api/version/{appId}`.
+Se cambian a mano con un `UPDATE`, sin compilar ni reiniciar. El orden es siempre el mismo: primero se publica la versión nueva y se ve en Play; después se sube la recomendada y, si hace falta obligar, la mínima. La consulta es `GET /api/version/{appId}`, que devuelve `{"versionMinima":5,"versionRecomendada":9}`; sin recomendada, la clave sale con `null` (`"versionRecomendada":null`).
 
 ### Logro
 

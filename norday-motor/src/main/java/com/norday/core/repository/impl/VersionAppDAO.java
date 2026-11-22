@@ -15,8 +15,10 @@ public class VersionAppDAO implements IVersionAppDAO {
     private EntityManager em;
 
     @Override
-    public int versionMinima(String appId) {
+    public Versiones versiones(String appId) {
         VersionApp fila = em.find(VersionApp.class, appId);
-        return fila == null ? 0 : fila.getVersionMinima();
+        return fila == null
+                ? new Versiones(0, null)
+                : new Versiones(fila.getVersionMinima(), fila.getVersionRecomendada());
     }
 }

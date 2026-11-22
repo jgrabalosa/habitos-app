@@ -299,6 +299,7 @@ classDiagram
     class VersionApp {
         -String appId
         -int versionMinima
+        -Integer versionRecomendada
     }
 
     class AppNorday {
@@ -319,8 +320,10 @@ classDiagram
   cabecera, `habitos`), y todo envío push pide el token de su app.
 - **`Usuario.fcmToken`** es columna de transición: se sigue escribiendo con el
   token de `habitos` para poder volver al jar anterior a V24.
-- **`VersionApp`** es la versión mínima (versionCode) de cada app; la lee
-  `GET /api/version/{appId}`, público.
+- **`VersionApp`** es la versión mínima (versionCode) de cada app y, desde
+  V33, la recomendada (nula = sin aviso, no obliga a nada); las lee
+  `GET /api/version/{appId}`, público, que devuelve
+  `{"versionMinima": n, "versionRecomendada": n | null}`.
 
 ---
 

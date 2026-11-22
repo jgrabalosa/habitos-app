@@ -276,7 +276,8 @@ con el core `v0.55.0` y el lock versionado.
      `SELECT app_id, version_minima FROM version_app ORDER BY app_id;`
    - la versión mínima de Focus, sin sesión:
      `curl -s https://staging-api.norday.app/api/version/enfoque` →
-     `{"versionMinima":1}`.
+     `{"versionMinima":1}` (desde la V33, con `"versionRecomendada":null`
+     detrás).
 
 ### 4. Prueba en staging con las dos apps de prueba
 
@@ -351,6 +352,17 @@ cuenta:
 
   ```sql
   UPDATE version_app SET version_minima = <versionCode nuevo> WHERE app_id = 'habitos';
+  ```
+
+- **Versión recomendada** (V33, `version_app.version_recomendada`): no
+  obliga a nada; la app enseña una tarjeta de Norday a quien siga en una
+  versión anterior. Quim la sube a mano al publicar una versión, también
+  solo cuando la nueva se vea en Play. Nula = sin aviso:
+
+  ```sql
+  UPDATE version_app SET version_recomendada = <versionCode nuevo> WHERE app_id = 'habitos';
+  -- quitar el aviso:
+  UPDATE version_app SET version_recomendada = NULL WHERE app_id = 'habitos';
   ```
 
 ### 8. Después
