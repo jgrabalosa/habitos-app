@@ -82,6 +82,11 @@ grep -rnE "\b(Habito|Registro|Racha|Categoria)\w*" norday-motor/src/main/java
 - **Hora:** nunca `LocalDate.now()` sin zona; la zona sale del usuario
   (`ZonaUsuarioService`). Los sellos de auditoría van en UTC explícito. La JVM
   no fija zona por defecto.
+- **`/semana-pasada` es solo de lectura:** no bloquea al usuario, no pone al día
+  el objetivo, no mueve el ancla del ritmo y no concede nada. El ritmo se lee
+  con `RitmoService.ritmosLeidosSinEscribir`, nunca con `ritmosLeidos`. Si le
+  añades algo que escriba, es otro endpoint. Contrato en
+  `docs/Logicas/03-calculos-y-logica.md` («La semana pasada»).
 - **Completar y deshacer:** todo efecto nuevo de un completado debe quedar en
   `ReversionRegistro`. Las monedas se compensan, no se borran.
 - **Bloqueos:** siempre usuario y después hábito (`HabitoService.bloquear`).
