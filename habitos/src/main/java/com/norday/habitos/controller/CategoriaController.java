@@ -5,6 +5,8 @@ import com.norday.core.security.ControladorAutorizado;
 import com.norday.core.security.UsuarioAutenticado;
 import com.norday.core.service.UsuarioService;
 import com.norday.habitos.model.Categoria;
+import com.norday.habitos.model.dto.CategoriaDTO;
+import com.norday.habitos.model.dto.CategoriaEntradaDTO;
 import com.norday.habitos.service.CategoriaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,26 +34,26 @@ public class CategoriaController extends ControladorAutorizado {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
         }
-        return ResponseEntity.ok(categoriaService.obtenerTodas(usuario));
+        return ResponseEntity.ok(categoriaService.obtenerTodas(usuario).stream()
+                .map(CategoriaDTO::de)
+                .toList());
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Categoria categoria, Authentication authentication) {
+    public ResponseEntity<?> crear(@RequestBody CategoriaEntradaDTO entrada, Authentication authentication) {
         // El creador nunca se toma del body: se fija desde el token, para que
         // nadie pueda crear una categoría a nombre de otro usuario.
         Usuario autenticado = usuarioAutenticadoComoUsuario(authentication);
         if (autenticado == null) {
             return prohibido();
         }
-        categoria.setCreador(autenticado);
-        categoriaService.crearCategoria(categoria);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Categoría creada correctamente");
+        Categoria creada = categoriaService.crear(autenticado, entrada);
+        return ResponseEntity.status(HttpStatus.CREATED).body(CategoriaDTO.de(creada));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable int id,
-                                        @RequestBody Categoria categoria,
+                                        @RequestBody CategoriaEntradaDTO entrada,
                                         Authentication authentication) {
         Categoria existente = categoriaService.buscarPorId(id);
         if (existente == null) {
@@ -61,16 +63,8 @@ public class CategoriaController extends ControladorAutorizado {
         if (!esElCreador(existente, authentication)) {
             return prohibido();
         }
-        // categoriaId, codigo, esGlobal y creador se conservan de la
-        // categoría ya existente, nunca del body: solo los campos de
-        // abajo son editables por el usuario.
-        existente.setNombre(categoria.getNombre());
-        existente.setDescripcion(categoria.getDescripcion());
-        existente.setColor(categoria.getColor());
-        existente.setIcono(categoria.getIcono());
-        existente.setOrden(categoria.getOrden());
-        categoriaService.actualizar(existente);
-        return ResponseEntity.ok("Categoría actualizada correctamente");
+        // Solo nombre e icono son editables; lo demás se conserva.
+        return ResponseEntity.ok(CategoriaDTO.de(categoriaService.actualizar(id, entrada)));
     }
 
     @DeleteMapping("/{id}")

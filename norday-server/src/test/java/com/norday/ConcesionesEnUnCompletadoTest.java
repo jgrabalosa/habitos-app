@@ -4,7 +4,6 @@ import com.norday.core.model.Usuario;
 import com.norday.core.service.UsuarioService;
 import com.norday.gamificacion.service.LogroService;
 import com.norday.gamificacion.service.MascotaService;
-import com.norday.habitos.model.Categoria;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
 import com.norday.habitos.model.HabitoObjetivo;
@@ -215,7 +214,7 @@ class ConcesionesEnUnCompletadoTest {
     @Test
     void logroAlCrearLaPrimeraCategoria() throws Exception {
         conUnPasoAMedias(() -> {
-            categoriaService.crearCategoria(new Categoria(null, "Mía", null, null, null, false, 0, usuario()));
+            categoriaService.crear(usuario(), new com.norday.habitos.model.dto.CategoriaEntradaDTO("Mía", null));
             return null;
         });
     }
