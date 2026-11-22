@@ -20,6 +20,10 @@ public class VersionApp {
     @Column(name = "version_minima", nullable = false)
     private int versionMinima;
 
+    /** Nula = sin aviso. No obliga a nada: obligar es la mínima. */
+    @Column(name = "version_recomendada")
+    private Integer versionRecomendada;
+
     // Constructor vacío — obligatorio para JPA
     public VersionApp() {}
 
@@ -27,6 +31,14 @@ public class VersionApp {
         this.appId = appId;
         this.versionMinima = versionMinima;
     }
+
+    public VersionApp(String appId, int versionMinima, Integer versionRecomendada) {
+        this(appId, versionMinima);
+        this.versionRecomendada = versionRecomendada;
+    }
+
+    public Integer getVersionRecomendada() { return versionRecomendada; }
+    public void setVersionRecomendada(Integer versionRecomendada) { this.versionRecomendada = versionRecomendada; }
 
     public String getAppId() { return appId; }
     public void setAppId(String appId) { this.appId = appId; }
