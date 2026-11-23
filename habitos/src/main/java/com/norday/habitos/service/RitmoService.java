@@ -118,6 +118,21 @@ public class RitmoService {
     /** Igual que {@link #ritmosVigentes}, con el ritmo de hace siete días de cada uno. */
     @Transactional
     public Map<Integer, RitmoLeido> ritmosLeidos(List<Habito> habitos, LocalDate hoy) {
+        return leer(habitos, hoy, true);
+    }
+
+    /**
+     * Igual que {@link #ritmosLeidos}, pero sin escribir nada: ni mueve el
+     * ancla ni crea la que falte (a un hábito sin ancla le da el valor de
+     * partida). Da los mismos valores. Es el camino de lectura de las
+     * pantallas que no deben tener efectos, como la semana pasada.
+     */
+    @Transactional(readOnly = true)
+    public Map<Integer, RitmoLeido> ritmosLeidosSinEscribir(List<Habito> habitos, LocalDate hoy) {
+        return leer(habitos, hoy, false);
+    }
+
+    private Map<Integer, RitmoLeido> leer(List<Habito> habitos, LocalDate hoy, boolean escribir) {
         Map<Integer, RitmoLeido> leidos = new HashMap<>();
         if (habitos.isEmpty()) return leidos;
 
@@ -160,12 +175,12 @@ public class RitmoService {
             Ritmo ritmo = anclas.get(habito.getHabitoId());
             HistorialObjetivos historial = historiales.get(habito.getHabitoId());
             RitmoLeido leido = ritmo == null
-                    ? empezarHoy(habito, hoy)
+                    ? empezarHoy(habito, hoy, escribir)
                     : !habito.isActivo()
                             ? congelado(ritmo)
                             : ponerAlDia(ritmo, habito,
                                     hechosPorHabito.getOrDefault(habito.getHabitoId(), Map.of()),
-                                    historial::objetivoEl, hoy);
+                                    historial::objetivoEl, hoy, escribir);
             leidos.put(habito.getHabitoId(), leido);
         }
         return leidos;
@@ -366,8 +381,12 @@ public class RitmoService {
      * a los que ya existían. Si falta, empieza hoy en el valor de partida.
      */
     private RitmoLeido empezarHoy(Habito habito, LocalDate hoy) {
+        return empezarHoy(habito, hoy, true);
+    }
+
+    private RitmoLeido empezarHoy(Habito habito, LocalDate hoy, boolean escribir) {
         Ritmo ritmo = new Ritmo(habito, hoy);
-        ritmoDAO.save(ritmo);
+        if (escribir) ritmoDAO.save(ritmo);
         return new RitmoLeido(ritmo.getValor(), ritmo.getValor());
     }
 
@@ -377,7 +396,18 @@ public class RitmoService {
      */
     private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
                                   Function<LocalDate, Objetivo> objetivoEl, LocalDate hoy) {
-        return ponerAlDia(ritmo, habito, hechosPorDia, objetivoEl, objetivoEl, hoy);
+        return ponerAlDia(ritmo, habito, hechosPorDia, objetivoEl, hoy, true);
+    }
+
+    private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
+                                  Function<LocalDate, Objetivo> objetivoEl, LocalDate hoy, boolean escribir) {
+        return ponerAlDia(ritmo, habito, hechosPorDia, objetivoEl, objetivoEl, hoy, escribir);
+    }
+
+    private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
+                                  Function<LocalDate, Objetivo> objetivoEl,
+                                  Function<LocalDate, Objetivo> reglasEl, LocalDate hoy) {
+        return ponerAlDia(ritmo, habito, hechosPorDia, objetivoEl, reglasEl, hoy, true);
     }
 
     /**
@@ -385,10 +415,14 @@ public class RitmoService {
      * cada periodo (frecuencia y meta). En una lectura es el mismo historial
      * que {@code objetivoEl}; al anclar antes de un cambio son las reglas de
      * antes del cambio (ver anclarAntesDeCambiar).
+     *
+     * Con {@code escribir} falso no se toca el ancla, ni siquiera en memoria
+     * (una entidad gestionada modificada se guardaría al cerrar la
+     * transacción): el avance se calcula en variables locales.
      */
     private RitmoLeido ponerAlDia(Ritmo ritmo, Habito habito, Map<LocalDate, Integer> hechosPorDia,
                                   Function<LocalDate, Objetivo> objetivoEl,
-                                  Function<LocalDate, Objetivo> reglasEl, LocalDate hoy) {
+                                  Function<LocalDate, Objetivo> reglasEl, LocalDate hoy, boolean escribir) {
         // Lo hecho cada día en unidades de la meta, con el objetivo vigente
         // ESE día: en un día de veces, las veces; en uno de minutos,
         // min(1, minutos / objetivo), así que un día a medias cuenta en
@@ -405,30 +439,40 @@ public class RitmoService {
         RitmoAlDia alDia = CalculoRitmo.alDiaPorUnidades(ritmo.getValor(), ritmo.getDesde(),
                 reglasEl, soloSube, unidades, hoy);
 
+        Double valorPrevio = ritmo.getValorPrevio();
+        LocalDate desdePrevio = ritmo.getDesdePrevio();
+        double valorDelAncla = ritmo.getValor();
+        LocalDate desdeDelAncla = ritmo.getDesde();
         if (alDia.desdeAncla().isAfter(ritmo.getDesde())) {
             // El ancla anterior es el ritmo una semana antes de la nueva. Si
             // la que había es más reciente que eso —un hábito creado o
             // cambiado la semana pasada—, la anterior es esa misma.
             LocalDate unaSemanaAntes = alDia.desdeAncla().minusDays(7);
             if (ritmo.getDesde().isAfter(unaSemanaAntes)) {
-                ritmo.setValorPrevio(ritmo.getValor());
-                ritmo.setDesdePrevio(ritmo.getDesde());
+                valorPrevio = ritmo.getValor();
+                desdePrevio = ritmo.getDesde();
             } else {
-                ritmo.setValorPrevio(CalculoRitmo.alDiaPorUnidades(ritmo.getValor(), ritmo.getDesde(),
-                        reglasEl, soloSube, unidades, unaSemanaAntes).valor());
-                ritmo.setDesdePrevio(unaSemanaAntes);
+                valorPrevio = CalculoRitmo.alDiaPorUnidades(ritmo.getValor(), ritmo.getDesde(),
+                        reglasEl, soloSube, unidades, unaSemanaAntes).valor();
+                desdePrevio = unaSemanaAntes;
             }
-            ritmo.setValor(alDia.valorAncla());
-            ritmo.setDesde(alDia.desdeAncla());
-            ritmoDAO.update(ritmo);
+            valorDelAncla = alDia.valorAncla();
+            desdeDelAncla = alDia.desdeAncla();
+            if (escribir) {
+                ritmo.setValorPrevio(valorPrevio);
+                ritmo.setDesdePrevio(desdePrevio);
+                ritmo.setValor(valorDelAncla);
+                ritmo.setDesde(desdeDelAncla);
+                ritmoDAO.update(ritmo);
+            }
         }
 
         // El ritmo de hace siete días se calcula desde el ancla anterior; si
         // el ancla no ha avanzado nunca, desde la única que hay.
-        boolean hayAnterior = ritmo.getDesdePrevio() != null;
+        boolean hayAnterior = desdePrevio != null;
         double haceUnaSemana = CalculoRitmo.alDiaPorUnidades(
-                hayAnterior ? ritmo.getValorPrevio() : ritmo.getValor(),
-                hayAnterior ? ritmo.getDesdePrevio() : ritmo.getDesde(),
+                hayAnterior ? valorPrevio : valorDelAncla,
+                hayAnterior ? desdePrevio : desdeDelAncla,
                 reglasEl, soloSube, unidades, hoy.minusDays(7)).valor();
 
         return new RitmoLeido(alDia.valor(), haceUnaSemana);

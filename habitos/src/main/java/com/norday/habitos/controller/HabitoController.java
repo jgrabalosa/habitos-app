@@ -11,6 +11,7 @@ import com.norday.habitos.model.dto.HabitoEntradaDTO;
 import com.norday.habitos.service.HabitoService;
 import com.norday.habitos.service.HoyService;
 import com.norday.habitos.service.PausaService;
+import com.norday.habitos.service.SemanaPasadaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,9 @@ public class HabitoController extends ControladorAutorizado {
 
     @Autowired
     private HoyService hoyService;
+
+    @Autowired
+    private SemanaPasadaService semanaPasadaService;
 
     @Autowired
     private UsuarioService usuarioService;
@@ -111,6 +115,25 @@ public class HabitoController extends ControladorAutorizado {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Formato de fecha inválido, se espera YYYY-MM-DD");
         }
+    }
+
+    /**
+     * «Así fue tu semana»: el resumen de la semana anterior (lunes a domingo,
+     * en la zona del usuario). SOLO LECTURA: no escribe nada, ni siquiera el
+     * ritmo. A diferencia de /hoy, que se pide muchas veces al día, la app lo
+     * pide una vez, el primer día de cada semana que se abre.
+     */
+    @GetMapping("/usuario/{usuarioId}/semana-pasada")
+    public ResponseEntity<?> obtenerSemanaPasada(@PathVariable int usuarioId, Authentication authentication) {
+        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
+            return prohibido();
+        }
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Usuario no encontrado");
+        }
+        return ResponseEntity.ok(semanaPasadaService.obtener(usuario));
     }
 
     @GetMapping("/{id}")

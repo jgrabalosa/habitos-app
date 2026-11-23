@@ -231,6 +231,26 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 
 **Icono.** Ambos aceptan `icono`, opcional: el código del icono que dibuja la app (el catálogo vive en la app; el backend solo guarda el código). Nulo, o de 1 a 40 caracteres de `[a-zA-Z0-9]`; si no, 400 con `{"mensaje": ...}` como el resto de rechazos. En el `POST`, se guarda lo que llega, nulo incluido. En el `PUT`, nulo o ausente conserva el que tenía (la app ya instalada no lo manda). No es del objetivo: cambiarlo no crea versión en `habito_objetivo`. `HabitoDTO` (y por tanto `/hoy`, `/dashboard`, `/semana`, `/resumen`) y el detalle (`/{id}/detalle`) devuelven `icono`, nulo si no tiene.
 
+## La semana pasada
+
+`GET /api/habitos/usuario/{usuarioId}/semana-pasada`: el resumen de la semana anterior a la de hoy, de lunes a domingo, para la tarjeta «Así fue tu semana». La app lo pide una vez, el primer día de cada semana que la abre; por eso es un endpoint propio y no un campo de `/hoy`, que se pide muchas veces al día. Misma comprobación de dueño que `/hoy` (403 si no es él, 404 si no existe). **Es solo de lectura**: no escribe nada (ver más abajo).
+
+«Hoy» es el del usuario en su zona (`ZonaUsuarioService`): en el mismo instante, quien está en Kiritimati ya ve la semana que acaba de terminar y quien está en Madrid todavía la anterior. Código: `SemanaPasadaService`, `SemanaPasadaDTO`.
+
+| Campo | Qué es |
+|---|---|
+| `desde`, `hasta` | El lunes y el domingo de esa semana, ISO |
+| `hayActividad` | Si hubo algún registro completado esa semana |
+| `hechos`, `total` | De los siete días, lo hecho y lo que tocaba en la sección del día (como el avance de `/hoy`): cada día suma sus hábitos de la sección del día |
+| `diasCompletos` | Días en que se completó toda la sección del día (un día sin nada que tocara no cuenta) |
+| `semanales` | Cada semanal de esa semana: `habitoId`, `nombre`, `icono`, `hechos` (unidades de la semana), `meta`, `completo` |
+| `ritmoNivel`, `ritmoTendencia` | Los de hoy, como `/hoy` (null sin hábitos activos) |
+| `masSube` | `habitoId`, `nombre`, `nivelAntes`, `nivelAhora` del hábito cuyo ritmo más subió, o `null` |
+
+- **Los hábitos son los activos de ahora, igual que `/hoy`:** uno en pausa no cuenta, ni esa semana ni hoy. Un hábito creado a mitad de semana no deja pendientes los días anteriores a su fecha de inicio. Cada día se juzga con el objetivo que el hábito tenía ese día (`HistorialObjetivos.vistaEl`).
+- **`masSube`:** el ritmo de cada hábito se lee con «hoy» puesto en el lunes de esta semana. Ese ritmo ya cuenta la semana pasada entera y su «hace siete días» es el del lunes anterior, así que `nivelAntes` y `nivelAhora` son los del lunes al empezar y al acabar la semana aunque la app se abra el miércoles. Sube el hábito que **cambia de nivel hacia arriba**; si son varios, el que más sube en valor. Un hábito creado esta semana no existía y no entra. Si ninguno cambia de nivel, `null`.
+- **Sin escrituras.** `/hoy` bloquea al usuario, pone al día el objetivo de los hábitos, mueve las anclas del ritmo y concede logros de ritmo. Aquí nada de eso: el ritmo se lee con `RitmoService.ritmosLeidosSinEscribir`, que da los mismos valores que `ritmosLeidos` pero no mueve el ancla (ni en memoria: una entidad modificada se guardaría al cerrar la transacción), no crea la que falte y no concede logros. Tampoco se llama a `ObjetivoService.ponerAlDia`: no hace falta, porque cada día usa su versión del historial. Consecuencia mínima: si un cambio de objetivo programado entró esta semana y nadie ha abierto `/hoy` todavía, el ritmo de este endpoint no tiene el ancla del cambio (el periodo «que solo puede subir»); es un caso raro y lo corrige la primera lectura de `/hoy`.
+
 ## Norday Focus (módulo `enfoque`)
 
 Norday Focus es un temporizador de concentración (módulo `enfoque`). Cada sesión se guarda en `sesion_enfoque` y puede llevar sus minutos a un hábito de minutos. Desde el 16-nov-2026 **cada sesión que cuenta paga lo suyo** (monedas, XP de Nori y logros propios de Focus), tenga hábito o no; si lleva hábito, el hábito paga además lo suyo, con sus reglas, y se suman (ver «Premio de una sesión»).
