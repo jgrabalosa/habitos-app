@@ -323,9 +323,9 @@ cuenta:
    ejemplo `cantidad` y `origen` en los registros, `unidad` y
    `minutosObjetivo` en los hábitos). Un campo que cambia de valor o
    desaparece es un fallo de contrato para la APK instalada.
-6. **Prueba de restauración** con el primer dump posterior al despliegue:
-   está vencida desde el 24-oct-2026 y es obligatoria tras este despliegue
-   (ver [`backups.md`](backups.md)).
+6. **Prueba de restauración** con el primer dump posterior al despliegue
+   (ver [`backups.md`](backups.md)). Hecha el 24-nov-2026 con el dump de las
+   03:00 (Flyway 33, 30 tablas, los 28 usuarios iguales que en producción).
 
 ### 6. Google Play
 
