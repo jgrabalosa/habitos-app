@@ -88,29 +88,22 @@ eso el script comprueba además la antigüedad de la última copia.
 
 Una vez al mes, y después de cada migración de Flyway que cambie el esquema.
 
-**Última: 24-sep-2026**, con el dump `habitos_db_2026-09-24_0300.dump` de la
-copia descargada en Windows, así que prueba la cadena entera. Salió bien: 21
-tablas en el índice del dump y 21 en la base restaurada, Flyway en la versión
-13 con `success = t`, 6 usuarios, 10 hábitos y 11 registros. Los usuarios se
-compararon por ID con producción: coinciden todos los que existían a las 03:00,
-con la misma fecha de alta, y el único que falta en producción se borró
-después del dump. Siguiente, hacia el 24-oct-2026 o antes si entra una
-migración que cambie el esquema. Anotar aquí cada una con su fecha y sus
-cifras: sin eso no se sabe si toca.
+**Última: 24-nov-2026**, con el dump `habitos_db_2026-11-24_0300.dump` de la
+copia descargada en Windows (el primero de producción con V31–V33), así que
+prueba la cadena entera. Salió bien: `pg_restore` sin error, 30 tablas en el
+índice del dump y 30 en la base restaurada, Flyway en la versión 33 con
+`success = t`, 28 usuarios, 95 hábitos, 828 registros y 0 sesiones de Focus
+(Focus aún no está en producción). Los usuarios se compararon por ID con
+producción: los 28, con la misma fecha de alta, idénticos (ninguna alta ni
+baja desde el 20-nov). Cubre el despliegue conjunto (V21–V30, seis tablas
+nuevas) y la 1.4.0 (V31–V33), que dejaron la prueba pendiente desde el
+24-oct-2026. Siguiente, hacia el 24-dic-2026 o antes si entra una migración
+que cambie el esquema. Anotar aquí cada una con su fecha y sus cifras: sin
+eso no se sabe si toca.
 
-**Vencida desde el 24-oct-2026** (a 15-nov-2026 no se ha hecho ninguna
-después de la del 24-sep). Y el despliegue conjunto de hábitos en minutos y
-Norday Focus mete diez migraciones, V21–V30, y nueve cambian el esquema:
-seis tablas nuevas (`hito_pagado`, `habito_objetivo`, `usuario_dispositivo`,
-`sesion_enfoque`, `oferta` y `usuario_equipado`) y columnas nuevas en
-`habito`, `registro`, `sesion_enfoque` y `producto` (V25 solo inserta una
-fila en `version_app`). Por eso la
-prueba de restauración es un **paso obligatorio tras ese despliegue**, con el
-primer dump de producción posterior: Flyway en la versión 30 con
-`success = t` y las tablas nuevas presentes. Ver
-[`despliegue.md`](despliegue.md), «Despliegue conjunto».
-
-Anteriores: 11-sep-2026, `habitos_db_2026-09-11_0300.dump`, 21 tablas, 6
+Anteriores: 24-sep-2026, `habitos_db_2026-09-24_0300.dump`, 21 tablas,
+Flyway 13, 6 usuarios, 10 hábitos y 11 registros (el único usuario que
+faltaba en producción se borró después del dump); 11-sep-2026, `habitos_db_2026-09-11_0300.dump`, 21 tablas, 6
 usuarios, 10 hábitos y 38 registros.
 
 Contra el PostgreSQL 18 local, **puerto 5434**, sobre una base desechable —
@@ -118,6 +111,10 @@ nunca contra `habitos_db` local. `pg_restore --no-owner --no-acl
 --exit-on-error`, comparar el número de tablas con lo que lista
 `pg_restore -l`, comprobar que la última fila de `flyway_schema_history` es
 la versión esperada con `success = t`, y borrar la base al terminar.
+La contraseña del `postgres` local se pide en su propio pegado, con
+`Read-Host -AsSecureString` y pasada a `PGPASSWORD`, nunca con `Read-Host`
+a secas: enseña lo que se escribe (24-nov-2026: salió en el chat y hubo que
+cambiarla). Al terminar, `Remove-Item Env:PGPASSWORD`.
 
 **Los datos se comparan por ID, no por recuento.** Contar en producción los
 usuarios dados de alta antes de la hora del dump no cuadra si alguno se ha
