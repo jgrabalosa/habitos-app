@@ -21,8 +21,8 @@ Implementaciones actuales, seis:
   antes que los productos (apunta a ellos), productos, mascota.
 - `LimpiadorRecuperacion` — códigos de recuperación de contraseña, que
   cuelgan del email y no del id.
-- `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría y
-  valoraciones.
+- `LimpiadorConocimiento` — píldoras vistas, preferencias de categoría,
+  valoraciones y, desde V39, lecturas, repasos y respuestas a los retos.
 - `LimpiadorDispositivos` — los tokens de notificaciones de todas las apps
   (`usuario_dispositivo`).
 - `LimpiadorEnfoque` — las sesiones de Norday Focus (`sesion_enfoque`). Los
