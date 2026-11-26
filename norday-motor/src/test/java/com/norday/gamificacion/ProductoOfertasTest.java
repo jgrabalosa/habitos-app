@@ -140,7 +140,8 @@ class ProductoOfertasTest {
         when(productoDAO.findById(10)).thenReturn(tema);
         saldo(999);
 
-        RuntimeException e = assertThrows(RuntimeException.class, () -> productoService.comprarProducto(usuario, 10));
+        RuntimeException e = assertThrows(com.norday.core.exception.PeticionInvalidaException.class,
+                () -> productoService.comprarProducto(usuario, 10));
         assertEquals("Saldo insuficiente", e.getMessage());
     }
 

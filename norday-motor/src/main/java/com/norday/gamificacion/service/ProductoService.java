@@ -1,6 +1,7 @@
 package com.norday.gamificacion.service;
 
 import com.norday.core.exception.ConflictoException;
+import com.norday.core.exception.PeticionInvalidaException;
 import com.norday.core.exception.RecursoNoEncontradoException;
 import com.norday.core.model.Usuario;
 import com.norday.core.repository.IUsuarioDAO;
@@ -251,7 +252,7 @@ public class ProductoService {
         if (!regalo) {
             int saldoActual = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
             if (saldoActual < precio) {
-                throw new RuntimeException("Saldo insuficiente");
+                throw new PeticionInvalidaException("Saldo insuficiente");
             }
         }
 
