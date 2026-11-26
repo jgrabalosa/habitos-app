@@ -67,6 +67,14 @@ Antes de reactivar, comprobar en la BD si la fila existe. A 24-sep-2026 no
 existe ninguna de las retiradas, ni en producción ni en staging: las BD se
 reiniciaron después de retirarlas, así que hoy bastaría con descomentar.
 
+**Cambiar el precio de algo que ya existe es una migración y el initializer
+a la vez** (y, si el producto tiene ofertas, también la fila de `oferta`, que
+es el precio al que se cobra). El initializer no toca filas existentes, así que
+solo sirve para las bases nuevas; la migración pone al día las que ya tienen
+datos. La migración lleva el precio viejo en el `WHERE`: si alguien lo cambió a
+mano, no se pisa. Ejemplo: `V34__precios_tienda.sql`, que se prueba ejecutando
+su SQL desde `PreciosTiendaTest`.
+
 ## Elección de identidad en el onboarding
 
 El usuario elige identidad (tema visual) la primera vez que entra:

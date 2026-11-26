@@ -358,7 +358,7 @@ Los puntos se pagan con el movimiento `HITO_DIAS_HECHOS` en el completado que ha
 
 ## Pausa
 
-La pausa es un producto del catálogo de hábitos (`PAUSA_HABITO`, nombre «Pausa», categoría «Protección», tipo CONSUMIBLE, precio 300) que se gasta al pausar un hábito. Se puede comprar en la tienda tantas veces como se quiera. El precio es provisional.
+La pausa es un producto del catálogo de hábitos (`PAUSA_HABITO`, nombre «Pausa», categoría «Protección», tipo CONSUMIBLE, precio 350) que se gasta al pausar un hábito. Se puede comprar en la tienda tantas veces como se quiera.
 
 **Pausar** (`PausaService.pausar`):
 
@@ -592,20 +592,22 @@ Actualmente el catálogo contiene:
 
 | Código | Producto | Tipo | Precio | Función |
 |---|---|---|---:|---|
-| `TEMA_PROFUNDIDAD` | Profundidad | Equipable | 1000 | Identidad visual |
-| `TEMA_NEOTOKYO_PLUS` | Neotokyo+ | Equipable | 1000 | Identidad visual |
-| `TEMA_DULCE` | Dulce | Equipable | 1000 | Identidad visual |
-| `COMIDA_BASICA` | Comida | Consumible | 50 | Alimentar a la mascota y ganar experiencia |
-| `PAUSA_HABITO` | Pausa | Consumible | 300 | Pausar un hábito (ver «Pausa») |
+| `TEMA_PROFUNDIDAD` | Profundidad | Equipable | 1250 | Identidad visual |
+| `TEMA_NEOTOKYO_PLUS` | Neotokyo+ | Equipable | 1250 | Identidad visual |
+| `TEMA_DULCE` | Dulce | Equipable | 1250 | Identidad visual |
+| `COMIDA_BASICA` | Comida | Consumible | 100 | Alimentar a la mascota y ganar experiencia |
+| `PAUSA_HABITO` | Pausa | Consumible | 350 | Pausar un hábito (ver «Pausa») |
+
+Precios del rebalanceo del 24-nov-2026 (migración V34, ver `docs/decisiones/2026-11-24-precios-tienda.md`): lo que se gana no cambió, lo que se compra cuesta más. Lo ya comprado y los saldos no se tocaron.
 
 Y las prendas de Nori (Nori vestida, N-13), genéricas (para todas las apps), con versión mínima del core `0.56.0` y una oferta cada una:
 
 | Código | Prenda | Sitio (categoría) | Colección | Oferta | Hasta |
 |---|---|---|---|---:|---|
-| `PRENDA_GORRO_LANA` | Gorro de lana | Cabeza | `INVIERNO_2026` | 200 | 28-feb-2027 |
-| `PRENDA_BUFANDA` | Bufanda de rayas | Cuerpo | `INVIERNO_2026` | 250 | 28-feb-2027 |
+| `PRENDA_GORRO_LANA` | Gorro de lana | Cabeza | `INVIERNO_2026` | 400 | 28-feb-2027 |
+| `PRENDA_BUFANDA` | Bufanda de rayas | Cuerpo | `INVIERNO_2026` | 400 | 28-feb-2027 |
 | `PRENDA_GORRO_NOEL` | Gorro de Papá Noel | Cabeza | `NAVIDAD_2026` | 0 (regalo) | 7-ene-2027 |
-| `PRENDA_TRAJE_NOEL` | Traje de Papá Noel | Cuerpo | `NAVIDAD_2026` | 400 | 7-ene-2027 |
+| `PRENDA_TRAJE_NOEL` | Traje de Papá Noel | Cuerpo | `NAVIDAD_2026` | 500 | 7-ene-2027 |
 
 Las siembra `CatalogoGamificacionInitializer` (lista `PRENDAS`) en el primer arranque que las vea. La oferta empieza **el día anterior al del alta en UTC**: así ya ha empezado en todas las zonas (la compra mira el día del usuario), y una APK con el core 0.55.0 no las ve, así que no se adelanta nada. Una prenda que ya existe no se toca, salvo que no tenga ninguna oferta: entonces se le pone la suya. Al acabar la temporada no se retiran: deja de venderse porque su oferta termina, y sigue siendo de quien la tiene. Por eso están también en la lista de vigentes de la retirada.
 

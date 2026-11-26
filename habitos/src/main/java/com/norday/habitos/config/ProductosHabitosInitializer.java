@@ -31,10 +31,11 @@ public class ProductosHabitosInitializer implements CommandLineRunner {
         if (productoDAO.findByCodigo(PAUSA) != null) {
             return; // ya existe, no lo tocamos
         }
-        // Precio provisional: se ajustará con datos de uso reales.
+        // Precio del rebalanceo del 24-nov-2026 (V34, D-71). Cambiarlo en una
+        // fila que ya existe exige migración: este método no la toca.
         productoDAO.save(new Producto(PAUSA, "Pausa",
                 "Pausa un hábito sin perder su ritmo: no sale en Hoy ni te avisa hasta que lo reanudes",
-                "Protección", "CONSUMIBLE", 300, null, APP));
+                "Protección", "CONSUMIBLE", 350, null, APP));
         log.info("Producto de hábitos creado: {}", PAUSA);
     }
 }
