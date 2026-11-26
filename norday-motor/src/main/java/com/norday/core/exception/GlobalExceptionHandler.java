@@ -101,6 +101,14 @@ public class GlobalExceptionHandler {
                 .body(Map.of("mensaje", mensajeSeguro(e)));
     }
 
+    /** Un rechazo esperado: 400 y WARN en una línea, sin traza. */
+    @ExceptionHandler(PeticionInvalidaException.class)
+    public ResponseEntity<?> manejarPeticionInvalida(PeticionInvalidaException e) {
+        log.warn("Petición rechazada: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("mensaje", mensajeSeguro(e)));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> manejarRuntimeException(RuntimeException e) {
         // Se loguea a propósito: antes este handler devolvía 400 en silencio y

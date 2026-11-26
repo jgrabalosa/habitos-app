@@ -87,6 +87,11 @@ trabajo siguen en el `CLAUDE.md` o en `lecciones-operacion.md`.
   cambio.** `MASCOTA_CRIA` se daba solo al cambiar de fase: si deshacer lo
   retiraba con la mascota todavía en cría, no volvía nunca.
 
+- **Un rechazo esperado lleva su excepción con nombre, no `RuntimeException`.**
+  «Saldo insuficiente» era una `RuntimeException` y salía como `ERROR` con
+  traza en el log. `PeticionInvalidaException` → 400 y `WARN` en una línea;
+  `ConflictoException` → 409. Solo lo inesperado llega al `ERROR`.
+
 ## Contrato con los clientes
 
 - **Un cambio de contrato también rompe a los clientes viejos.** Al cambiar un
