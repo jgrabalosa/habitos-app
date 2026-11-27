@@ -12,14 +12,11 @@ import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.Unidad;
-import com.norday.habitos.model.dto.DashboardHabitoDTO;
 import com.norday.habitos.model.dto.FilaHoyDTO;
 import com.norday.habitos.model.dto.HabitoDetalleDTO;
-import com.norday.habitos.model.dto.HabitoDiaDTO;
 import com.norday.habitos.model.dto.HabitoResumenDTO;
 import com.norday.habitos.model.dto.HoyDTO;
 import com.norday.habitos.model.dto.RegistroDiaDTO;
-import com.norday.habitos.model.dto.SemanaDashboardDTO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.service.CumplimientoDiarioHabitos;
 import com.norday.habitos.service.HabitoService;
@@ -45,8 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Las lecturas con hábitos de minutos, con la aplicación ensamblada y
  * Postgres de verdad: Hoy, el ánimo, el ritmo, el día completo, las
- * pantallas de la app ya instalada (/dashboard, /semana, /resumen), el
- * detalle, los logros de constancia y el recuento de los logros de volumen.
+ * pantalla /resumen, el detalle, los logros de constancia y el recuento de los logros de volumen.
  *
  * Donde el servicio admite el día de hoy, la semana de referencia empieza el
  * lunes 5-oct-2026 y hoy es el viernes 9. Donde lee el reloj, los registros
@@ -332,10 +328,10 @@ class MinutosLecturasTest {
         assertEquals(10, registroDAO.contarPorUsuario(usuario.getUsuarioId()));
     }
 
-    // ── Con el reloj real: día completo, /dashboard, /semana, /resumen, detalle ──
+    // ── Con el reloj real: día completo, /hoy, /resumen, detalle ──
 
     @Test
-    void conElRelojReal_lasLecturasDeLaAppYaInstaladaCuentanDiasHechos() {
+    void conElRelojReal_lasLecturasCuentanDiasHechos() {
         LocalDate hoy = LocalDate.now(MADRID);
         LocalDate otroDia = hoy.getDayOfMonth() > 1 ? hoy.minusDays(1) : hoy.plusDays(1);
         Usuario usuario = usuario();
@@ -345,13 +341,9 @@ class MinutosLecturasTest {
 
         // A medias: el día no está completo y la fila no está hecha.
         assertFalse(habitoService.esDiaCompleto(usuario));
-        DashboardHabitoDTO dash = habitoService.obtenerDashboard(usuario).get(0);
-        assertEquals(0, dash.getCompletadosPeriodo());
-        assertFalse(dash.isCompletadoHoy());
-        assertEquals(List.of(), dash.getFechasCompletadas());
-        SemanaDashboardDTO semana = habitoService.obtenerSemana(usuario, null);
-        HabitoDiaDTO deHoy = semana.getDias().get(hoy.getDayOfWeek().getValue() - 1).getHabitos().get(0);
-        assertFalse(deHoy.isCompletado());
+        FilaHoyDTO filaHoy = hoyService.obtenerHoy(usuario, null).delDia().habitos().get(0);
+        assertEquals(0, filaHoy.completados());
+        assertFalse(filaHoy.hecho());
 
         // Llega a los 30: todo pasa a hecho.
         Habito leido = em.find(Habito.class, diario.getHabitoId());
@@ -360,12 +352,9 @@ class MinutosLecturasTest {
         registro(leido, otroDia, 5);
         limpiar();
         assertTrue(habitoService.esDiaCompleto(usuario));
-        dash = habitoService.obtenerDashboard(usuario).get(0);
-        assertEquals(1, dash.getCompletadosPeriodo());
-        assertTrue(dash.isCompletadoHoy());
-        assertEquals(List.of(hoy.toString()), dash.getFechasCompletadas());
-        semana = habitoService.obtenerSemana(usuario, null);
-        assertTrue(semana.getDias().get(hoy.getDayOfWeek().getValue() - 1).getHabitos().get(0).isCompletado());
+        filaHoy = hoyService.obtenerHoy(usuario, null).delDia().habitos().get(0);
+        assertEquals(1, filaHoy.completados());
+        assertTrue(filaHoy.hecho());
 
         HabitoResumenDTO resumen = habitoService.obtenerResumen(usuario).get(0);
         assertEquals(1, resumen.getTotalCompletados(), "un día hecho, no tres registros");

@@ -8,8 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * El habito tal y como sale hacia el cliente en /{id}, /dashboard,
- * /resumen y /semana.
+ * El habito tal y como sale hacia el cliente en /{id}, /hoy y /resumen.
  *
  * La categoria viaja aplanada en tres campos, los tres null si el habito no
  * tiene. `propietario` no esta: el cliente ya sabe de quien son sus habitos.

@@ -56,45 +56,10 @@ public class HabitoController extends ControladorAutorizado {
         return ResponseEntity.ok(habitoService.obtenerResumen(usuario));
     }
 
-    @GetMapping("/usuario/{usuarioId}/dashboard")
-    public ResponseEntity<?> obtenerDashboard(@PathVariable int usuarioId, Authentication authentication) {
-        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
-            return prohibido();
-        }
-        Usuario usuario = usuarioService.buscarPorId(usuarioId);
-        if (usuario == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Usuario no encontrado");
-        }
-        return ResponseEntity.ok(habitoService.obtenerDashboard(usuario));
-    }
-
-    @GetMapping("/usuario/{usuarioId}/semana")
-    public ResponseEntity<?> obtenerSemana(@PathVariable int usuarioId,
-                                           @RequestParam(required = false) String desde,
-                                           Authentication authentication) {
-        if (!esElUsuarioAutenticado(usuarioId, authentication)) {
-            return prohibido();
-        }
-        Usuario usuario = usuarioService.buscarPorId(usuarioId);
-        if (usuario == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Usuario no encontrado");
-        }
-        try {
-            LocalDate fechaDesde = (desde != null && !desde.isBlank()) ? LocalDate.parse(desde) : null;
-            return ResponseEntity.ok(habitoService.obtenerSemana(usuario, fechaDesde));
-        } catch (DateTimeParseException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Formato de fecha inválido, se espera YYYY-MM-DD");
-        }
-    }
-
     /**
-     * La pantalla de Hoy de la app nueva: las dos secciones, la tira de la
+     * La pantalla de Hoy de la app: las dos secciones, la tira de la
      * semana, el avance del día y los niveles de ritmo. Con {@code fecha} se
-     * mira otro día de la tira. /dashboard y /semana siguen existiendo para
-     * la app ya instalada.
+     * mira otro día de la tira.
      */
     @GetMapping("/usuario/{usuarioId}/hoy")
     public ResponseEntity<?> obtenerHoy(@PathVariable int usuarioId,

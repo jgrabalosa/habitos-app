@@ -103,10 +103,11 @@ Un hábito en pausa no se puede completar: `completarHabito` responde con un con
 Permiten deshacer un completado con exactitud. Cada completado guarda una `ReversionRegistro` ligada a su `Registro` con:
 
 - las monedas que otorgó ese completado (el propio completado, el hito de días hechos y los logros) y la experiencia que dio a la mascota;
-- el estado previo de la racha: `rachaActual`, `rachaMaxima`, periodo de meta alcanzada y última fecha;
 - el día completo previo de la mascota.
 
-Las monedas y la experiencia se guardan como lo que dio el completado, no como una instantánea: al deshacer se restan, para no borrar lo ganado después. Los campos de estado previo admiten nulo cuando no hay nada que restaurar (un hábito sin racha, un usuario sin mascota).
+Las monedas y la experiencia se guardan como lo que dio el completado, no como una instantánea: al deshacer se restan, para no borrar lo ganado después. Los campos de estado previo admiten nulo cuando no hay nada que restaurar (un usuario sin mascota).
+
+Las cuatro columnas de la racha (`racha_actual_previa`, `racha_maxima_previa`, `periodo_meta_alcanzada_previo`, `ultima_fecha_previa`) ya no se escriben: van a `null` y deshacer no las lee (T-039). Se quedan hasta la retirada de `Racha` para poder volver a un jar anterior.
 
 Cada logro desbloqueado por ese completado, incluidos los que dispara indirectamente la mascota, queda en una `ReversionLogro` que cuelga de la reversión, para poder retirarlo si el completado se deshace.
 
@@ -149,7 +150,7 @@ Es una racha heredada:
 - su rotura sigue siendo perezosa: `Racha.sigueViva` y `RachaService.rachaActualVigente` ponen `rachaActual` a cero cuando se lee una racha rota;
 - el aviso de racha en peligro (`NotificadorRachaEnPeligro`) existe, pero su programación está comentada: hoy no se envía.
 
-Al deshacer un completado, la racha vuelve a su estado previo a partir de la `ReversionRegistro`; como la racha ya no cambia, restaura los mismos valores.
+Al deshacer un completado no se toca la racha: ya no se guarda su estado previo en la `ReversionRegistro`.
 
 ### Ritmo
 
@@ -463,7 +464,7 @@ Esto es especialmente relevante para:
 - Un registro pertenece a un hábito.
 - Una clave del cliente identifica como mucho un registro (`clave_cliente` es único en `registro`).
 - Una clave de sesión identifica como mucho una sesión de enfoque (`clave` es único en `sesion_enfoque`). Las sesiones de un usuario no se solapan (lo comprueba el servicio al guardarlas).
-- La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado restaura su estado previo, que no ha cambiado.
+- La racha heredada ya no se escribe (apagada el 21-oct-2026); deshacer un completado tampoco la toca.
 - El ritmo de un hábito es una sola fila (`habito_ref` es único). Completar o deshacer no lo escribe: se calcula al leer desde su ancla.
 - Un hito se paga una sola vez por hábito: (`habito_ref`, `umbral`) es único en `hito_pagado`. Deshacer el completado que lo pagó borra la fila.
 - Un hábito tiene como mucho una versión de objetivo por día (`habito_ref`, `desde` es único en `habito_objetivo`) y como mucho una con `desde` futura.

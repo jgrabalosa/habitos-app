@@ -19,13 +19,11 @@ import com.norday.habitos.model.HistorialObjetivos;
 import com.norday.habitos.model.LimitesMinutos;
 import com.norday.habitos.model.Objetivo;
 import com.norday.habitos.model.OrigenRegistro;
-import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Unidad;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionLogro;
 import com.norday.habitos.model.ReversionRegistro;
 import com.norday.habitos.repository.IHitoPagadoDAO;
-import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,9 +44,6 @@ public class RegistroService {
 
     @Autowired
     private IRegistroDAO registroDAO;
-
-    @Autowired
-    private IRachaDAO rachaDAO;
 
     @Autowired
     private LogrosHabitosService logrosHabitosService;
@@ -221,17 +216,8 @@ public class RegistroService {
         // propósito: si guardásemos la entidad, Hibernate la modificaría más
         // abajo y aquí leeríamos ya los valores nuevos.
         int saldoAntes = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId());
-        Racha rachaPrevia = rachaDAO.findByHabito(habito);
-        // La racha ya no se actualiza al completar (apagada el 21-oct-2026,
-        // C3 del roadmap); solo se conserva su estado para que deshacer lo
-        // restaure. La rotura perezosa se materializa aquí, antes de la
-        // instantánea: la regla vive en Racha.sigueViva y la materializa
-        // RachaService.rachaActualVigente.
-        rachaService.rachaActualVigente(rachaPrevia);
-        Integer rachaActualPrevia = rachaPrevia != null ? rachaPrevia.getRachaActual() : null;
-        Integer rachaMaximaPrevia = rachaPrevia != null ? rachaPrevia.getRachaMaxima() : null;
-        LocalDate periodoMetaAlcanzadaPrevio = rachaPrevia != null ? rachaPrevia.getPeriodoMetaAlcanzada() : null;
-        LocalDate ultimaFechaPrevia = rachaPrevia != null ? rachaPrevia.getUltimaFecha() : null;
+        // La racha no se guarda: no se actualiza al completar (apagada el
+        // 21-oct-2026, C3), así que restaurarla al deshacer dejaría lo mismo.
         Mascota mascotaPrevia = mascotaService.obtenerOCrear(usuario.getUsuarioId());
         LocalDate mascotaDiaCompletoPrevio = mascotaPrevia.getFechaUltimoDiaCompleto();
         Set<Integer> logrosPrevios = idsLogros(usuario);
@@ -372,8 +358,8 @@ public class RegistroService {
         // lo bloquea también antes de escribir: nada se cuela en medio. La
         // lista está en docs/Logicas/03, «Bloqueos».
         int monedasOtorgadas = usuarioMonedaService.consultarSaldo(usuario.getUsuarioId()) - saldoAntes;
-        ReversionRegistro reversion = new ReversionRegistro(registro, rachaActualPrevia, rachaMaximaPrevia,
-                periodoMetaAlcanzadaPrevio, ultimaFechaPrevia, xpOtorgada,
+        ReversionRegistro reversion = new ReversionRegistro(registro, null, null,
+                null, null, xpOtorgada,
                 mascotaDiaCompletoPrevio, monedasOtorgadas);
         for (String codigo : logros) {
             Logro logro = logroDAO.findByCodigo(codigo);
@@ -680,15 +666,6 @@ public class RegistroService {
         if (monedasOtorgadas != 0) {
             usuarioMonedaService.registrarMovimiento(usuario, -monedasOtorgadas, "DESHACER_HABITO",
                     habito.getHabitoId(), "Deshecho: " + habito.getNombre());
-        }
-
-        if (reversion.getRachaActualPrevia() != null) {
-            Racha racha = rachaDAO.findByHabito(habito);
-            racha.setRachaActual(reversion.getRachaActualPrevia());
-            racha.setRachaMaxima(reversion.getRachaMaximaPrevia());
-            racha.setPeriodoMetaAlcanzada(reversion.getPeriodoMetaAlcanzadaPrevio());
-            racha.setUltimaFecha(reversion.getUltimaFechaPrevia());
-            rachaDAO.update(racha);
         }
 
         // La XP se compensa con lo que dio este completado, igual que las

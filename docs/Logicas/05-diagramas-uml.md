@@ -518,9 +518,8 @@ flowchart TD
     Reversion --> Respuesta[201 con puntos, xp, logros, minutosDia, minutosObjetivo, diaHecho]
 ```
 
-- **La racha no se toca**: se materializa su rotura perezosa
-  (`RachaService.rachaActualVigente`) solo para guardar su estado previo en
-  la reversión.
+- **La racha no se toca ni se guarda**: la reversión lleva sus cuatro campos
+  a `null`.
 - **El ritmo no se escribe**: `RitmoService` lo calcula al leer (Hoy,
   detalle) desde los registros.
 - **El libro de hitos** decide qué hitos se pagan: los umbrales cruzados en
@@ -581,7 +580,6 @@ flowchart TD
     Reversion --> Logros[Retirar los logros de ReversionLogro]
     Reversion --> Monedas[Movimiento de signo contrario en UsuarioMoneda]
     Reversion --> XP[Restar la XP que dio el paso]
-    Reversion --> Racha[Restaurar el estado previo de la racha]
     Reversion --> Mascota[Restaurar el día completo previo de la mascota]
     Reversion --> Hito[Borrar las filas de hito_pagado de ese registro]
     Hito --> Borrar[Borrar la reversión y el registro]

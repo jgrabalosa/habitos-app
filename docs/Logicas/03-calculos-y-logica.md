@@ -94,7 +94,7 @@ La racha ya no es la medida que se muestra al usuario: la sustituye el ritmo. Lo
 - **Rotura perezosa**: no hay ningún proceso que ponga rachas a cero. Una racha está viva si la meta se alcanzó en el periodo actual o en el anterior. Cuando se lee una racha muerta, `RachaService.rachaActualVigente` pone `rachaActual` a cero, lo guarda y devuelve cero. `rachaMaxima` no cambia al romperse. Con la racha congelada, es lo único que ya la modifica.
 - **Qué no hace**: no da puntos, no cuenta para ningún logro y no genera ningún hito. Los logros de constancia van por días hechos (ver «Catálogo de logros»).
 - **Qué sigue enviando el backend**: `rachaActual` y `rachaMaxima` en el detalle del hábito, porque la aplicación ya instalada las lee. Como ya no se actualiza, `rachaActual` acaba en cero y `rachaMaxima` no cambia.
-- **Reversión**: deshacer un completado restaura el estado previo de la racha, que no ha cambiado (ver «Reversión de un completado»).
+- **Reversión**: deshacer un completado no toca la racha: ya no se guarda su estado previo (ver «Reversión de un completado»).
 
 ---
 
@@ -139,7 +139,7 @@ La experiencia va a la mascota en el mismo paso. Si un paso no da XP (el primero
 Cada hábito guarda las versiones de su objetivo en la tabla `habito_objetivo`: unidad (`VECES` o `MINUTOS`), frecuencia, meta, minutos por día, días fijos y desde qué día vale cada una.
 
 - **Versión vigente** en una fecha: la de mayor `desde` que no la pasa. Una fecha anterior a la primera versión se juzga con la primera; un hábito sin versiones, con el objetivo que guarda `habito`.
-- **Qué se juzga con ella**: los días hechos (hitos y logros de constancia), el completado (la meta del periodo, el límite de un registro por día del semanal, el tope del diario, los puntos del paso, si es una vuelta y cuándo sale la valoración), Hoy (cada fila en la fecha que se mira y cada día de la tira), el día completo, el ánimo de la mascota, los recordatorios y la semana de la app ya instalada (`/semana`). En un completado retroactivo de esta semana, la meta es la de su fecha.
+- **Qué se juzga con ella**: los días hechos (hitos y logros de constancia), el completado (la meta del periodo, el límite de un registro por día del semanal, el tope del diario, los puntos del paso, si es una vuelta y cuándo sale la valoración), Hoy (cada fila en la fecha que se mira y cada día de la tira), el día completo, el ánimo de la mascota, y los recordatorios. En un completado retroactivo de esta semana, la meta es la de su fecha.
 - **La copia en `habito`**: `unidad`, `frecuencia`, `meta`, `minutos_objetivo` y `dias_semana` son el objetivo vigente hoy, para las lecturas rápidas y para la app ya instalada. Cuando llega la fecha de un cambio programado, la copia se pone al día al leer (Hoy, el detalle, las listas, el hábito suelto, el completado, pausar y reanudar), igual que la racha: no hay proceso nocturno. Ponerla al día escribe solo esas cinco columnas (un `UPDATE` de ellas, `IHabitoDAO.actualizarObjetivo`), y solo si en la base de datos siguen siendo las que se leyeron; después relee el hábito. Las lecturas no bloquean y pueden traer una copia vieja del hábito: guardarlo entero devolvía activo un hábito pausado entretanto y le ponía el nombre de antes, y escribir sin condición deshacía un cambio de objetivo que un `PUT` había confirmado entretanto. Si no escribe, tampoco ancla el ritmo. El ritmo sigue leyendo la copia (ver «Cambio de frecuencia u objetivo»).
 - **Al crear** un hábito se guarda su primera versión, desde la fecha de inicio. V22 dio una a cada hábito existente, con su objetivo de entonces.
 
@@ -164,7 +164,7 @@ Un cambio nunca reinterpreta un periodo en el que ya hay registros. «Con regist
 - La regla está en `CalculoObjetivo`. Dos objetivos se comparan normalizados (`Objetivo.equals`): los días fijos solo cuentan en un semanal y como conjunto (`"4,2"` es `"2,4"`), los minutos solo en un hábito de minutos y, en un diario de minutos, la meta es siempre 1. Así editar solo el nombre de un hábito con datos heredados escritos de otra forma no crea una versión.
 - **Dos cambios a la vez**: si dos `PUT` del mismo hábito crean a la vez una versión con la misma fecha, el segundo no la escribe (`INSERT … ON CONFLICT DO NOTHING`) y responde con un conflicto (409), en vez de un error interno.
 - **Anular el cambio programado**: `DELETE /api/habitos/{id}/objetivo-programado` (solo el dueño) borra las versiones con `desde` posterior a hoy y responde 200 `{mensaje}`, haya o no cambio programado. La copia en `habito` no se toca, ni el ritmo: un cambio programado no ancla el ritmo hasta que se aplica.
-- **La semana de la app ya instalada** (`/semana`): lo que es de toda la semana se juzga con el objetivo de su último día ya llegado; en una semana futura, con el de su lunes.
+- **Lo que es de toda la semana** (la sección «de la semana» de `/hoy`): se juzga con el objetivo de su último día ya llegado; en una semana futura, con el de su lunes. (`/semana` y `/dashboard` se retiraron en T-039.)
 
 El `PUT /api/habitos/{id}` responde `{mensaje, aplicaDesde}`: hoy, el lunes de esta semana (un cambio semanal ya en vigor), o la fecha futura del cambio programado. El detalle (`GET /api/habitos/{id}/detalle`) trae `objetivoProgramado` (`desde`, `unidad`, `frecuencia`, `meta`, `minutosObjetivo`, `diasSemana`), o null si no hay ninguno.
 
@@ -217,7 +217,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - **Vuelta** (`RACHA_RECUPERADA`): en un hábito de minutos llega con el paso que completa el día, mirando los días hechos anteriores; un paso a medias todavía no es volver.
 - **Día completo y ánimo de la mascota**: un diario de minutos está hecho cuando llega a sus minutos. Un paso a medias cuenta como «empezado», no como «completo».
 - **Hoy** (`FilaHoyDTO`): añade `unidad`, `minutosHechos` (los del día que se mira) y `minutosObjetivo` (los de ese día); los dos últimos, null en veces. `completados` y `meta` conservan su significado para la app ya instalada: en un hábito de minutos cuentan días (0 o 1 en un diario; días hechos de la semana en un semanal), y `hecho`, `completadoEnFecha` y `fechasCompletadas` miran los días hechos. La tira da crédito parcial a los diarios de minutos.
-- **`/dashboard`, `/semana` y `/resumen`**: en minutos cuentan días hechos. `GET /api/registros/habito/{id}/hoy` también, y añade `minutosHoy` y `minutosObjetivo` (null en veces).
+- **`/hoy` y `/resumen`**: en minutos cuentan días hechos. `GET /api/registros/habito/{id}/hoy` también, y añade `minutosHoy` y `minutosObjetivo` (null en veces).
 - **Detalle**: añade `unidad`, `minutosObjetivo` y `totalMinutos` (la suma de los minutos de todos sus registros de minutos, también los de más). En un hábito de veces, `minutosObjetivo` y `totalMinutos` son null. En el mapa de calor cada celda se juzga con la versión vigente ese día: la de un día de minutos está completada si el día llegó a los minutos objetivo de ese día y lleva sus `minutos` y su `minutosObjetivo`; la de un día de veces (por ejemplo, anterior al paso a minutos) se marca como siempre, con `minutos` y `minutosObjetivo` a null; `totalCompletados` y `completadosMesActual` cuentan días hechos en los días de minutos. Los últimos registros llevan `cantidad` y `origen`.
 - `HabitoDTO` (listas, resumen, `GET /api/habitos/{id}`) añade `unidad` y `minutosObjetivo`. `GET /api/registros/habito/{id}` devuelve en cada registro `cantidad` y `origen` (nunca la clave del cliente), además de `creadoEn`, el instante en que se marcó: en UTC y sin zona (`2026-11-15T09:30:00`), a diferencia de `fecha`, que es el día al que corresponde.
 
@@ -229,7 +229,7 @@ Un día vale 25 puntos y 5 XP (`ParametrosPremio`), igual que en veces. El premi
 - De minutos exige `minutosObjetivo` de 1 a 600 (si no, 400). En un diario, la meta pasa a 1; en un semanal, la meta son los días por semana (o el número de días fijos, como siempre).
 - Cambiar los minutos por día o pasar de veces a minutos se aplica por días (ver la tabla de «Regla de cambios»); de minutos a veces responde 409 con un texto del bundle.
 
-**Icono.** Ambos aceptan `icono`, opcional: el código del icono que dibuja la app (el catálogo vive en la app; el backend solo guarda el código). Nulo, o de 1 a 40 caracteres de `[a-zA-Z0-9]`; si no, 400 con `{"mensaje": ...}` como el resto de rechazos. En el `POST`, se guarda lo que llega, nulo incluido. En el `PUT`, nulo o ausente conserva el que tenía (la app ya instalada no lo manda). No es del objetivo: cambiarlo no crea versión en `habito_objetivo`. `HabitoDTO` (y por tanto `/hoy`, `/dashboard`, `/semana`, `/resumen`) y el detalle (`/{id}/detalle`) devuelven `icono`, nulo si no tiene.
+**Icono.** Ambos aceptan `icono`, opcional: el código del icono que dibuja la app (el catálogo vive en la app; el backend solo guarda el código). Nulo, o de 1 a 40 caracteres de `[a-zA-Z0-9]`; si no, 400 con `{"mensaje": ...}` como el resto de rechazos. En el `POST`, se guarda lo que llega, nulo incluido. En el `PUT`, nulo o ausente conserva el que tenía (la app ya instalada no lo manda). No es del objetivo: cambiarlo no crea versión en `habito_objetivo`. `HabitoDTO` (y por tanto `/hoy` y `/resumen`) y el detalle (`/{id}/detalle`) devuelven `icono`, nulo si no tiene.
 
 ## La semana pasada
 
@@ -384,7 +384,9 @@ Pausar y reanudar bloquean al usuario y al hábito, como completar, y deciden co
 
 ## Reversión de un completado
 
-Cada completado guarda una `ReversionRegistro` con lo necesario para deshacerlo: las monedas que dio, la XP que dio a la mascota, el estado previo de la racha (`rachaActual`, `rachaMaxima`, periodo de meta alcanzada y última fecha), el estado previo del día completo de la mascota, y cada logro que desbloqueó (`ReversionLogro`), incluidos los que dispara la mascota.
+Cada completado guarda una `ReversionRegistro` con lo necesario para deshacerlo: las monedas que dio, la XP que dio a la mascota, el estado previo del día completo de la mascota, y cada logro que desbloqueó (`ReversionLogro`), incluidos los que dispara la mascota.
+
+La racha no se guarda ni se restaura (T-039): no cambia al completar desde el 21-oct-2026, así que restaurarla dejaba lo mismo. Las cuatro columnas de la racha de `reversion_registro` siguen existiendo, a `null`, hasta la retirada de `Racha` (ver `docs/funcionamiento/deshacer-completado.md`).
 
 Deshacer (`RegistroService.deshacerRegistro`):
 
@@ -393,7 +395,6 @@ Deshacer (`RegistroService.deshacerRegistro`):
 - si el completado no tiene reversión guardada (es anterior a ese mecanismo), responde con un conflicto;
 - retira los logros de la reversión, para que puedan volver a concederse;
 - devuelve las monedas con un movimiento `DESHACER_HABITO` de signo contrario. El libro no se borra, y el saldo puede quedar en negativo;
-- restaura la racha a su estado previo, si la reversión tenía uno;
 - resta la XP que dio ese completado a la mascota;
 - borra la reversión y el registro;
 - restaura el día completo de la mascota solo si el registro era de hoy y el día deja de estar completo.

@@ -132,8 +132,8 @@ hay con qué comparar.
 El procedimiento: capturar las respuestas de los endpoints afectados, hacer
 el despliegue, capturarlas otra vez y comparar con `diff -r`. Normalizar las
 dos con el mismo `json.dump(..., sort_keys=True, ensure_ascii=False)`.
-`/semana` se pide con un `desde` fijo; `/dashboard` depende de "hoy", así que
-el antes y el después tienen que ser el mismo día.
+Lo que depende de "hoy" obliga a que el antes y el después sean el mismo
+día. `/dashboard` y `/semana` se retiraron en T-039 y ya no se piden.
 
 Hace falta un token, y se firma con el `jwt.secret` que viaja dentro del jar
 del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
@@ -153,9 +153,8 @@ del servicio, en `BOOT-INF/classes/application.properties`. Se extrae con
 **`scripts/linea_base.py`** lo hace todo (20-nov-2026), sin dejar el secreto
 en disco: lo lee del `config/` del servicio o del jar en memoria y firma con
 el algoritmo que toca por el tamaño de la clave (comprobado contra jjwt).
-Pide, para un usuario, el resumen, el dashboard, la semana (desde el lunes
-16-nov-2026), tres hábitos con su detalle y sus registros, la mascota, el
-inventario y el catálogo, y los guarda en `/root/linea-base/<fase>/`. Como
+Pide, para un usuario, el resumen, tres hábitos con su detalle y sus
+registros, la mascota, el inventario y el catálogo, y los guarda en `/root/linea-base/<fase>/`. Como
 `root`, desde la carpeta del servicio:
 
 ```bash
@@ -312,9 +311,9 @@ cuenta:
 
 1. Hecho: `wip-enfoque` está en `main` desde el 17-nov-2026 (PR #8).
 2. **Línea base de contrato antes de desplegar** (ver «Línea base de
-   contrato»): al menos `/api/habitos/usuario/{id}/resumen`, `/dashboard` y
-   `/semana` (con un `desde` fijo), `/api/habitos/{id}`,
-   `/api/habitos/{id}/detalle` y `/api/registros/habito/{id}`.
+   contrato»): al menos `/api/habitos/usuario/{id}/resumen`,
+   `/api/habitos/{id}`, `/api/habitos/{id}/detalle` y
+   `/api/registros/habito/{id}`.
 3. El procedimiento de producción (arriba): backup, `git pull`, parar,
    `mvn clean package`, arrancar.
 4. Comprobar el arranque y Flyway: de la 20 a la 30, las diez con
