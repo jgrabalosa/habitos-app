@@ -263,6 +263,21 @@ class HoyServiceTest {
     }
 
     @Test
+    void elHoyDependeDeLaZonaDelUsuario() {
+        when(habitoDAO.findActivos(usuario)).thenReturn(List.of());
+
+        // Estas dos zonas están siempre a 25 horas de diferencia entre sí,
+        // así que su fecha local nunca coincide, a ninguna hora del día.
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(java.time.ZoneId.of("Pacific/Kiritimati"));
+        HoyDTO enKiritimati = hoyService.obtenerHoy(usuario, null);
+
+        when(zonaUsuarioService.zonaDe(usuario)).thenReturn(java.time.ZoneId.of("Pacific/Niue"));
+        HoyDTO enNiue = hoyService.obtenerHoy(usuario, null);
+
+        assertNotEquals(enKiritimati.hoy(), enNiue.hoy());
+    }
+
+    @Test
     void losRegistrosSinCompletarNoCuentan() {
         List<Habito> soloLeer = List.of(leer);
         Map<Integer, RitmoLeido> ritmos = Map.of(2, leido(0.5));

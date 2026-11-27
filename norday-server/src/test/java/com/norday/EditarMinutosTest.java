@@ -10,10 +10,10 @@ import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.Ritmo;
 import com.norday.habitos.model.Unidad;
-import com.norday.habitos.model.dto.HabitoFlexibleDTO;
-import com.norday.habitos.model.dto.SemanaDashboardDTO;
+import com.norday.habitos.model.dto.HoyDTO;
 import com.norday.habitos.repository.IHabitoObjetivoDAO;
 import com.norday.habitos.service.HabitoService;
+import com.norday.habitos.service.HoyService;
 import com.norday.habitos.service.RachaService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -46,8 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Crear y editar hábitos de minutos de punta a punta, la regla de cambios
- * con unidad y minutos, anular un cambio programado, dos PUT a la vez y la
- * semana de la app ya instalada mirando una semana futura.
+ * con unidad y minutos, anular un cambio programado, dos PUT a la vez, Hoy
+ * mirando una semana futura y que /dashboard y /semana ya no existen.
  *
  * "Hoy" es el viernes 9-oct-2026, fijado en RachaService.hoyDe, que es por
  * donde leen el reloj HabitoService.actualizar y la anulación. Las versiones
@@ -68,6 +68,7 @@ class EditarMinutosTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtUtil jwtUtil;
     @Autowired private HabitoService habitoService;
+    @Autowired private HoyService hoyService;
     @Autowired private IHabitoObjetivoDAO objetivoDAO;
 
     @MockitoSpyBean
@@ -374,7 +375,22 @@ class EditarMinutosTest {
                 versiones(leer));
     }
 
-    // ── /semana de una semana futura ─────────────────────────────
+    // ── /dashboard y /semana, retirados ──────────────────────────
+
+    @Test
+    void dashboardYSemana_estanRetirados_yNoDevuelvenDatos() throws Exception {
+        habito(new Objetivo(Frecuencia.DIARIO, 1, null));
+        em.flush();
+        for (String ruta : List.of("dashboard", "semana")) {
+            var respuesta = mockMvc.perform(get("/api/habitos/usuario/" + usuario.getUsuarioId() + "/" + ruta)
+                            .header("Authorization", "Bearer " + token))
+                    .andReturn().getResponse();
+            assertNotEquals(200, respuesta.getStatus(), ruta);
+            assertFalse(respuesta.getContentAsString().contains("Leer"), ruta);
+        }
+    }
+
+    // ── /hoy mirando una semana futura ───────────────────────────
 
     @Test
     void semanaFutura_seJuzgaConElObjetivoDeSuLunes() {
@@ -386,11 +402,10 @@ class EditarMinutosTest {
         em.flush();
         em.clear();
 
-        SemanaDashboardDTO semana = habitoService.obtenerSemana(
+        HoyDTO hoy = hoyService.obtenerHoy(
                 em.find(Usuario.class, usuario.getUsuarioId()), lunesQueViene);
-        List<HabitoFlexibleDTO> flexibles = semana.getFlexibles();
-        assertEquals(1, flexibles.size(), "la semana que viene ya es semanal flexible");
-        assertEquals(2, flexibles.get(0).getMeta());
-        assertTrue(semana.getDias().stream().allMatch(d -> d.getHabitos().isEmpty()));
+        assertEquals(1, hoy.deLaSemana().habitos().size(), "la semana que viene ya es semanal flexible");
+        assertEquals(2, hoy.deLaSemana().habitos().get(0).meta());
+        assertTrue(hoy.delDia().habitos().isEmpty());
     }
 }

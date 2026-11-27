@@ -19,7 +19,6 @@ BASE = os.environ.get("LB_BASE", "/opt/norday-backend")
 API = os.environ.get("LB_API", "https://api.norday.app/api")
 BD = os.environ.get("LB_BD", "habitos_db")
 SALIDA = os.environ.get("LB_SALIDA", "/root/linea-base")
-DESDE = "2026-11-16"  # lunes fijo para /semana
 
 
 def leer_secreto():
@@ -88,8 +87,6 @@ def capturar(fase, usuario_id):
     u = int(usuario_id)
     rutas = {
         "resumen": f"/habitos/usuario/{u}/resumen",
-        "dashboard": f"/habitos/usuario/{u}/dashboard",
-        "semana": f"/habitos/usuario/{u}/semana?desde={DESDE}",
         "mascota": f"/mascota/{u}",
         "inventario": f"/gamificacion/productos/usuario/{u}",
         "catalogo": "/gamificacion/productos/catalogo",

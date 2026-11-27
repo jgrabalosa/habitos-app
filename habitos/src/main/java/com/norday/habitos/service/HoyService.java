@@ -42,9 +42,6 @@ import java.util.OptionalDouble;
  *
  * Cada día se juzga con el objetivo que el hábito tenía ese día: la fecha
  * mirada y cada día de la tira pueden caer antes de un cambio de objetivo.
- *
- * No sustituye a HabitoService.obtenerDashboard ni a obtenerSemana: esos dos
- * los sigue usando la app ya instalada, con sus reglas de siempre.
  */
 @Service
 public class HoyService {

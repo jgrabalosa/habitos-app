@@ -10,12 +10,10 @@ import com.norday.gamificacion.service.MascotaService;
 import com.norday.gamificacion.service.UsuarioMonedaService;
 import com.norday.habitos.model.Frecuencia;
 import com.norday.habitos.model.Habito;
-import com.norday.habitos.model.Racha;
 import com.norday.habitos.model.Registro;
 import com.norday.habitos.model.ReversionRegistro;
 import com.norday.gamificacion.repository.ILogroDAO;
 import com.norday.habitos.repository.IHitoPagadoDAO;
-import com.norday.habitos.repository.IRachaDAO;
 import com.norday.habitos.repository.IRegistroDAO;
 import com.norday.habitos.repository.IReversionRegistroDAO;
 import com.norday.habitos.service.HabitoService;
@@ -52,9 +50,6 @@ class RegistroServiceTest {
     private IRegistroDAO registroDAO;
 
     @Mock
-    private IRachaDAO rachaDAO;
-
-    @Mock
     private LogrosHabitosService logrosHabitosService;
 
     @Mock
@@ -89,7 +84,6 @@ class RegistroServiceTest {
 
     private Usuario usuario;
     private Habito habito;
-    private Racha racha;
 
     @BeforeEach
     void setUp() {
@@ -103,8 +97,6 @@ class RegistroServiceTest {
         habito.setFrecuencia(Frecuencia.DIARIO);
         habito.setMeta(1);
         habito.setPropietario(usuario);
-
-        racha = new Racha(habito, HOY);
 
         lenient().when(rachaService.zonaDe(any(Habito.class))).thenReturn(ZONA);
         lenient().when(rachaService.hoyDe(any(Habito.class))).thenReturn(HOY);
@@ -120,11 +112,10 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarHabitoDiarioMeta1_laRachaNoSeToca() {
-        // Arrange: no hay registros previos hoy, la racha existe y empieza en 0
+    void alCompletarHabitoDiarioMeta1_seGuardaElRegistro() {
+        // Arrange: no hay registros previos hoy
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -133,14 +124,11 @@ class RegistroServiceTest {
         // Act
         registroService.completarHabito(habito, "");
 
-        // Assert: aunque se alcance la meta, la racha ya no se actualiza
-        assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.metaAlcanzadaEnPeriodoActual(ZONA));
-        verify(rachaDAO, never()).update(any());
+        verify(registroDAO).save(any(Registro.class));
     }
 
     @Test
-    void alCompletarUnaFechaPasada_seGuardaLaFechaYLaRachaNoSeToca() {
+    void alCompletarUnaFechaPasada_seGuardaLaFecha() {
         // Día fijo a propósito: con el límite de la semana en curso, un
         // miércoles siempre tiene un martes válido detrás. Contra el reloj
         // real este test sería imposible los lunes.
@@ -152,7 +140,6 @@ class RegistroServiceTest {
                 .thenReturn(new ArrayList<>());
         when(registroDAO.findByHabito(habito))
                 .thenReturn(List.of(new Registro(habito, true, "", martes)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -163,9 +150,6 @@ class RegistroServiceTest {
         ArgumentCaptor<Registro> capturado = ArgumentCaptor.forClass(Registro.class);
         verify(registroDAO).save(capturado.capture());
         assertEquals(martes, capturado.getValue().getFecha());
-        assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.metaAlcanzadaEnPeriodoActual(ZONA));
-        verify(rachaDAO, never()).update(any());
     }
 
     @Test
@@ -206,7 +190,7 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarHabitoSemanalHastaLaMeta_laRachaNoSeToca() {
+    void alCompletarHabitoSemanalHastaLaMeta_seGuardaElRegistro() {
         habito.setFrecuencia(Frecuencia.SEMANAL);
         habito.setMeta(3);
         List<Registro> registrosPrevios = List.of(
@@ -216,7 +200,6 @@ class RegistroServiceTest {
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -224,9 +207,7 @@ class RegistroServiceTest {
 
         registroService.completarHabito(habito, "");
 
-        assertEquals(0, racha.getRachaActual());
-        assertFalse(racha.metaAlcanzadaEnPeriodoActual(ZONA));
-        verify(rachaDAO, never()).update(any());
+        verify(registroDAO).save(any(Registro.class));
     }
 
     @Test
@@ -254,7 +235,6 @@ class RegistroServiceTest {
 
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(registrosPrevios);
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -268,23 +248,9 @@ class RegistroServiceTest {
     }
 
     @Test
-    void alCompletarHoyConLaRachaMuerta_laInstantaneaGuardaCero() {
-        // Racha de 6 abandonada hace dos semanas: la instantánea guarda 0,
-        // no 6, y la racha ya no se actualiza al completar.
-        racha.setRachaActual(6);
-        racha.setUltimaFecha(HOY.minusDays(14));
-        racha.setPeriodoMetaAlcanzada(HOY.minusDays(14));
-
-        // rachaActualVigente es quien materializa la rotura. Aquí se emula
-        // su contrato, que está probado de verdad en RachaServiceTest.
-        doAnswer(invocacion -> {
-            racha.setRachaActual(0);
-            return 0;
-        }).when(rachaService).rachaActualVigente(racha);
-
+    void alCompletar_laInstantaneaNoGuardaLaRacha() {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -292,12 +258,13 @@ class RegistroServiceTest {
 
         registroService.completarHabito(habito, "");
 
-        assertEquals(0, racha.getRachaActual());
-
         ArgumentCaptor<ReversionRegistro> captor =
                 ArgumentCaptor.forClass(ReversionRegistro.class);
         verify(reversionRegistroDAO).save(captor.capture());
-        assertEquals(0, captor.getValue().getRachaActualPrevia());
+        assertNull(captor.getValue().getRachaActualPrevia());
+        assertNull(captor.getValue().getRachaMaximaPrevia());
+        assertNull(captor.getValue().getPeriodoMetaAlcanzadaPrevio());
+        assertNull(captor.getValue().getUltimaFechaPrevia());
     }
 
     @Test
@@ -323,7 +290,6 @@ class RegistroServiceTest {
     void alAlcanzarLaMeta_laInstantaneaGuardaLaXpQueSeDio() {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -345,7 +311,6 @@ class RegistroServiceTest {
         habito.setMeta(3);
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(List.of(new Registro(habito, true, "", HOY)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
@@ -442,7 +407,6 @@ class RegistroServiceTest {
                 .thenReturn(List.of(
                         new Registro(habito, true, "", HOY),
                         new Registro(habito, true, "", HOY)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -466,7 +430,6 @@ class RegistroServiceTest {
         habito.setMeta(6);
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
@@ -496,7 +459,6 @@ class RegistroServiceTest {
                         new Registro(habito, true, "", HOY),
                         new Registro(habito, true, "", HOY),
                         new Registro(habito, true, "", HOY)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -530,7 +492,6 @@ class RegistroServiceTest {
                 .thenReturn(List.of(
                         new Registro(habito, true, "", HOY),
                         new Registro(habito, true, "", HOY)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
 
@@ -551,7 +512,6 @@ class RegistroServiceTest {
         habito.setMeta(3);
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(List.of(new Registro(habito, true, "", HOY)));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -574,7 +534,6 @@ class RegistroServiceTest {
                 new Registro(habito, true, "", HOY.minusDays(5))));
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -598,7 +557,6 @@ class RegistroServiceTest {
         when(registroDAO.findByHabito(habito)).thenReturn(ochoDias);
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -628,7 +586,6 @@ class RegistroServiceTest {
                 elDeHoy));
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(List.of(elDeHoy));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -654,7 +611,6 @@ class RegistroServiceTest {
                 new Registro(habito, true, "", HOY.minusDays(7))));
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -689,7 +645,6 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(List.of(elDeHoy));
         when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of(3));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -712,7 +667,6 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
         when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -741,7 +695,6 @@ class RegistroServiceTest {
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
         when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of(3, 7));
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -767,7 +720,6 @@ class RegistroServiceTest {
                 .thenReturn(new ArrayList<>());
         when(hitoPagadoDAO.findUmbralesByHabito(habito)).thenReturn(List.of());
         when(hitoPagadoDAO.apuntar(eq(habito), eq(3), any(Registro.class))).thenReturn(false);
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
@@ -813,7 +765,6 @@ class RegistroServiceTest {
                 new Registro(habito, true, "", HOY.minusDays(4))));
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(logrosHabitosService.evaluarTrasVolver(usuario))
@@ -841,7 +792,6 @@ class RegistroServiceTest {
                 new Registro(habito, true, "", HOY.minusDays(2))));
         when(registroDAO.findByHabitoAndRango(eq(habito), any(), any()))
                 .thenReturn(new ArrayList<>());
-        when(rachaDAO.findByHabito(habito)).thenReturn(racha);
         when(logrosHabitosService.evaluarTrasCompletarRegistro(usuario, habito))
                 .thenReturn(new ArrayList<>());
         when(mascotaService.ganarExperiencia(anyInt(), anyInt()))
