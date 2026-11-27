@@ -28,6 +28,10 @@ public class Mascota {
     @Column(name = "fecha_ultima_comida")
     private LocalDate fechaUltimaComida;
 
+    /** Las comidas del día de {@code fechaUltimaComida}; de otro día, ya no cuentan. */
+    @Column(name = "comidas_dia", nullable = false)
+    private int comidasDia;
+
     /**
      * Último día en que el usuario cumplió todo lo que tenía comprometido.
      * Null mientras no haya habido ninguno. De aquí sale el estado de ánimo.
@@ -58,6 +62,7 @@ public class Mascota {
         // (`mascota_screen._nombreVisible`) por si el nombre llegara vacío.
         this.nombre = "Nori";
         this.fechaUltimaComida = null;
+        this.comidasDia = 0;
         this.fechaUltimoDiaCompleto = null;
         this.faseElegida = null;
     }
@@ -76,6 +81,9 @@ public class Mascota {
 
     public LocalDate getFechaUltimaComida() { return fechaUltimaComida; }
     public void setFechaUltimaComida(LocalDate fechaUltimaComida) { this.fechaUltimaComida = fechaUltimaComida; }
+
+    public int getComidasDia() { return comidasDia; }
+    public void setComidasDia(int comidasDia) { this.comidasDia = comidasDia; }
 
     public LocalDate getFechaUltimoDiaCompleto() { return fechaUltimoDiaCompleto; }
     public void setFechaUltimoDiaCompleto(LocalDate fechaUltimoDiaCompleto) { this.fechaUltimoDiaCompleto = fechaUltimoDiaCompleto; }

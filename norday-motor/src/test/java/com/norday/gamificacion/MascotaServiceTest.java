@@ -239,6 +239,62 @@ class MascotaServiceTest {
         verify(mascotaDAO).update(mascota);
     }
 
+    // ── Comidas del día ──────────────────────────────────────────────────
+
+    @Test
+    void laPrimeraComidaDelDiaPoneUno() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setFechaUltimaComida(LocalDate.now(ZONA).minusDays(1));
+        mascota.setComidasDia(3);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        mascotaService.registrarComida(1);
+
+        assertEquals(1, mascota.getComidasDia());
+        assertEquals(LocalDate.now(ZONA), mascota.getFechaUltimaComida());
+        verify(mascotaDAO).update(mascota);
+    }
+
+    @Test
+    void lasSiguientesComidasDelMismoDiaSuman() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setFechaUltimaComida(LocalDate.now(ZONA));
+        mascota.setComidasDia(1);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        mascotaService.registrarComida(1);
+
+        assertEquals(2, mascota.getComidasDia());
+    }
+
+    @Test
+    void comidasDeHoy_sinComerONaDeOtroDia_esCero_yDeHoy_laCuenta() {
+        Mascota mascota = new Mascota(usuario);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+        assertEquals(0, mascotaService.comidasDeHoy(1));
+
+        mascota.setFechaUltimaComida(LocalDate.now(ZONA).minusDays(1));
+        mascota.setComidasDia(3);
+        assertEquals(0, mascotaService.comidasDeHoy(1));
+
+        mascota.setFechaUltimaComida(LocalDate.now(ZONA));
+        assertEquals(3, mascotaService.comidasDeHoy(1));
+    }
+
+    @Test
+    void elDtoLlevaLasComidasDeHoyYElMaximo() {
+        Mascota mascota = new Mascota(usuario);
+        mascota.setFechaUltimaComida(LocalDate.now(ZONA));
+        mascota.setComidasDia(2);
+        when(mascotaDAO.findByUsuarioId(1)).thenReturn(mascota);
+
+        MascotaDTO dto = mascotaService.obtenerDTO(1);
+
+        assertEquals(2, dto.getComidasHoy());
+        assertEquals(MascotaService.COMIDAS_POR_DIA, dto.getComidasMaxDia());
+        assertEquals(3, dto.getComidasMaxDia());
+    }
+
     // ── Deshacer ─────────────────────────────────────────────────────────
 
     @Test

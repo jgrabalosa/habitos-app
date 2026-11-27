@@ -94,6 +94,7 @@ public class ExportadorGamificacion implements ExportadorDatosUsuario {
         mapa.put("nombre", mascota.getNombre());
         mapa.put("experiencia", mascota.getExperiencia());
         mapa.put("fechaUltimaComida", ExportacionDatosService.texto(mascota.getFechaUltimaComida()));
+        mapa.put("comidasDia", mascota.getComidasDia());
         mapa.put("fechaUltimoDiaCompleto", ExportacionDatosService.texto(mascota.getFechaUltimoDiaCompleto()));
         return mapa;
     }

@@ -419,6 +419,12 @@ public class ProductoService {
             throw new RuntimeException("No te quedan unidades de este producto");
         }
 
+        // El tope diario, con el usuario ya bloqueado y antes de gastar nada:
+        // la cuarta ni resta la unidad ni da XP.
+        if (mascotaService.comidasDeHoy(usuario.getUsuarioId()) >= MascotaService.COMIDAS_POR_DIA) {
+            throw new ConflictoException("La mascota ya ha comido todo lo de hoy");
+        }
+
         poseido.setCantidad(poseido.getCantidad() - 1);
         usuarioProductoDAO.update(poseido);
 

@@ -192,7 +192,9 @@ public class MascotaService {
                         zonaDeMascota(mascota)),
                 calcularAnimo(mascota.getUsuario().getUsuarioId()),
                 mascota.getFechaUltimaComida(),
-                calcularAnimosSiguientes(mascota.getUsuario().getUsuarioId(), zonaDeMascota(mascota))
+                calcularAnimosSiguientes(mascota.getUsuario().getUsuarioId(), zonaDeMascota(mascota)),
+                comidasDeHoy(mascota),
+                COMIDAS_POR_DIA
         );
     }
 
@@ -298,10 +300,30 @@ public class MascotaService {
         mascotaDAO.update(mascota);
     }
 
+    /** Las comidas que admite la mascota en un día (3 × 15 XP = 45 XP). */
+    public static final int COMIDAS_POR_DIA = 3;
+
+    /**
+     * Suma una comida a las de hoy (en la zona del dueño); si la última fue
+     * otro día, empieza en 1. No comprueba el tope: quien da de comer lo mira
+     * antes con {@link #comidasDeHoy(int)}.
+     */
     public void registrarComida(int usuarioId) {
         Mascota mascota = obtenerOCrear(usuarioId);
+        int hechas = comidasDeHoy(mascota);
+        mascota.setComidasDia(hechas + 1);
         mascota.setFechaUltimaComida(LocalDate.now(zonaDeMascota(mascota)));
         mascotaDAO.update(mascota);
+    }
+
+    /** Las comidas de hoy en la zona del dueño: 0 si la última fue otro día. */
+    public int comidasDeHoy(int usuarioId) {
+        return comidasDeHoy(obtenerOCrear(usuarioId));
+    }
+
+    private int comidasDeHoy(Mascota mascota) {
+        return LocalDate.now(zonaDeMascota(mascota)).equals(mascota.getFechaUltimaComida())
+                ? mascota.getComidasDia() : 0;
     }
 
     /**

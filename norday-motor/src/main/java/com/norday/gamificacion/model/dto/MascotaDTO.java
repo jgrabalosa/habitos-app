@@ -35,9 +35,18 @@ public class MascotaDTO {
      */
     private List<AnimoDiaDTO> animosSiguientes;
 
+    /** Las comidas de hoy en la zona del dueño (0 si la última fue otro día). */
+    private int comidasHoy;
+
+    /** Las comidas que admite la mascota en un día: lo manda el servidor. */
+    private int comidasMaxDia;
+
     public MascotaDTO(String nombre, int xp, int nivel, int xpEnNivelActual,
                       int xpParaSiguienteNivel, String fase, String faseReal, String estado,
-                      String animo, LocalDate fechaUltimaComida, List<AnimoDiaDTO> animosSiguientes) {
+                      String animo, LocalDate fechaUltimaComida, List<AnimoDiaDTO> animosSiguientes,
+                      int comidasHoy, int comidasMaxDia) {
+        this.comidasHoy = comidasHoy;
+        this.comidasMaxDia = comidasMaxDia;
         this.animosSiguientes = animosSiguientes;
         this.nombre = nombre;
         this.xp = xp;
@@ -83,4 +92,10 @@ public class MascotaDTO {
 
     public List<AnimoDiaDTO> getAnimosSiguientes() { return animosSiguientes; }
     public void setAnimosSiguientes(List<AnimoDiaDTO> animosSiguientes) { this.animosSiguientes = animosSiguientes; }
+
+    public int getComidasHoy() { return comidasHoy; }
+    public void setComidasHoy(int comidasHoy) { this.comidasHoy = comidasHoy; }
+
+    public int getComidasMaxDia() { return comidasMaxDia; }
+    public void setComidasMaxDia(int comidasMaxDia) { this.comidasMaxDia = comidasMaxDia; }
 }
