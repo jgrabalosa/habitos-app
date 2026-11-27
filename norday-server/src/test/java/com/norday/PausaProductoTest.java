@@ -22,7 +22,7 @@ class PausaProductoTest {
         assertEquals("CONSUMIBLE", pausa.getTipo());
         assertEquals("Protección", pausa.getCategoria());
         assertEquals("habitos", pausa.getOrigenApp());
-        assertEquals(300, pausa.getPrecio());
+        assertEquals(350, pausa.getPrecio());
         assertTrue(pausa.isActivo());
     }
 }

@@ -52,10 +52,10 @@ class PrendasCatalogoTest {
 
     /** codigo → {sitio, coleccion, precio, hasta}. */
     private static final Map<String, Object[]> ESPERADAS = Map.of(
-            "PRENDA_GORRO_LANA", new Object[]{"Cabeza", "INVIERNO_2026", 200, LocalDate.of(2027, 2, 28)},
-            "PRENDA_BUFANDA", new Object[]{"Cuerpo", "INVIERNO_2026", 250, LocalDate.of(2027, 2, 28)},
+            "PRENDA_GORRO_LANA", new Object[]{"Cabeza", "INVIERNO_2026", 400, LocalDate.of(2027, 2, 28)},
+            "PRENDA_BUFANDA", new Object[]{"Cuerpo", "INVIERNO_2026", 400, LocalDate.of(2027, 2, 28)},
             "PRENDA_GORRO_NOEL", new Object[]{"Cabeza", "NAVIDAD_2026", 0, LocalDate.of(2027, 1, 7)},
-            "PRENDA_TRAJE_NOEL", new Object[]{"Cuerpo", "NAVIDAD_2026", 400, LocalDate.of(2027, 1, 7)});
+            "PRENDA_TRAJE_NOEL", new Object[]{"Cuerpo", "NAVIDAD_2026", 500, LocalDate.of(2027, 1, 7)});
 
     @Test
     void lasCuatro_conSuSitio_coleccion_versionYUnaOferta() {
@@ -107,7 +107,7 @@ class PrendasCatalogoTest {
 
         List<OfertaDTO> ofertas = ofertaDAO.deProducto(lana.getProductoId());
         assertEquals(1, ofertas.size());
-        assertEquals(200, ofertas.get(0).precio());
+        assertEquals(400, ofertas.get(0).precio());
     }
 
     @Test

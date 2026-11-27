@@ -6,8 +6,8 @@ package com.norday.enfoque.model;
  *
  * Calibrados contra Norday Habits: un día de hábito bien hecho son 25 monedas
  * y 5 XP, y una sesión de 25 minutos completada son 30 monedas y 5 XP. Con
- * dos sesiones al día, una identidad (1000) cuesta unas dos semanas, como con
- * tres hábitos.
+ * dos sesiones al día, una identidad (1250, tras el rebalanceo del 24-nov-2026)
+ * cuesta unas tres semanas, y unas dos semanas y media con tres hábitos.
  */
 public final class ParametrosPremioEnfoque {
 

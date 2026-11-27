@@ -70,7 +70,7 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // Identidad
             // Uno por tema, otorgado al conseguirlo por cualquiera de las tres
             // vías (compra, regalo, elección gratuita del onboarding). El premio
-            // (250) es estrictamente menor que el precio de un tema (1000): si
+            // (250) es estrictamente menor que el precio de un tema (1250): si
             // se igualaran, comprar temas fabricaría puntos.
             {"IDENTIDAD_PROFUNDIDAD", "Bajo las estrellas", "Consigue la identidad Profundidad", "Identidad", "Facil", "250"},
             {"IDENTIDAD_NEOTOKYO_PLUS", "Luces de neón", "Consigue la identidad Neotokyo+", "Identidad", "Facil", "250"},
@@ -103,15 +103,16 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             //
             // Mismo precio las cuatro y ninguna gratis aquí: que el usuario nuevo se
             // lleve una sin pagar es un mecanismo de onboarding aparte, no del
-            // catálogo. Precio provisional heredado de los temas premium antiguos, se
-            // reajustará en el punto 7 de la Fase 2.
-            {"TEMA_PROFUNDIDAD", "Profundidad", "Un viaje espacial entre constelaciones, estrellas fugaces y cohetes", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1000"},
+            // catálogo. Precios del rebalanceo del 24-nov-2026 (D-71,
+            // docs/decisiones/2026-11-24-precios-tienda.md). Cambiar el precio de una
+            // fila que ya existe exige migración además de este array.
+            {"TEMA_PROFUNDIDAD", "Profundidad", "Un viaje espacial entre constelaciones, estrellas fugaces y cohetes", "Tema", "EQUIPABLE", "1250"},
+            {"TEMA_NEOTOKYO_PLUS", "Neotokyo+", "Neón sobre negro, ángulos cortados y letra técnica", "Tema", "EQUIPABLE", "1250"},
             // TEMA_ALBA desactivado el 6-sep-2026: se sale a Google Play con tres
             // identidades y su rebranding queda aplazado. Para reactivarlo, ver
             // «Reactivar algo retirado» en la cabecera de la clase.
             // {"TEMA_ALBA", "Alba", "Luz de papel, salvia y terracota, sin cajas ni ruido", "Tema", "EQUIPABLE", "1000"},
-            {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1000"},
+            {"TEMA_DULCE", "Dulce", "Rosa suave, formas de píldora y un guiño manuscrito", "Tema", "EQUIPABLE", "1250"},
             // Los diez avatares, desactivados el 15-sep-2026: no encajaban con
             // nada de la app y salen de la primera versión. Al salir de este
             // array, inicializarProductos() los pone activo=false en el próximo
@@ -135,8 +136,8 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
             // {"AVATAR_KOALA", "Koala", "Avatar ilustrado de koala", "Avatar", "EQUIPABLE", "500"},
             // {"AVATAR_PINGUINO", "Pingüino", "Avatar ilustrado de pingüino", "Avatar", "EQUIPABLE", "500"},
             // {"AVATAR_LEON", "León", "Avatar ilustrado de león", "Avatar", "EQUIPABLE", "500"},
-            // placeholder: falta imagen/icono real, precio provisional a reajustar en el punto 8
-            {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "50"},
+            // placeholder: falta imagen/icono real. Precio del rebalanceo del 24-nov-2026.
+            {"COMIDA_BASICA", "Comida", "Alimenta a tu mascota y gana experiencia", "Consumible", "CONSUMIBLE", "100"},
     };
 
     /**
@@ -163,16 +164,16 @@ public class CatalogoGamificacionInitializer implements CommandLineRunner {
     static final List<Prenda> PRENDAS = List.of(
             new Prenda("PRENDA_GORRO_LANA", "Gorro de lana",
                     "Para las mañanas frías. El brote sigue asomando.",
-                    "Cabeza", "INVIERNO_2026", 200, LocalDate.of(2027, 2, 28)),
+                    "Cabeza", "INVIERNO_2026", 400, LocalDate.of(2027, 2, 28)),
             new Prenda("PRENDA_BUFANDA", "Bufanda de rayas",
                     "Calentita, a rayas y con flecos.",
-                    "Cuerpo", "INVIERNO_2026", 250, LocalDate.of(2027, 2, 28)),
+                    "Cuerpo", "INVIERNO_2026", 400, LocalDate.of(2027, 2, 28)),
             new Prenda("PRENDA_GORRO_NOEL", "Gorro de Papá Noel",
                     "Con borla. Tapa el brote.",
                     "Cabeza", "NAVIDAD_2026", 0, LocalDate.of(2027, 1, 7)),
             new Prenda("PRENDA_TRAJE_NOEL", "Traje de Papá Noel",
                     "Rojo, con cinturón y hebilla dorada. Se ve desde que Nori es cría.",
-                    "Cuerpo", "NAVIDAD_2026", 400, LocalDate.of(2027, 1, 7))
+                    "Cuerpo", "NAVIDAD_2026", 500, LocalDate.of(2027, 1, 7))
     );
 
     @Override
