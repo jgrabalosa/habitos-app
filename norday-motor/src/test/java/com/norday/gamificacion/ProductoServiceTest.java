@@ -325,4 +325,35 @@ class ProductoServiceTest {
         assertEquals(2, poseido.getCantidad());
         verify(usuarioProductoDAO, never()).update(any());
     }
+
+    @Test
+    void usarProducto_conElTopeDeComidasDeHoy_esConflictoYNoGastaNiDaXp() {
+        Producto comida = consumible(31, "COMIDA_BASICA");
+        UsuarioProducto poseido = new UsuarioProducto(usuario, comida, 2);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 31)).thenReturn(poseido);
+        when(mascotaService.comidasDeHoy(1)).thenReturn(MascotaService.COMIDAS_POR_DIA);
+
+        assertThrows(ConflictoException.class, () -> productoService.usarProducto(usuario, 31));
+
+        assertEquals(2, poseido.getCantidad());
+        verify(usuarioProductoDAO, never()).update(any());
+        verify(mascotaService, never()).ganarExperiencia(anyInt(), anyInt());
+        verify(mascotaService, never()).registrarComida(anyInt());
+    }
+
+    @Test
+    void usarProducto_porDebajoDelTope_gastaUnaUnidadYDaLaXp() {
+        Producto comida = consumible(31, "COMIDA_BASICA");
+        UsuarioProducto poseido = new UsuarioProducto(usuario, comida, 2);
+        when(usuarioProductoDAO.findByUsuarioYProducto(1, 31)).thenReturn(poseido);
+        when(mascotaService.comidasDeHoy(1)).thenReturn(MascotaService.COMIDAS_POR_DIA - 1);
+        when(mascotaService.ganarExperiencia(1, 15)).thenReturn(
+                new com.norday.gamificacion.model.dto.ResultadoExperienciaDTO(false, 1, null));
+
+        productoService.usarProducto(usuario, 31);
+
+        assertEquals(1, poseido.getCantidad());
+        verify(mascotaService).ganarExperiencia(1, 15);
+        verify(mascotaService).registrarComida(1);
+    }
 }

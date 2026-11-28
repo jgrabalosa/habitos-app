@@ -248,6 +248,7 @@ classDiagram
         -int experiencia
         -String nombre
         -LocalDate fechaUltimaComida
+        -int comidasDia
         -LocalDate fechaUltimoDiaCompleto
         -String faseElegida
     }

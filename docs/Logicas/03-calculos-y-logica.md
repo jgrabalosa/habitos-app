@@ -439,6 +439,16 @@ La mascota tiene dos logros propios del motor, que se tienen con esa fase o una 
 
 Se miran cada vez que la mascota gana XP, no solo cuando cambia de fase, y también en cada paso que no da XP (minutos de más, un día ya hecho), una sola vez (`otorgarSiNoTiene`; `MascotaService.revisarLogrosDeFase`). Un salto de huevo a adulta de una vez da los dos. Van en la reversión del completado que los dio: deshacerlo los retira aunque la XP de otros pasos mantenga la fase, y el siguiente paso (dé XP o no) o la siguiente comida los devuelve; lo que devuelve un paso entra en su reversión. Al perder XP no se miran.
 
+### Tope de comidas al día
+
+Como mucho `MascotaService.COMIDAS_POR_DIA` = 3 comidas al día (3 × 15 XP = 45 XP), contadas en el día del usuario (su zona, `ZonaUsuarioService`). Nori crece por lo que haces, no por lo que compras (D-71).
+
+- La mascota guarda `comidas_dia` (migración V35, `INTEGER NOT NULL DEFAULT 0`): las comidas del día de `fecha_ultima_comida`. `registrarComida` suma 1 si esa fecha es hoy y pone 1 si no. De otro día, la cuenta ya no vale: `MascotaService.comidasDeHoy` da 0.
+- `ProductoService.usarProducto`, para una comida y con el usuario ya bloqueado, mira `comidasDeHoy` **antes** de restar la unidad: si ya son 3, `ConflictoException` (409, «La mascota ya ha comido todo lo de hoy»). La cuarta no gasta la unidad ni da XP. Un consumible que no es comida no cuenta.
+- `MascotaDTO` lleva `comidasHoy` (las de hoy, 0 si la última fue otro día) y `comidasMaxDia` (3, lo manda el servidor; la app lo lee). Son campos nuevos: los que ya existían no cambian.
+- La exportación de datos incluye `comidasDia` de la mascota.
+- La comida sigue siendo un capricho, nunca una obligación: Nori no pasa hambre.
+
 ### Ánimo con varias apps
 
 El ánimo (y el estado antiguo) sale de `CumplimientoCombinado` (motor), que junta los `CumplimientoDiarioPort` de cada app: `CumplimientoDiarioHabitos` y `CumplimientoDiarioEnfoque` (16-nov-2026). Solo cuentan las apps **en uso** (`enUso`): Habits, si el usuario tiene algún hábito, activo o en pausa; Focus, si tiene alguna sesión que cuenta en los últimos 14 días. Si no usa ninguna, cuentan todas.
